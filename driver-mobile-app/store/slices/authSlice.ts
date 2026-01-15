@@ -1,7 +1,7 @@
-import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../../services/api';
-import { AuthState, User, Driver } from '../../types';
+import { AuthState, User } from '../../types';
 import { STORAGE_KEYS } from '../../utils/constants';
 
 const initialState: AuthState = {
@@ -35,17 +35,22 @@ export const login = createAsyncThunk(
 
 export const logout = createAsyncThunk(
     'auth/logout',
-    async (_, { rejectWithValue }) => {
+    async () => {
+        // Clear storage first
+        await AsyncStorage.multiRemove([
+            STORAGE_KEYS.AUTH_TOKEN,
+            STORAGE_KEYS.USER_DATA,
+            STORAGE_KEYS.CACHED_SHIPMENTS,
+        ]);
+
+        // Try to call API logout but don't fail if it errors
         try {
             await api.logout();
-            await AsyncStorage.multiRemove([
-                STORAGE_KEYS.AUTH_TOKEN,
-                STORAGE_KEYS.USER_DATA,
-                STORAGE_KEYS.CACHED_SHIPMENTS,
-            ]);
-        } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Logout failed');
+        } catch (error) {
+            console.log('Logout API call failed, but continuing with local logout');
         }
+
+        return null;
     }
 );
 
@@ -101,6 +106,7 @@ const authSlice = createSlice({
             state.user = null;
             state.token = null;
             state.driver = null;
+            state.error = null;
         });
 
         // Load stored

@@ -3,6 +3,7 @@
     "name": "LogiTrack Driver",
     "slug": "logitrack-driver",
     "version": "1.0.0",
+    "scheme": "logitrack",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -58,7 +59,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#2563eb"
         }
-      ]
+      ],
+      "expo-router"
     ]
   }
 }

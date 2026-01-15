@@ -4,10 +4,10 @@ import {
     StyleSheet,
     KeyboardAvoidingView,
     Platform,
-    Image,
     Alert,
 } from 'react-native';
-import { TextInput, Button, Text, ActivityIndicator } from 'react-native-paper';
+import { TextInput, Button, Text } from 'react-native-paper';
+import { useRouter } from 'expo-router';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { login, clearError } from '../../store/slices/authSlice';
 import { COLORS } from '../../utils/constants';
@@ -17,8 +17,9 @@ export default function LoginScreen() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
+    const router = useRouter();
     const dispatch = useAppDispatch();
-    const { isLoading, error } = useAppSelector((state) => state.auth);
+    const { isLoading, error, user } = useAppSelector((state) => state.auth);
 
     useEffect(() => {
         if (error) {
@@ -28,18 +29,19 @@ export default function LoginScreen() {
         }
     }, [error]);
 
-    const handleLogin = async () => {
-        console.log('=== LOGIN BUTTON CLICKED ===');
-        console.log('Email:', email);
-        console.log('Password:', password);
+    useEffect(() => {
+        // Navigate to tabs when login successful
+        if (user) {
+            router.replace('/(tabs)');
+        }
+    }, [user]);
 
+    const handleLogin = async () => {
         if (!email || !password) {
-            console.log('Validation failed: empty fields');
             Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
             return;
         }
 
-        console.log('Dispatching login action...');
         dispatch(login({ email, password }));
     };
 
