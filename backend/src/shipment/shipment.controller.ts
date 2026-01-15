@@ -1,0 +1,131 @@
+import {
+    Controller,
+    Get,
+    Post,
+    Body,
+    Patch,
+    Param,
+    Delete,
+    UseGuards,
+    Request,
+    Query,
+    ForbiddenException,
+} from '@nestjs/common';
+import { ShipmentService } from './shipment.service';
+import { CreateShipmentDto } from './dto/create-shipment.dto';
+import { UpdateShipmentDto } from './dto/update-shipment.dto';
+import { AssignDriverDto } from './dto/assign-driver.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole, ShipmentStatus } from '@prisma/client';
+
+@Controller('shipments')
+@UseGuards(JwtAuthGuard, RolesGuard)
+export class ShipmentController {
+    constructor(private readonly shipmentService: ShipmentService) { }
+
+    @Get()
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    findAll(
+        @Query('status') status?: ShipmentStatus,
+        @Query('driverId') driverId?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        const filters: any = {};
+
+        if (status) {
+            filters.status = status;
+        }
+
+        if (driverId) {
+            filters.driverId = driverId;
+        }
+
+        if (startDate) {
+            filters.startDate = new Date(startDate);
+        }
+
+        if (endDate) {
+            filters.endDate = new Date(endDate);
+        }
+
+        return this.shipmentService.findAll(filters);
+    }
+
+    @Get('my')
+    @Roles(UserRole.DRIVER)
+    async getMyShipments(@Request() req) {
+        // Get driver profile for the authenticated user
+        const driverProfile = await this.shipmentService['prisma'].driverProfile.findUnique({
+            where: { userId: req.user.id },
+        });
+
+        if (!driverProfile) {
+            throw new ForbiddenException('You do not have a driver profile');
+        }
+
+        return this.shipmentService.findByDriver(req.user.id);
+    }
+
+    @Get(':id')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+    async findOne(@Param('id') id: string, @Request() req) {
+        const shipment = await this.shipmentService.findOne(id);
+
+        // Drivers can only see their own shipments
+        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
+            throw new ForbiddenException('You can only access your own shipments');
+        }
+
+        return shipment;
+    }
+
+    @Post()
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    create(@Body() createShipmentDto: CreateShipmentDto) {
+        return this.shipmentService.create(createShipmentDto);
+    }
+
+    @Patch(':id')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    update(@Param('id') id: string, @Body() updateShipmentDto: UpdateShipmentDto) {
+        return this.shipmentService.update(id, updateShipmentDto);
+    }
+
+    @Patch(':id/assign')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    assignDriver(@Param('id') id: string, @Body() assignDriverDto: AssignDriverDto) {
+        return this.shipmentService.assignDriver(id, assignDriverDto.driverId);
+    }
+
+    @Patch(':id/status')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+    async updateStatus(
+        @Param('id') id: string,
+        @Body() updateStatusDto: UpdateStatusDto,
+        @Request() req,
+    ) {
+        const shipment = await this.shipmentService.findOne(id);
+
+        // Drivers can only update their own shipments
+        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
+            throw new ForbiddenException('You can only update your own shipments');
+        }
+
+        // Only ADMIN can cancel shipments
+        if (updateStatusDto.status === ShipmentStatus.CANCELLED && req.user.role !== UserRole.ADMIN) {
+            throw new ForbiddenException('Only administrators can cancel shipments');
+        }
+
+        return this.shipmentService.updateStatus(id, updateStatusDto);
+    }
+
+    @Delete(':id')
+    @Roles(UserRole.ADMIN)
+    remove(@Param('id') id: string) {
+        return this.shipmentService.remove(id);
+    }
+}

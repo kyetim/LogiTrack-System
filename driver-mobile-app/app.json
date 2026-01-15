@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "LogiTrack Driver",
+    "slug": "logitrack-driver",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.logitrack.driver",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "LogiTrack needs your location to track deliveries",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "LogiTrack needs background location access to track your route even when the app is closed",
+        "NSCameraUsageDescription": "LogiTrack needs camera access to take delivery photos",
+        "NSPhotoLibraryUsageDescription": "LogiTrack needs photo library access to attach delivery photos"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.logitrack.driver",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow LogiTrack to use your location for delivery tracking."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow LogiTrack to access your camera for delivery photos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2563eb"
+        }
+      ]
+    ]
+  }
+}

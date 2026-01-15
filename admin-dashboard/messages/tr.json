@@ -1,0 +1,113 @@
+{
+    "common": {
+        "loading": "Yükleniyor...",
+        "save": "Kaydet",
+        "cancel": "İptal",
+        "delete": "Sil",
+        "edit": "Düzenle",
+        "create": "Oluştur",
+        "search": "Ara",
+        "back": "Geri",
+        "logout": "Çıkış Yap",
+        "welcome": "Hoş geldiniz",
+        "actions": "İşlemler",
+        "confirm": "Onayla",
+        "close": "Kapat",
+        "success": "Başarılı",
+        "error": "Hata",
+        "required": "Zorunlu alan",
+        "optional": "İsteğe bağlı"
+    },
+    "auth": {
+        "login": "Giriş Yap",
+        "email": "E-posta",
+        "password": "Şifre",
+        "invalidCredentials": "Geçersiz kimlik bilgileri",
+        "enterCredentials": "Kontrol paneline erişmek için kimlik bilgilerinizi girin"
+    },
+    "dashboard": {
+        "title": "LogiTrack Kontrol Paneli",
+        "welcomeBack": "Hoş geldiniz",
+        "totalUsers": "Toplam Kullanıcılar",
+        "activeDrivers": "Aktif Sürücüler",
+        "fleetVehicles": "Filo Araçları",
+        "totalShipments": "Toplam Sevkiyatlar",
+        "quickActions": "Hızlı İşlemler",
+        "manageUsers": "Kullanıcıları Yönet",
+        "manageDrivers": "Sürücüleri Yönet",
+        "manageVehicles": "Araçları Yönet",
+        "manageShipments": "Sevkiyatları Yönet"
+    },
+    "users": {
+        "title": "Kullanıcı Yönetimi",
+        "subtitle": "Sistem kullanıcılarını ve rollerini yönetin",
+        "allUsers": "Tüm Kullanıcılar",
+        "addUser": "Kullanıcı Ekle",
+        "editUser": "Kullanıcı Düzenle",
+        "createUser": "Yeni Kullanıcı Oluştur",
+        "email": "E-posta",
+        "role": "Rol",
+        "createdAt": "Oluşturulma Tarihi",
+        "actions": "İşlemler",
+        "deleteConfirm": "Bu kullanıcıyı silmek istediğinizden emin misiniz?",
+        "deleteFailed": "Kullanıcı silinemedi",
+        "deleteSuccess": "Kullanıcı başarıyla silindi",
+        "createSuccess": "Kullanıcı başarıyla oluşturuldu",
+        "updateSuccess": "Kullanıcı başarıyla güncellendi",
+        "backToDashboard": "Kontrol Paneline Dön",
+        "selectRole": "Rol seçin",
+        "enterEmail": "E-posta adresini girin",
+        "enterPassword": "Şifre girin",
+        "passwordOptional": "Şifre (değiştirmek için)"
+    },
+    "drivers": {
+        "title": "Sürücü Yönetimi",
+        "subtitle": "Sürücüleri ve durumlarını yönetin",
+        "allDrivers": "Tüm Sürücüler",
+        "addDriver": "Sürücü Ekle",
+        "editDriver": "Sürücü Düzenle",
+        "licenseNumber": "Ehliyet Numarası",
+        "phoneNumber": "Telefon Numarası",
+        "status": "Durum",
+        "assignedVehicle": "Atanan Araç"
+    },
+    "vehicles": {
+        "title": "Araç Yönetimi",
+        "subtitle": "Filo araçlarını yönetin",
+        "allVehicles": "Tüm Araçlar",
+        "addVehicle": "Araç Ekle",
+        "editVehicle": "Araç Düzenle",
+        "plateNumber": "Plaka",
+        "model": "Model",
+        "capacity": "Kapasite",
+        "available": "Müsait"
+    },
+    "shipments": {
+        "title": "Sevkiyat Yönetimi",
+        "subtitle": "Sevkiyatları takip edin ve yönetin",
+        "allShipments": "Tüm Sevkiyatlar",
+        "addShipment": "Sevkiyat Ekle",
+        "editShipment": "Sevkiyat Düzenle",
+        "trackingNumber": "Takip Numarası",
+        "origin": "Başlangıç",
+        "destination": "Varış",
+        "status": "Durum",
+        "assignedDriver": "Atanan Sürücü"
+    },
+    "roles": {
+        "ADMIN": "Yönetici",
+        "DISPATCHER": "Sevkiyat Sorumlusu",
+        "DRIVER": "Sürücü"
+    },
+    "statuses": {
+        "PENDING": "Beklemede",
+        "IN_TRANSIT": "Yolda",
+        "DELIVERED": "Teslim Edildi",
+        "CANCELLED": "İptal Edildi",
+        "ON_DUTY": "Görevde",
+        "OFF_DUTY": "Görev Dışı",
+        "AVAILABLE": "Müsait",
+        "IN_USE": "Kullanımda",
+        "MAINTENANCE": "Bakımda"
+    }
+}
