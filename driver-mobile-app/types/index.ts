@@ -28,10 +28,10 @@ export interface Shipment {
     id: string;
     trackingNumber: string;
     status: 'PENDING' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
-    pickupLocation: string;
-    deliveryLocation: string;
-    pickupCoordinates?: Coordinates;
-    deliveryCoordinates?: Coordinates;
+    origin: string;
+    destination: string;
+    pickupLocation?: any; // JSON object with lat, lng, address
+    deliveryLocation?: any; // JSON object with lat, lng, address
     driverId?: string;
     driver?: Driver;
     customerName?: string;

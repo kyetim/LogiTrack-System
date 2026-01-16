@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ShipmentFormModal, ShipmentFormData } from '@/components/ShipmentFormModal';
+import { AssignDriverModal } from '@/components/AssignDriverModal';
 import { TableFilters } from '@/components/TableFilters';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -30,9 +31,8 @@ interface Shipment {
     status: string;
     driverId?: string;
     driver?: {
-        user: {
-            email: string;
-        };
+        id: string;
+        email: string;
     };
     createdAt: string;
 }
@@ -40,6 +40,7 @@ interface Shipment {
 interface Driver {
     id: string;
     user: {
+        id: string;
         email: string;
     };
 }
@@ -56,6 +57,8 @@ export default function ShipmentsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedShipmentForAssign, setSelectedShipmentForAssign] = useState<Shipment | null>(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -158,6 +161,24 @@ export default function ShipmentsPage() {
                 toast.success(t('users.createSuccess'));
             }
             fetchShipments();
+        } catch (error: any) {
+            throw error;
+        }
+    };
+
+    const handleAssignDriver = (shipment: Shipment) => {
+        setSelectedShipmentForAssign(shipment);
+        setAssignModalOpen(true);
+    };
+
+    const handleAssignSubmit = async (driverId: string) => {
+        if (!selectedShipmentForAssign) return;
+
+        try {
+            await api.patch(`/shipments/${selectedShipmentForAssign.id}/assign`, { driverId });
+            toast.success('Sürücü atandı');
+            fetchShipments();
+            setAssignModalOpen(false);
         } catch (error: any) {
             throw error;
         }
@@ -292,7 +313,7 @@ export default function ShipmentsPage() {
                                                     <TableCell>{shipment.origin}</TableCell>
                                                     <TableCell>{shipment.destination}</TableCell>
                                                     <TableCell>
-                                                        {shipment.driver ? shipment.driver.user.email : '-'}
+                                                        {shipment.driver ? shipment.driver.email : '-'}
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant={
@@ -304,6 +325,13 @@ export default function ShipmentsPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                onClick={() => handleAssignDriver(shipment)}
+                                                            >
+                                                                Sürücü Ata
+                                                            </Button>
                                                             <Button variant="outline" size="sm" onClick={() => handleEdit(shipment)}>
                                                                 <Pencil className="h-4 w-4" />
                                                             </Button>
@@ -333,6 +361,14 @@ export default function ShipmentsPage() {
                 onSubmit={handleSubmit}
                 shipment={selectedShipment}
                 drivers={drivers}
+            />
+
+            <AssignDriverModal
+                open={assignModalOpen}
+                onClose={() => setAssignModalOpen(false)}
+                onSubmit={handleAssignSubmit}
+                drivers={drivers}
+                currentDriverId={selectedShipmentForAssign?.driverId}
             />
         </div>
     );

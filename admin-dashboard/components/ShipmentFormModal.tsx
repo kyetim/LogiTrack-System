@@ -25,54 +25,37 @@ interface ShipmentFormModalProps {
     open: boolean;
     onClose: () => void;
     onSubmit: (data: ShipmentFormData) => Promise<void>;
-    shipment?: {
-        id: string;
-        trackingNumber: string;
-        origin: string;
-        destination: string;
-        driverId?: string;
-        status: string;
-    } | null;
+    shipment?: any | null;
     drivers: Array<{ id: string; user: { email: string } }>;
 }
 
 export interface ShipmentFormData {
-    trackingNumber: string;
-    origin: string;
-    destination: string;
-    driverId?: string;
-    status: string;
+    pickupLocation: {
+        lat: number;
+        lng: number;
+        address: string;
+    };
+    deliveryLocation: {
+        lat: number;
+        lng: number;
+        address: string;
+    };
 }
 
 export function ShipmentFormModal({ open, onClose, onSubmit, shipment, drivers }: ShipmentFormModalProps) {
     const t = useTranslations();
-    const [formData, setFormData] = useState<ShipmentFormData>({
-        trackingNumber: '',
-        origin: '',
-        destination: '',
-        driverId: undefined,
-        status: 'PENDING',
-    });
+    const [pickupAddress, setPickupAddress] = useState('');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
     useEffect(() => {
         if (shipment) {
-            setFormData({
-                trackingNumber: shipment.trackingNumber,
-                origin: shipment.origin,
-                destination: shipment.destination,
-                driverId: shipment.driverId,
-                status: shipment.status,
-            });
+            setPickupAddress(shipment.pickupLocation || '');
+            setDeliveryAddress(shipment.deliveryLocation || '');
         } else {
-            setFormData({
-                trackingNumber: `TRK${Date.now()}`,
-                origin: '',
-                destination: '',
-                driverId: undefined,
-                status: 'PENDING',
-            });
+            setPickupAddress('');
+            setDeliveryAddress('');
         }
         setError('');
     }, [shipment, open]);
@@ -81,13 +64,27 @@ export function ShipmentFormModal({ open, onClose, onSubmit, shipment, drivers }
         e.preventDefault();
         setError('');
 
-        if (!formData.trackingNumber || !formData.origin || !formData.destination) {
+        if (!pickupAddress || !deliveryAddress) {
             setError(t('common.required'));
             return;
         }
 
         setIsLoading(true);
         try {
+            // Create proper DTO format
+            const formData: ShipmentFormData = {
+                pickupLocation: {
+                    lat: 41.0082, // Default Istanbul coordinates
+                    lng: 28.9784,
+                    address: pickupAddress,
+                },
+                deliveryLocation: {
+                    lat: 39.9334, // Default Ankara coordinates
+                    lng: 32.8597,
+                    address: deliveryAddress,
+                },
+            };
+
             await onSubmit(formData);
             onClose();
         } catch (err: any) {
@@ -105,88 +102,36 @@ export function ShipmentFormModal({ open, onClose, onSubmit, shipment, drivers }
                         {shipment ? t('shipments.editShipment') : t('shipments.addShipment')}
                     </DialogTitle>
                     <DialogDescription>
-                        {t('shipments.subtitle')}
+                        Sevkiyat bilgilerini girin
                     </DialogDescription>
                 </DialogHeader>
 
                 <form onSubmit={handleSubmit}>
                     <div className="grid gap-4 py-4">
-                        {/* Tracking Number */}
+                        {/* Pickup Address */}
                         <div className="grid gap-2">
-                            <Label htmlFor="trackingNumber">{t('shipments.trackingNumber')}</Label>
+                            <Label htmlFor="pickupAddress">Alış Adresi</Label>
                             <Input
-                                id="trackingNumber"
+                                id="pickupAddress"
                                 type="text"
-                                value={formData.trackingNumber}
-                                onChange={(e) => setFormData({ ...formData, trackingNumber: e.target.value })}
+                                placeholder="İstanbul, Kadıköy..."
+                                value={pickupAddress}
+                                onChange={(e) => setPickupAddress(e.target.value)}
                                 required
                             />
                         </div>
 
-                        {/* Origin */}
+                        {/* Delivery Address */}
                         <div className="grid gap-2">
-                            <Label htmlFor="origin">{t('shipments.origin')}</Label>
+                            <Label htmlFor="deliveryAddress">Teslim Adresi</Label>
                             <Input
-                                id="origin"
+                                id="deliveryAddress"
                                 type="text"
-                                placeholder="İstanbul"
-                                value={formData.origin}
-                                onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
+                                placeholder="Ankara, Çankaya..."
+                                value={deliveryAddress}
+                                onChange={(e) => setDeliveryAddress(e.target.value)}
                                 required
                             />
-                        </div>
-
-                        {/* Destination */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="destination">{t('shipments.destination')}</Label>
-                            <Input
-                                id="destination"
-                                type="text"
-                                placeholder="Ankara"
-                                value={formData.destination}
-                                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                                required
-                            />
-                        </div>
-
-                        {/* Driver Assignment */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="driverId">{t('shipments.assignedDriver')}</Label>
-                            <Select
-                                value={formData.driverId || 'none'}
-                                onValueChange={(value) => setFormData({ ...formData, driverId: value === 'none' ? undefined : value })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Sürücü seçin (opsiyonel)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="none">Atanmadı</SelectItem>
-                                    {drivers.map((driver) => (
-                                        <SelectItem key={driver.id} value={driver.id}>
-                                            {driver.user.email}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Status */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="status">{t('shipments.status')}</Label>
-                            <Select
-                                value={formData.status}
-                                onValueChange={(value) => setFormData({ ...formData, status: value })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PENDING">{t('statuses.PENDING')}</SelectItem>
-                                    <SelectItem value="IN_TRANSIT">{t('statuses.IN_TRANSIT')}</SelectItem>
-                                    <SelectItem value="DELIVERED">{t('statuses.DELIVERED')}</SelectItem>
-                                    <SelectItem value="CANCELLED">{t('statuses.CANCELLED')}</SelectItem>
-                                </SelectContent>
-                            </Select>
                         </div>
 
                         {error && (

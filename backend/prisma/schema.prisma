@@ -85,8 +85,13 @@ model Vehicle {
 
 model Shipment {
   id                String          @id @default(uuid())
+  trackingNumber    String          @unique @map("tracking_number")
   driverId          String?         @map("driver_id")
   status            ShipmentStatus  @default(PENDING)
+  
+  // Address strings for display
+  origin            String
+  destination       String
   
   // Locations stored as JSON for now (will use PostGIS geometry later)
   pickupLocation    Json            @map("pickup_location")

@@ -64,7 +64,7 @@ class ApiClient {
 
     // Shipments
     async getMyShipments(): Promise<Shipment[]> {
-        const { data } = await this.client.get<Shipment[]>('/shipments/my-shipments');
+        const { data } = await this.client.get<Shipment[]>('/shipments/my');
         return data;
     }
 

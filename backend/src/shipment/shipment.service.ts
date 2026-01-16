@@ -76,8 +76,18 @@ export class ShipmentService {
     async create(createShipmentDto: CreateShipmentDto) {
         const { pickupLocation, deliveryLocation, estimatedArrival } = createShipmentDto;
 
+        // Generate tracking number
+        const trackingNumber = `TRK${Date.now()}`;
+
+        // Extract addresses from location JSON
+        const origin = (pickupLocation as any).address || 'Unknown';
+        const destination = (deliveryLocation as any).address || 'Unknown';
+
         return this.prisma.shipment.create({
             data: {
+                trackingNumber,
+                origin,
+                destination,
                 pickupLocation,
                 deliveryLocation,
                 estimatedArrival: estimatedArrival ? new Date(estimatedArrival) : null,
