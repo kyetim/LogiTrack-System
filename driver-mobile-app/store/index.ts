@@ -3,6 +3,7 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import authReducer from './slices/authSlice';
 import shipmentsReducer from './slices/shipmentsSlice';
 import locationReducer from './slices/locationSlice';
+import mapReducer from './slices/mapSlice';
 import { RootState } from '../types';
 
 export const store = configureStore({
@@ -10,6 +11,7 @@ export const store = configureStore({
         auth: authReducer,
         shipments: shipmentsReducer,
         location: locationReducer,
+        map: mapReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

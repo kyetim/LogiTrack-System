@@ -89,8 +89,15 @@ export interface LocationState {
     error: string | null;
 }
 
+export interface MapState {
+    selectedShipmentId: string | null;
+    mapRegion: any | null;
+    showUserLocation: boolean;
+}
+
 export interface RootState {
     auth: AuthState;
     shipments: ShipmentsState;
     location: LocationState;
+    map: MapState;
 }

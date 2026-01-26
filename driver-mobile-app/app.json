@@ -16,10 +16,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.logitrack.driver",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "LogiTrack needs your location to track deliveries",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "LogiTrack needs background location access to track your route even when the app is closed",
-        "NSCameraUsageDescription": "LogiTrack needs camera access to take delivery photos",
-        "NSPhotoLibraryUsageDescription": "LogiTrack needs photo library access to attach delivery photos"
+        "NSLocationWhenInUseUsageDescription": "Sevkiyatlarınızı haritada görebilmek ve konumunuzu paylaşabilmek için konum izni gerekiyor.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Teslimat sırasında konumunuzu otomatik olarak güncelleyebilmek için arka planda konum izni gerekiyor.",
+        "NSCameraUsageDescription": "Teslimat fotoğrafı çekebilmek için kamera izni gerekiyor.",
+        "NSPhotoLibraryUsageDescription": "Teslimat fotoğrafı ekleyebilmek için galeri izni gerekiyor."
       }
     },
     "android": {
@@ -44,13 +44,13 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow LogiTrack to use your location for delivery tracking."
+          "locationAlwaysAndWhenInUsePermission": "Sevkiyatlarınızı haritada görebilmek ve teslimat sırasında konumunuzu otomatik güncelleyebilmek için konum izni gerekiyor."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow LogiTrack to access your camera for delivery photos."
+          "cameraPermission": "Teslimat fotoğrafı çekebilmek için kamera izni gerekiyor."
         }
       ],
       [

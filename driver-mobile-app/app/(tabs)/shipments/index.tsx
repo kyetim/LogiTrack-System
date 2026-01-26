@@ -9,10 +9,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAppDispatch, useAppSelector } from '../../store';
-import { fetchShipments } from '../../store/slices/shipmentsSlice';
-import ShipmentCard from '../../components/ShipmentCard';
-import { COLORS } from '../../utils/constants';
+import { useAppDispatch, useAppSelector } from '../../../store';
+import { fetchShipments } from '../../../store/slices/shipmentsSlice';
+import ShipmentCard from '../../../components/ShipmentCard';
+import { COLORS } from '../../../utils/constants';
 
 export default function ShipmentsScreen() {
     const router = useRouter();
@@ -29,8 +29,7 @@ export default function ShipmentsScreen() {
     };
 
     const handleShipmentPress = (shipmentId: string) => {
-        // TODO: Navigate to shipment detail screen
-        console.log('Navigate to shipment:', shipmentId);
+        router.push(`/shipments/${shipmentId}`);
     };
 
     // Loading state
