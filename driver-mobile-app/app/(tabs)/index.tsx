@@ -1,15 +1,31 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useAppSelector, useAppDispatch } from '../../store';
 import { COLORS } from '../../utils/constants';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { startTracking, stopTracking } from '../../store/slices/locationSlice';
+import { startTracking, stopTracking, setConnected, setError } from '../../store/slices/locationSlice';
+import websocketService from '../../services/websocket';
+import { startLocationTracking, stopLocationTracking } from '../../services/locationTracking';
 
 export default function DashboardScreen() {
     const dispatch = useAppDispatch();
     const { user, driver } = useAppSelector((state) => state.auth);
-    const { isTracking, currentLocation } = useAppSelector((state) => state.location);
+    const { isTracking, currentLocation, isConnected, lastUpdate } = useAppSelector((state) => state.location);
     const { shipments } = useAppSelector((state) => state.shipments);
+
+    // Connect WebSocket on mount
+    useEffect(() => {
+        const connectWebSocket = async () => {
+            const connected = await websocketService.connect();
+            dispatch(setConnected(connected));
+        };
+
+        connectWebSocket();
+
+        return () => {
+            websocketService.disconnect();
+        };
+    }, [dispatch]);
 
     const todayShipments = shipments.filter(s =>
         new Date(s.createdAt).toDateString() === new Date().toDateString()
@@ -22,12 +38,48 @@ export default function DashboardScreen() {
         new Date(s.updatedAt).toDateString() === new Date().toDateString()
     );
 
-    const handleToggleTracking = () => {
+    const handleToggleTracking = async () => {
         if (isTracking) {
-            dispatch(stopTracking());
+            // Stop tracking
+            const stopped = await stopLocationTracking();
+            if (stopped) {
+                dispatch(stopTracking());
+            } else {
+                Alert.alert('Hata', 'Takip durdurulamadı');
+            }
         } else {
-            dispatch(startTracking());
+            // Start tracking
+            if (!isConnected) {
+                Alert.alert(
+                    'Bağlantı Hatası',
+                    'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
+                    [{ text: 'Tamam' }]
+                );
+                return;
+            }
+
+            const started = await startLocationTracking();
+            if (started) {
+                dispatch(startTracking());
+            } else {
+                Alert.alert(
+                    'İzin Gerekli',
+                    'GPS takibi için konum izni gerekiyor. Lütfen ayarlardan konum iznini açın.',
+                    [{ text: 'Tamam' }]
+                );
+            }
         }
+    };
+
+    const getLastUpdateText = () => {
+        if (!lastUpdate) return 'Henüz güncelleme yok';
+
+        const now = new Date();
+        const diff = Math.floor((now.getTime() - new Date(lastUpdate).getTime()) / 1000);
+
+        if (diff < 60) return `${diff} saniye önce`;
+        if (diff < 3600) return `${Math.floor(diff / 60)} dakika önce`;
+        return `${Math.floor(diff / 3600)} saat önce`;
     };
 
     return (
@@ -50,12 +102,20 @@ export default function DashboardScreen() {
             <View style={styles.card}>
                 <View style={styles.cardHeader}>
                     <MaterialCommunityIcons name="map-marker" size={24} color={COLORS.primary} />
-                    <Text style={styles.cardTitle}>GPS Takip</Text>
+                    <Text style={styles.cardTitle}>Konum Paylaşımı</Text>
+                    <View style={[styles.connectionBadge, { backgroundColor: isConnected ? COLORS.success : COLORS.danger }]}>
+                        <Text style={styles.connectionText}>{isConnected ? 'Bağlı' : 'Bağlantı Yok'}</Text>
+                    </View>
                 </View>
                 <View style={styles.trackingInfo}>
                     <Text style={styles.trackingStatus}>
                         {isTracking ? '🟢 Aktif' : '🔴 Pasif'}
                     </Text>
+                    {lastUpdate && (
+                        <Text style={styles.lastUpdate}>
+                            Son güncelleme: {getLastUpdateText()}
+                        </Text>
+                    )}
                     {currentLocation && (
                         <Text style={styles.coordinates}>
                             {currentLocation.latitude.toFixed(6)}, {currentLocation.longitude.toFixed(6)}
@@ -189,6 +249,17 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: COLORS.text,
         marginLeft: 8,
+        flex: 1,
+    },
+    connectionBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    connectionText: {
+        fontSize: 10,
+        color: 'white',
+        fontWeight: '600',
     },
     trackingInfo: {
         marginBottom: 12,
@@ -196,6 +267,11 @@ const styles = StyleSheet.create({
     trackingStatus: {
         fontSize: 16,
         fontWeight: '600',
+        marginBottom: 4,
+    },
+    lastUpdate: {
+        fontSize: 12,
+        color: COLORS.textLight,
         marginBottom: 4,
     },
     coordinates: {

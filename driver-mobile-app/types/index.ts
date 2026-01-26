@@ -87,6 +87,9 @@ export interface LocationState {
     isTracking: boolean;
     currentLocation: Coordinates | null;
     error: string | null;
+    lastUpdate: Date | null;
+    isConnected: boolean;
+    locationHistory: Coordinates[];
 }
 
 export interface MapState {

@@ -5,6 +5,9 @@ const initialState: LocationState = {
     isTracking: false,
     currentLocation: null,
     error: null,
+    lastUpdate: null,
+    isConnected: false,
+    locationHistory: [],
 };
 
 const locationSlice = createSlice({
@@ -20,6 +23,12 @@ const locationSlice = createSlice({
         },
         updateLocation: (state, action: PayloadAction<Coordinates>) => {
             state.currentLocation = action.payload;
+            state.lastUpdate = new Date();
+            // Add to history (keep last 10)
+            state.locationHistory = [action.payload, ...state.locationHistory].slice(0, 10);
+        },
+        setConnected: (state, action: PayloadAction<boolean>) => {
+            state.isConnected = action.payload;
         },
         setError: (state, action: PayloadAction<string>) => {
             state.error = action.payload;
@@ -31,6 +40,6 @@ const locationSlice = createSlice({
     },
 });
 
-export const { startTracking, stopTracking, updateLocation, setError, clearError } =
+export const { startTracking, stopTracking, updateLocation, setConnected, setError, clearError } =
     locationSlice.actions;
 export default locationSlice.reducer;
