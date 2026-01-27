@@ -98,9 +98,15 @@ export interface MapState {
     showUserLocation: boolean;
 }
 
+export interface ConfigState {
+    useMQTT: boolean;
+    mqttEnabled: boolean;
+}
+
 export interface RootState {
     auth: AuthState;
     shipments: ShipmentsState;
     location: LocationState;
     map: MapState;
+    config: ConfigState;
 }

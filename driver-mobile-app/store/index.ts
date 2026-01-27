@@ -4,6 +4,7 @@ import authReducer from './slices/authSlice';
 import shipmentsReducer from './slices/shipmentsSlice';
 import locationReducer from './slices/locationSlice';
 import mapReducer from './slices/mapSlice';
+import configReducer from './slices/configSlice';
 import { RootState } from '../types';
 
 export const store = configureStore({
@@ -12,6 +13,7 @@ export const store = configureStore({
         shipments: shipmentsReducer,
         location: locationReducer,
         map: mapReducer,
+        config: configReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

@@ -1,9 +1,10 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch } from 'react-native';
 import { useAppSelector, useAppDispatch } from '../../store';
 import { COLORS } from '../../utils/constants';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { startTracking, stopTracking, setConnected, setError } from '../../store/slices/locationSlice';
+import { setUseMQTT } from '../../store/slices/configSlice';
 import websocketService from '../../services/websocket';
 import { startLocationTracking, stopLocationTracking } from '../../services/locationTracking';
 
@@ -12,6 +13,7 @@ export default function DashboardScreen() {
     const { user, driver } = useAppSelector((state) => state.auth);
     const { isTracking, currentLocation, isConnected, lastUpdate } = useAppSelector((state) => state.location);
     const { shipments } = useAppSelector((state) => state.shipments);
+    const { useMQTT } = useAppSelector((state) => state.config);
 
     // Connect WebSocket on mount
     useEffect(() => {
@@ -82,6 +84,15 @@ export default function DashboardScreen() {
         return `${Math.floor(diff / 3600)} saat önce`;
     };
 
+    const handleToggleMQTT = () => {
+        dispatch(setUseMQTT(!useMQTT));
+        Alert.alert(
+            'Protocol Değiştirildi',
+            `${!useMQTT ? 'MQTT' : 'WebSocket'} protokolüne geçildi. Değişikliğin uygulanması için tracking'i durdurup tekrar başlatın.`,
+            [{ text: 'Tamam' }]
+        );
+    };
+
     return (
         <ScrollView style={styles.container}>
             {/* Header */}
@@ -130,6 +141,30 @@ export default function DashboardScreen() {
                         {isTracking ? 'Takibi Durdur' : 'Takibi Başlat'}
                     </Text>
                 </TouchableOpacity>
+
+                {/* MQTT Protocol Toggle */}
+                <View style={styles.protocolToggle}>
+                    <View style={styles.protocolInfo}>
+                        <MaterialCommunityIcons
+                            name={useMQTT ? "access-point" : "wifi"}
+                            size={20}
+                            color={COLORS.textLight}
+                        />
+                        <Text style={styles.protocolText}>
+                            Protocol: {useMQTT ? 'MQTT' : 'WebSocket'}
+                        </Text>
+                    </View>
+                    <Switch
+                        value={useMQTT}
+                        onValueChange={handleToggleMQTT}
+                        disabled={isTracking}
+                    />
+                </View>
+                {isTracking && (
+                    <Text style={styles.protocolWarning}>
+                        ⚠️ Tracking'i durdurup tekrar başlatın
+                    </Text>
+                )}
             </View>
 
             {/* Stats Cards */}
@@ -291,6 +326,31 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
         fontSize: 16,
+    },
+    protocolToggle: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+    },
+    protocolInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    protocolText: {
+        fontSize: 14,
+        color: COLORS.text,
+        fontWeight: '500',
+    },
+    protocolWarning: {
+        fontSize: 12,
+        color: COLORS.warning,
+        marginTop: 8,
+        textAlign: 'center',
     },
     statsGrid: {
         flexDirection: 'row',

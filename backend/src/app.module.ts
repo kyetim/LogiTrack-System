@@ -12,6 +12,7 @@ import { ShipmentModule } from './shipment/shipment.module';
 import { LocationModule } from './location/location.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { MqttModule } from './mqtt/mqtt.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     LocationModule,
     WebsocketModule,
     AnalyticsModule,
+    MqttModule,
   ],
   controllers: [AppController],
   providers: [AppService],
