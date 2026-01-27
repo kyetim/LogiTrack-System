@@ -19,7 +19,7 @@ class WebSocketService {
 
             // Get base URL (remove /api suffix)
             const WS_URL = __DEV__
-                ? 'http://192.168.1.125:4000'
+                ? 'http://192.168.1.126:4000'
                 : 'https://your-production-url.com';
 
             // Connect to WebSocket

@@ -1,7 +1,7 @@
 // API Base URL - Update for production
 // IMPORTANT: If login fails, check your network IP with 'ipconfig' and update below
-export const API_URL = 'http://192.168.1.125:4000/api';
-export const WS_URL = 'http://192.168.1.125:4000';
+export const API_URL = 'http://192.168.1.126:4000/api';
+export const WS_URL = 'http://192.168.1.126:4000';
 
 // GPS Tracking
 export const GPS_UPDATE_INTERVAL = 30000; // 30 seconds
@@ -11,6 +11,7 @@ export const GPS_ACCURACY = 'high'; // 'low' | 'balanced' | 'high' | 'best'
 export const STORAGE_KEYS = {
     AUTH_TOKEN: '@logitrack:auth_token',
     USER_DATA: '@logitrack:user_data',
+    DRIVER: '@logitrack:driver',
     OFFLINE_QUEUE: '@logitrack:offline_queue',
     CACHED_SHIPMENTS: '@logitrack:cached_shipments',
 } as const;

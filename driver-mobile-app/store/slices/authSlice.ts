@@ -26,6 +26,9 @@ export const login = createAsyncThunk(
             // Get driver profile
             const driver = await api.getMyProfile();
 
+            // Store driver profile for MQTT
+            await AsyncStorage.setItem(STORAGE_KEYS.DRIVER, JSON.stringify(driver));
+
             return { user: response.user, token: response.access_token, driver };
         } catch (error: any) {
             return rejectWithValue(error.response?.data?.message || 'Login failed');
@@ -40,6 +43,7 @@ export const logout = createAsyncThunk(
         await AsyncStorage.multiRemove([
             STORAGE_KEYS.AUTH_TOKEN,
             STORAGE_KEYS.USER_DATA,
+            STORAGE_KEYS.DRIVER,
             STORAGE_KEYS.CACHED_SHIPMENTS,
         ]);
 

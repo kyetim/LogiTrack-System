@@ -46,7 +46,7 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
 
     // Auto-fit bounds when locations change
     useEffect(() => {
-        if (map && locations.length > 0) {
+        if (map && locations.length > 0 && typeof google !== 'undefined' && google.maps) {
             const bounds = new google.maps.LatLngBounds();
             locations.forEach((loc) => {
                 bounds.extend({
@@ -67,6 +67,11 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
 
     // Get marker icon based on driver status
     const getMarkerIcon = (status: string) => {
+        // Check if google maps is loaded
+        if (typeof google === 'undefined' || !google.maps) {
+            return undefined;
+        }
+
         const color = status === 'ON_DUTY' ? '#10b981' : '#6b7280';
         return {
             path: google.maps.SymbolPath.CIRCLE,
