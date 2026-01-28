@@ -1,10 +1,11 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Global validation pipe
   app.useGlobalPipes(
@@ -23,9 +24,14 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
-  // Global API prefix (exclude Swagger docs)
+  // Serve static files from uploads directory
+  app.useStaticAssets('uploads', {
+    prefix: '/uploads/',
+  });
+
+  // Global API prefix (exclude Swagger docs and uploads)
   app.setGlobalPrefix('api', {
-    exclude: ['docs', 'docs/(.*)'],
+    exclude: ['docs', 'docs/(.*)', 'uploads', 'uploads/(.*)'],
   });
 
   // Swagger configuration

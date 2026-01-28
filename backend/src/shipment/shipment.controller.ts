@@ -128,4 +128,33 @@ export class ShipmentController {
     remove(@Param('id') id: string) {
         return this.shipmentService.remove(id);
     }
+
+    // Delivery Proof Endpoints
+    @Post(':id/delivery-proof')
+    @Roles(UserRole.DRIVER)
+    async createDeliveryProof(
+        @Param('id') id: string,
+        @Body() data: { photoUrl?: string; signatureUrl?: string; recipientName?: string; notes?: string },
+        @Request() req,
+    ) {
+        // Verify driver owns this shipment
+        const shipment = await this.shipmentService.findOne(id);
+        if (shipment.driverId !== req.user.id) {
+            throw new ForbiddenException('You can only create delivery proof for your own shipments');
+        }
+
+        return this.shipmentService.createDeliveryProof(id, data);
+    }
+
+    @Get(':id/delivery-proof')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+    async getDeliveryProof(@Param('id') id: string, @Request() req) {
+        // Verify access
+        const shipment = await this.shipmentService.findOne(id);
+        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
+            throw new ForbiddenException('You can only access delivery proof for your own shipments');
+        }
+
+        return this.shipmentService.getDeliveryProof(id);
+    }
 }

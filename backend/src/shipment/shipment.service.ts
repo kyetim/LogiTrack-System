@@ -214,4 +214,59 @@ export class ShipmentService {
             );
         }
     }
+
+    // Delivery Proof Methods
+    async createDeliveryProof(shipmentId: string, data: {
+        photoUrl?: string;
+        signatureUrl?: string;
+        recipientName?: string;
+        notes?: string;
+    }) {
+        // Verify shipment exists and is assigned
+        const shipment = await this.findOne(shipmentId);
+
+        if (!shipment.driverId) {
+            throw new BadRequestException('Shipment must be assigned to a driver');
+        }
+
+        // Create delivery proof
+        const deliveryProof = await this.prisma.deliveryProof.create({
+            data: {
+                shipmentId,
+                photoUrl: data.photoUrl,
+                signatureUrl: data.signatureUrl,
+                recipientName: data.recipientName,
+                notes: data.notes,
+            },
+        });
+
+        // Update shipment status to DELIVERED
+        await this.prisma.shipment.update({
+            where: { id: shipmentId },
+            data: { status: ShipmentStatus.DELIVERED },
+        });
+
+        return deliveryProof;
+    }
+
+    async getDeliveryProof(shipmentId: string) {
+        const deliveryProof = await this.prisma.deliveryProof.findUnique({
+            where: { shipmentId },
+            include: {
+                shipment: {
+                    select: {
+                        id: true,
+                        trackingNumber: true,
+                        status: true,
+                    },
+                },
+            },
+        });
+
+        if (!deliveryProof) {
+            throw new NotFoundException(`Delivery proof for shipment ${shipmentId} not found`);
+        }
+
+        return deliveryProof;
+    }
 }
