@@ -10,10 +10,12 @@ import { DriverModule } from './driver/driver.module';
 import { VehicleModule } from './vehicle/vehicle.module';
 import { ShipmentModule } from './shipment/shipment.module';
 import { LocationModule } from './location/location.module';
-import { WebsocketModule } from './websocket/websocket.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { MqttModule } from './mqtt/mqtt.module';
 import { UploadModule } from './upload/upload.module';
+import { WebsocketModule } from './websocket/websocket.module';
+import { NotificationModule } from './notification/notification.module';
+import { RouteOptimizationModule } from './route-optimization/route-optimization.module';
 
 @Module({
   imports: [
@@ -44,10 +46,12 @@ import { UploadModule } from './upload/upload.module';
     ShipmentModule,
 
     LocationModule,
-    WebsocketModule,
     AnalyticsModule,
     MqttModule,
     UploadModule,
+    WebsocketModule,
+    NotificationModule,
+    RouteOptimizationModule,
   ],
   controllers: [AppController],
   providers: [AppService],

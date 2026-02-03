@@ -46,6 +46,34 @@ export default function DeliveryProofScreen() {
     const uploadFile = async (uri: string, type: 'photo' | 'signature'): Promise<string> => {
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
+        console.log(`📤 Uploading ${type}...`);
+
+        // Handle Signature (Base64)
+        if (type === 'signature') {
+            try {
+                const response = await fetch(`${API_URL}/upload/signature-base64`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ image: uri }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Upload failed: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log(`✅ Signature upload success:`, data);
+                return data.url;
+            } catch (error) {
+                console.error(`Signature upload exception:`, error);
+                throw error;
+            }
+        }
+
+        // Handle Photo (Multipart File)
         const formData = new FormData();
         const filename = uri.split('/').pop() || 'file.jpg';
         const match = /\.(\w+)$/.exec(filename);
@@ -57,21 +85,29 @@ export default function DeliveryProofScreen() {
             type: fileType,
         } as any);
 
-        const endpoint = type === 'photo' ? 'photo' : 'signature';
-        const response = await fetch(`${API_URL}/upload/${endpoint}`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-            },
-            body: formData,
-        });
+        try {
+            const response = await fetch(`${API_URL}/upload/photo`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    // Content-Type header is set automatically by fetch for FormData
+                },
+                body: formData,
+            });
 
-        if (!response.ok) {
-            throw new Error('Upload failed');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Upload error: ${response.status} - ${errorText}`);
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log(`✅ Photo upload success:`, data);
+            return data.url;
+        } catch (error: any) {
+            console.error(`Photo upload exception:`, error);
+            throw error;
         }
-
-        const data = await response.json();
-        return data.url;
     };
 
     const handleSubmit = async () => {
@@ -111,15 +147,17 @@ export default function DeliveryProofScreen() {
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create delivery proof');
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Delivery proof error:', response.status, errorData);
+                throw new Error(errorData.message || 'Failed to create delivery proof');
             }
 
             Alert.alert('Success', 'Delivery proof submitted successfully', [
                 { text: 'OK', onPress: () => router.back() }
             ]);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Submit error:', error);
-            Alert.alert('Error', 'Failed to submit delivery proof');
+            Alert.alert('Error', error.message || 'Failed to submit delivery proof');
         } finally {
             setIsSubmitting(false);
         }

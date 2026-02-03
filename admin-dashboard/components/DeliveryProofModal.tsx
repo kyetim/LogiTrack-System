@@ -37,7 +37,7 @@ export function DeliveryProofModal({ shipmentId, isOpen, onClose }: DeliveryProo
 
         setLoading(true);
         try {
-            const data = await api.get(`/shipments/${shipmentId}/delivery-proof`);
+            const { data } = await api.get(`/shipments/${shipmentId}/delivery-proof`);
             setProof(data);
         } catch (error) {
             toast.error('Failed to load delivery proof');

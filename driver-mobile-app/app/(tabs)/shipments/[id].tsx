@@ -236,7 +236,44 @@ export default function ShipmentDetailScreen() {
             )}
 
             {/* Action Buttons */}
+            {/* Action Buttons */}
             <View style={styles.actionsContainer}>
+                {/* Complete Delivery Button - For PENDING and IN_TRANSIT */}
+                {(currentShipment.status === 'PENDING' || currentShipment.status === 'IN_TRANSIT') && (
+                    <TouchableOpacity
+                        style={styles.deliveryButton}
+                        onPress={() => {
+                            if (currentShipment.status === 'PENDING') {
+                                Alert.alert(
+                                    'Teslimat Başlatılıyor',
+                                    'Sevkiyat durumu "Yolda" olarak güncellenecek ve teslimat ekranına yönlendirileceksiniz.',
+                                    [
+                                        { text: 'İptal', style: 'cancel' },
+                                        {
+                                            text: 'Devam Et',
+                                            onPress: async () => {
+                                                try {
+                                                    await dispatch(
+                                                        updateShipmentStatus({ id: currentShipment.id, status: 'IN_TRANSIT' })
+                                                    ).unwrap();
+                                                    router.push(`/(tabs)/shipments/${currentShipment.id}/delivery-proof`);
+                                                } catch (error) {
+                                                    Alert.alert('Hata', 'Durum güncellenemedi');
+                                                }
+                                            }
+                                        }
+                                    ]
+                                );
+                            } else {
+                                router.push(`/(tabs)/shipments/${currentShipment.id}/delivery-proof`);
+                            }
+                        }}
+                    >
+                        <MaterialCommunityIcons name="check-circle" size={20} color="white" />
+                        <Text style={styles.deliveryButtonText}>Teslimatı Tamamla & Kanıt Ekle</Text>
+                    </TouchableOpacity>
+                )}
+
                 <TouchableOpacity style={styles.primaryButton} onPress={handleShowOnMap}>
                     <MaterialCommunityIcons name="map" size={20} color="white" />
                     <Text style={styles.primaryButtonText}>Haritada Göster</Text>
@@ -397,6 +434,20 @@ const styles = StyleSheet.create({
     },
     secondaryButtonText: {
         color: COLORS.primary,
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    deliveryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.success,
+        paddingVertical: 14,
+        borderRadius: 8,
+        gap: 8,
+    },
+    deliveryButtonText: {
+        color: 'white',
         fontSize: 16,
         fontWeight: '600',
     },

@@ -3,9 +3,13 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Configure Socket.io adapter for WebSocket support
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   // Global validation pipe
   app.useGlobalPipes(

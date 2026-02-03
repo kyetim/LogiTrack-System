@@ -1,5 +1,4 @@
 import * as Location from 'expo-location';
-import websocketService from './websocket';
 import mqttService from './mqttService';
 import { store } from '../store';
 
@@ -20,19 +19,17 @@ export const startLocationTracking = async (): Promise<boolean> => {
             return false;
         }
 
-        // Check feature flag
-        const { useMQTT } = store.getState().config;
+        // Connect to MQTT
+        console.log('🚀 Using MQTT protocol');
+        const connected = await mqttService.connect();
 
-        // Connect to appropriate service
-        if (useMQTT) {
-            console.log('🚀 Using MQTT protocol');
-            const connected = await mqttService.connect();
-            if (!connected) {
-                console.warn('MQTT connection failed, falling back to WebSocket');
-                // Don't fail, just log - offline queue will handle it
-            }
+        if (connected) {
+            store.dispatch({ type: 'location/setConnected', payload: true });
         } else {
-            console.log('🚀 Using WebSocket protocol (default)');
+            console.warn('MQTT connection failed - will use offline queue');
+            // Don't fail, offline queue will handle it
+            // But we can mark as not connected for UI
+            store.dispatch({ type: 'location/setConnected', payload: false });
         }
 
         console.log('⚠️ Using foreground-only tracking (Expo Go limitation)');
@@ -54,24 +51,16 @@ export const startLocationTracking = async (): Promise<boolean> => {
                 const speed = location.coords.speed || undefined;
                 const heading = location.coords.heading || undefined;
 
-                // Feature flag check - send via appropriate protocol
-                const { useMQTT } = store.getState().config;
+                // Send via MQTT
+                console.log('📡 Sending via MQTT');
+                const success = mqttService.sendLocation(coords, speed, heading);
 
-                if (useMQTT) {
-                    console.log('📡 Sending via MQTT');
-                    const success = mqttService.sendLocation(coords, speed, heading);
-
-                    if (!success) {
-                        const queueSize = mqttService.getQueueSize();
-                        console.warn(`MQTT send failed, queued (${queueSize} in queue)`);
-                    }
+                if (!success) {
+                    const queueSize = mqttService.getQueueSize();
+                    console.warn(`MQTT send failed, queued (${queueSize} in queue)`);
+                    store.dispatch({ type: 'location/setConnected', payload: false });
                 } else {
-                    console.log('🌐 Sending via WebSocket');
-                    const success = websocketService.sendLocation(coords, speed, heading);
-
-                    if (!success) {
-                        console.warn('WebSocket send failed');
-                    }
+                    store.dispatch({ type: 'location/setConnected', payload: true });
                 }
             }
         );
@@ -94,11 +83,8 @@ export const stopLocationTracking = async (): Promise<boolean> => {
         locationSubscription.remove();
         locationSubscription = null;
 
-        // Disconnect MQTT if it was being used
-        const { useMQTT } = store.getState().config;
-        if (useMQTT) {
-            mqttService.disconnect();
-        }
+        // Disconnect MQTT
+        mqttService.disconnect();
 
         console.log('✅ Location tracking stopped');
         return true;

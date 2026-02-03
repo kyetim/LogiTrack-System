@@ -19,12 +19,18 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     useEffect(() => {
         if (!autoConnect) return;
 
+        // Get token
+        const token = localStorage.getItem('token');
+
         // Create socket connection
         socketRef.current = io(url, {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionDelay: 1000,
             reconnectionAttempts: 5,
+            auth: {
+                token,
+            },
         });
 
         const socket = socketRef.current;

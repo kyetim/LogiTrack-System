@@ -19,8 +19,10 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpDown, Wrench, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { MaintenanceHistoryDialog } from '@/components/MaintenanceHistoryDialog';
+import { AssignDriverToVehicleModal } from '@/components/AssignDriverToVehicleModal';
 
 interface Vehicle {
     id: string;
@@ -28,11 +30,15 @@ interface Vehicle {
     model: string;
     capacity: number;
     status: string;
+    mileage?: number;
+    drivers?: Array<{
+        id: string;
+        user: { email: string };
+    }>;
     createdAt: string;
 }
 
-type SortField = 'plateNumber' | 'model' | 'capacity' | 'status';
-type SortOrder = 'asc' | 'desc';
+// ... imports and interfaces ...
 
 export default function VehiclesPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -43,11 +49,29 @@ export default function VehiclesPage() {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
+    // Maintenance Modal State
+    const [maintenanceModalOpen, setMaintenanceModalOpen] = useState(false);
+    const [maintenanceVehicleId, setMaintenanceVehicleId] = useState<string | null>(null);
+
+    // Assign Driver Modal State
+    const [assignDriverModalOpen, setAssignDriverModalOpen] = useState(false);
+    const [assignDriverVehicleId, setAssignDriverVehicleId] = useState<string | null>(null);
+
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [sortField, setSortField] = useState<SortField>('plateNumber');
-    const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+    const [sortField, setSortField] = useState<keyof Vehicle>('plateNumber');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+    const handleMaintenance = (vehicleId: string) => {
+        setMaintenanceVehicleId(vehicleId);
+        setMaintenanceModalOpen(true);
+    };
+
+    const handleAssignDriver = (vehicleId: string) => {
+        setAssignDriverVehicleId(vehicleId);
+        setAssignDriverModalOpen(true);
+    };
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -74,7 +98,6 @@ export default function VehiclesPage() {
         }
     };
 
-    // Filtered and sorted vehicles
     const filteredVehicles = useMemo(() => {
         let filtered = vehicles;
 
@@ -93,8 +116,10 @@ export default function VehiclesPage() {
 
         // Sort
         filtered.sort((a, b) => {
-            let aValue = a[sortField];
-            let bValue = b[sortField];
+            const aValue = a[sortField];
+            const bValue = b[sortField];
+
+            if (aValue === undefined || bValue === undefined) return 0;
 
             if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
             if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
@@ -104,7 +129,7 @@ export default function VehiclesPage() {
         return filtered;
     }, [vehicles, searchTerm, statusFilter, sortField, sortOrder]);
 
-    const handleSort = (field: SortField) => {
+    const handleSort = (field: keyof Vehicle) => {
         if (sortField === field) {
             setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
         } else {
@@ -123,30 +148,31 @@ export default function VehiclesPage() {
         setModalOpen(true);
     };
 
+    const handleDelete = async (id: string) => {
+        if (!confirm(t('common.deleteConfirm'))) return;
+
+        try {
+            await api.delete(`/vehicles/${id}`);
+            toast.success(t('common.deleteSuccess'));
+            fetchVehicles();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || t('common.deleteFailed'));
+        }
+    };
+
     const handleSubmit = async (data: VehicleFormData) => {
         try {
             if (selectedVehicle) {
                 await api.patch(`/vehicles/${selectedVehicle.id}`, data);
-                toast.success(t('users.updateSuccess'));
+                toast.success('Araç güncellendi');
             } else {
                 await api.post('/vehicles', data);
-                toast.success(t('users.createSuccess'));
+                toast.success('Araç oluşturuldu');
             }
             fetchVehicles();
+            setModalOpen(false);
         } catch (error: any) {
-            throw error;
-        }
-    };
-
-    const handleDelete = async (id: string) => {
-        if (!confirm(t('users.deleteConfirm'))) return;
-
-        try {
-            await api.delete(`/vehicles/${id}`);
-            toast.success(t('users.deleteSuccess'));
-            fetchVehicles();
-        } catch (error: any) {
-            toast.error(error.response?.data?.message || t('users.deleteFailed'));
+            toast.error(error.response?.data?.message || t('common.error'));
         }
     };
 
@@ -190,9 +216,9 @@ export default function VehiclesPage() {
                             statusFilter={statusFilter}
                             onStatusFilterChange={setStatusFilter}
                             statusOptions={[
-                                { value: 'AVAILABLE', label: t('statuses.AVAILABLE') },
-                                { value: 'IN_USE', label: t('statuses.IN_USE') },
-                                { value: 'MAINTENANCE', label: t('statuses.MAINTENANCE') },
+                                { value: 'ACTIVE', label: 'Aktif' },
+                                { value: 'MAINTENANCE', label: 'Bakımda' },
+                                { value: 'RETIRED', label: 'Emekli' },
                             ]}
                             searchPlaceholder="Plaka veya model ara..."
                         />
@@ -238,6 +264,9 @@ export default function VehiclesPage() {
                                                 </Button>
                                             </TableHead>
                                             <TableHead>
+                                                Kilometre
+                                            </TableHead>
+                                            <TableHead>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
@@ -254,7 +283,7 @@ export default function VehiclesPage() {
                                     <TableBody>
                                         {filteredVehicles.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                                                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                                                     Sonuç bulunamadı
                                                 </TableCell>
                                             </TableRow>
@@ -264,13 +293,39 @@ export default function VehiclesPage() {
                                                     <TableCell className="font-medium">{vehicle.plateNumber}</TableCell>
                                                     <TableCell>{vehicle.model}</TableCell>
                                                     <TableCell>{vehicle.capacity} kg</TableCell>
+                                                    <TableCell>{vehicle.mileage || 0} km</TableCell>
                                                     <TableCell>
-                                                        <Badge variant={vehicle.status === 'AVAILABLE' ? 'default' : 'secondary'}>
-                                                            {t(`statuses.${vehicle.status}`)}
+                                                        <Badge variant={
+                                                            vehicle.status === 'ACTIVE' ? 'default' :
+                                                                vehicle.status === 'MAINTENANCE' ? 'destructive' : 'secondary'
+                                                        }>
+                                                            {vehicle.status === 'ACTIVE' ? 'Aktif' :
+                                                                vehicle.status === 'MAINTENANCE' ? 'Bakımda' : 'Emekli'}
                                                         </Badge>
+                                                        {vehicle.drivers && vehicle.drivers.length > 0 && (
+                                                            <div className="mt-1 text-xs text-gray-500">
+                                                                {vehicle.drivers.map(d => d.user.email).join(', ')}
+                                                            </div>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleAssignDriver(vehicle.id)}
+                                                                title="Sürücü Ata"
+                                                            >
+                                                                <UserPlus className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleMaintenance(vehicle.id)}
+                                                                title="Bakım Geçmişi"
+                                                            >
+                                                                <Wrench className="h-4 w-4" />
+                                                            </Button>
                                                             <Button variant="outline" size="sm" onClick={() => handleEdit(vehicle)}>
                                                                 <Pencil className="h-4 w-4" />
                                                             </Button>
@@ -299,6 +354,19 @@ export default function VehiclesPage() {
                 onClose={() => setModalOpen(false)}
                 onSubmit={handleSubmit}
                 vehicle={selectedVehicle}
+            />
+
+            <MaintenanceHistoryDialog
+                open={maintenanceModalOpen}
+                onClose={() => setMaintenanceModalOpen(false)}
+                vehicleId={maintenanceVehicleId}
+            />
+
+            <AssignDriverToVehicleModal
+                open={assignDriverModalOpen}
+                onClose={() => setAssignDriverModalOpen(false)}
+                onSuccess={fetchVehicles}
+                vehicleId={assignDriverVehicleId}
             />
         </div>
     );

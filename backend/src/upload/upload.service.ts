@@ -34,4 +34,38 @@ export class UploadService {
         }
         callback(null, true);
     }
+
+    async saveBase64Image(base64Data: string, type: 'signature' | 'photo' = 'signature'): Promise<string> {
+        const fs = require('fs');
+        const path = require('path');
+
+        // Remove header if present (e.g., "data:image/png;base64,")
+        const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        let buffer;
+        let extension = 'png';
+
+        if (matches && matches.length === 3) {
+            // Buffer from match
+            buffer = Buffer.from(matches[2], 'base64');
+            // Try to guess extension from mime type
+            const mime = matches[1];
+            if (mime === 'image/jpeg') extension = 'jpg';
+        } else {
+            // Assuming raw base64
+            buffer = Buffer.from(base64Data, 'base64');
+        }
+
+        const filename = `${uuidv4()}.${extension}`;
+        const uploadDir = type === 'signature' ? './uploads/signatures' : './uploads/photos';
+        const filePath = path.join(uploadDir, filename);
+
+        // Ensure directory exists
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        await fs.promises.writeFile(filePath, buffer);
+
+        return filename;
+    }
 }

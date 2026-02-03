@@ -11,6 +11,7 @@ import {
 import { VehicleService } from './vehicle.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
+import { CreateMaintenanceLogDto } from './dto/create-maintenance-log.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -45,6 +46,12 @@ export class VehicleController {
         return this.vehicleService.create(createVehicleDto);
     }
 
+    @Post(':id/maintenance')
+    @Roles(UserRole.ADMIN)
+    addMaintenanceLog(@Param('id') id: string, @Body() createLogDto: CreateMaintenanceLogDto) {
+        return this.vehicleService.addMaintenanceLog(id, createLogDto);
+    }
+
     @Patch(':id')
     @Roles(UserRole.ADMIN)
     update(@Param('id') id: string, @Body() updateVehicleDto: UpdateVehicleDto) {
@@ -55,5 +62,17 @@ export class VehicleController {
     @Roles(UserRole.ADMIN)
     remove(@Param('id') id: string) {
         return this.vehicleService.remove(id);
+    }
+
+    @Post(':id/drivers')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    assignDriver(@Param('id') id: string, @Body('driverId') driverId: string) {
+        return this.vehicleService.assignDriver(id, driverId);
+    }
+
+    @Delete(':id/drivers/:driverId')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    unassignDriver(@Param('id') id: string, @Param('driverId') driverId: string) {
+        return this.vehicleService.unassignDriver(id, driverId);
     }
 }

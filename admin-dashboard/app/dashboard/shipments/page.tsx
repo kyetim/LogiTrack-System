@@ -7,6 +7,7 @@ import { useTranslations } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ShipmentFormModal, ShipmentFormData } from '@/components/ShipmentFormModal';
 import { AssignDriverModal } from '@/components/AssignDriverModal';
+import { DeliveryProofModal } from '@/components/DeliveryProofModal';
 import { TableFilters } from '@/components/TableFilters';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpDown, Route } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Shipment {
@@ -59,6 +60,10 @@ export default function ShipmentsPage() {
     const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
     const [assignModalOpen, setAssignModalOpen] = useState(false);
     const [selectedShipmentForAssign, setSelectedShipmentForAssign] = useState<Shipment | null>(null);
+    const [podModalOpen, setPodModalOpen] = useState(false);
+    const [selectedShipmentForPod, setSelectedShipmentForPod] = useState<string | null>(null);
+    const [optimizeModalOpen, setOptimizeModalOpen] = useState(false);
+    const [selectedDriverForOptimize, setSelectedDriverForOptimize] = useState<{ id: string; email: string } | null>(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -325,6 +330,18 @@ export default function ShipmentsPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
+                                                            {shipment.status === 'DELIVERED' && (
+                                                                <Button
+                                                                    variant="default"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        setSelectedShipmentForPod(shipment.id);
+                                                                        setPodModalOpen(true);
+                                                                    }}
+                                                                >
+                                                                    View POD
+                                                                </Button>
+                                                            )}
                                                             <Button
                                                                 variant="secondary"
                                                                 size="sm"
@@ -369,6 +386,15 @@ export default function ShipmentsPage() {
                 onSubmit={handleAssignSubmit}
                 drivers={drivers}
                 currentDriverId={selectedShipmentForAssign?.driverId}
+            />
+
+            <DeliveryProofModal
+                shipmentId={selectedShipmentForPod}
+                isOpen={podModalOpen}
+                onClose={() => {
+                    setPodModalOpen(false);
+                    setSelectedShipmentForPod(null);
+                }}
             />
         </div>
     );

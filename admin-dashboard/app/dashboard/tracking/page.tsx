@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface DriverLocation {
     id: string;
@@ -42,6 +43,8 @@ export default function TrackingPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [selectedDriver, setSelectedDriver] = useState<DriverLocation | null>(null);
 
+    const { socket, isConnected } = useWebSocket();
+
     useEffect(() => {
         if (!authLoading && !user) {
             router.push('/login');
@@ -51,20 +54,57 @@ export default function TrackingPage() {
     useEffect(() => {
         if (user) {
             fetchLocations();
-            // Auto-refresh every 30 seconds
-            const interval = setInterval(fetchLocations, 30000);
+            // Initial fetch is enough, real-time updates handle the rest
+            // But we keep a slower poll (e.g. 5 min) just to sync metadata
+            const interval = setInterval(fetchLocations, 300000);
             return () => clearInterval(interval);
         }
     }, [user]);
 
+    // Listen for real-time updates
+    useEffect(() => {
+        if (socket && isConnected) {
+            console.log('🔌 Connected to live tracking');
+            // toast.success('Canlı takip bağlantısı kuruldu');
+
+            socket.on('location:update', (data: any) => {
+                console.log('📍 Live update:', data);
+
+                setLocations(prev => {
+                    // Update existing driver location
+                    const index = prev.findIndex(loc => loc.driverId === data.driverId);
+
+                    if (index !== -1) {
+                        const newLocations = [...prev];
+                        newLocations[index] = {
+                            ...newLocations[index],
+                            coordinates: data.coordinates,
+                            timestamp: data.timestamp || new Date().toISOString(),
+                        };
+                        return newLocations;
+                    }
+
+                    // If driver is not in list (newly active), we should probably fetch/refresh
+                    // For now, we just ignore or we can trigger a refresh
+                    fetchLocations();
+                    return prev;
+                });
+            });
+
+            return () => {
+                socket.off('location:update');
+            };
+        }
+    }, [socket, isConnected]);
+
     const fetchLocations = async () => {
         try {
-            setIsLoading(true);
+            // setIsLoading(true); // Don't show full loading spinner on background refresh
             const { data } = await api.get('/locations/latest');
             setLocations(data);
         } catch (error) {
             console.error('Failed to fetch locations:', error);
-            toast.error('Konumlar yüklenemedi');
+            // toast.error('Konumlar yüklenemedi');
         } finally {
             setIsLoading(false);
         }

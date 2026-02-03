@@ -13,7 +13,7 @@ interface SignaturePadProps {
 }
 
 export default function SignaturePad({ visible, onClose, onSave }: SignaturePadProps) {
-    const ref = useRef<any>();
+    const ref = useRef<any>(null);
     const [isEmpty, setIsEmpty] = useState(true);
 
     const handleSignature = (signature: string) => {

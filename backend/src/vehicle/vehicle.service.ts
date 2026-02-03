@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 
+import { CreateMaintenanceLogDto } from './dto/create-maintenance-log.dto';
+
 @Injectable()
 export class VehicleService {
     constructor(private prisma: PrismaService) { }
@@ -34,9 +36,17 @@ export class VehicleService {
                     none: {},
                 },
             },
+            include: {
+                maintenanceLogs: {
+                    take: 1,
+                    orderBy: { date: 'desc' },
+                },
+            },
             orderBy: { createdAt: 'desc' },
         });
     }
+
+    // ...
 
     async findOne(id: string) {
         const vehicle = await this.prisma.vehicle.findUnique({
@@ -57,6 +67,9 @@ export class VehicleService {
                         },
                     },
                 },
+                maintenanceLogs: {
+                    orderBy: { date: 'desc' },
+                },
             },
         });
 
@@ -65,6 +78,32 @@ export class VehicleService {
         }
 
         return vehicle;
+    }
+
+    // ... (create, update, remove)
+
+    async addMaintenanceLog(id: string, createLogDto: CreateMaintenanceLogDto) {
+        await this.findOne(id); // Ensure exists
+
+        return this.prisma.$transaction(async (tx) => {
+            const log = await tx.maintenanceLog.create({
+                data: {
+                    vehicleId: id,
+                    ...createLogDto,
+                    date: createLogDto.date ? new Date(createLogDto.date) : new Date(),
+                },
+            });
+
+            // Update vehicle last service date
+            await tx.vehicle.update({
+                where: { id },
+                data: {
+                    lastServiceDate: log.date,
+                },
+            });
+
+            return log;
+        });
     }
 
     async create(createVehicleDto: CreateVehicleDto) {
@@ -135,5 +174,38 @@ export class VehicleService {
         });
 
         return { message: 'Vehicle deleted successfully' };
+    }
+
+    async assignDriver(vehicleId: string, driverId: string) {
+        // Check if vehicle exists
+        await this.findOne(vehicleId);
+
+        // Check if driver exists
+        const driver = await this.prisma.driverProfile.findUnique({
+            where: { userId: driverId },
+        });
+
+        if (!driver) {
+            throw new NotFoundException(`Driver with ID ${driverId} not found`);
+        }
+
+        // Assign driver to vehicle
+        return this.prisma.driverProfile.update({
+            where: { userId: driverId },
+            data: {
+                vehicleId: vehicleId,
+            },
+        });
+    }
+
+    async unassignDriver(vehicleId: string, driverId: string) {
+        await this.findOne(vehicleId);
+
+        return this.prisma.driverProfile.update({
+            where: { userId: driverId },
+            data: {
+                vehicleId: null,
+            },
+        });
     }
 }

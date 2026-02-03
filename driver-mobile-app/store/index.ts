@@ -6,6 +6,7 @@ import locationReducer from './slices/locationSlice';
 import mapReducer from './slices/mapSlice';
 import configReducer from './slices/configSlice';
 import { RootState } from '../types';
+export { RootState };
 
 export const store = configureStore({
     reducer: {

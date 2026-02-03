@@ -31,6 +31,7 @@ interface VehicleFormModalProps {
         model: string;
         capacity: number;
         status: string;
+        mileage?: number;
     } | null;
 }
 
@@ -39,6 +40,7 @@ export interface VehicleFormData {
     model: string;
     capacity: number;
     status: string;
+    mileage?: number;
 }
 
 export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFormModalProps) {
@@ -47,7 +49,8 @@ export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFo
         plateNumber: '',
         model: '',
         capacity: 1000,
-        status: 'AVAILABLE',
+        status: 'ACTIVE',
+        mileage: 0,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -59,13 +62,15 @@ export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFo
                 model: vehicle.model,
                 capacity: vehicle.capacity,
                 status: vehicle.status,
+                mileage: vehicle.mileage || 0,
             });
         } else {
             setFormData({
                 plateNumber: '',
                 model: '',
                 capacity: 1000,
-                status: 'AVAILABLE',
+                status: 'ACTIVE',
+                mileage: 0,
             });
         }
         setError('');
@@ -73,19 +78,15 @@ export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFo
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setIsLoading(true);
         setError('');
 
-        if (!formData.plateNumber || !formData.model || !formData.capacity) {
-            setError(t('common.required'));
-            return;
-        }
-
-        setIsLoading(true);
         try {
             await onSubmit(formData);
             onClose();
-        } catch (err: any) {
-            setError(err.response?.data?.message || t('common.error'));
+        } catch (err) {
+            console.error(err);
+            setError(t('common.error'));
         } finally {
             setIsLoading(false);
         }
@@ -95,11 +96,9 @@ export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFo
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle>
-                        {vehicle ? t('vehicles.editVehicle') : t('vehicles.addVehicle')}
-                    </DialogTitle>
+                    <DialogTitle>{vehicle ? t('vehicles.editVehicle') : t('vehicles.addVehicle')}</DialogTitle>
                     <DialogDescription>
-                        {t('vehicles.subtitle')}
+                        {vehicle ? 'Araç bilgilerini güncelleyin.' : 'Yeni bir araç ekleyin.'}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -145,6 +144,19 @@ export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFo
                             />
                         </div>
 
+                        {/* Mileage */}
+                        <div className="grid gap-2">
+                            <Label htmlFor="mileage">Kilometre (km)</Label>
+                            <Input
+                                id="mileage"
+                                type="number"
+                                min="0"
+                                placeholder="0"
+                                value={formData.mileage}
+                                onChange={(e) => setFormData({ ...formData, mileage: parseInt(e.target.value) || 0 })}
+                            />
+                        </div>
+
                         {/* Status */}
                         <div className="grid gap-2">
                             <Label htmlFor="status">{t('vehicles.status')}</Label>
@@ -156,9 +168,9 @@ export function VehicleFormModal({ open, onClose, onSubmit, vehicle }: VehicleFo
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="AVAILABLE">{t('statuses.AVAILABLE')}</SelectItem>
-                                    <SelectItem value="IN_USE">{t('statuses.IN_USE')}</SelectItem>
-                                    <SelectItem value="MAINTENANCE">{t('statuses.MAINTENANCE')}</SelectItem>
+                                    <SelectItem value="ACTIVE">Aktif</SelectItem>
+                                    <SelectItem value="MAINTENANCE">Bakımda</SelectItem>
+                                    <SelectItem value="RETIRED">Emekli</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

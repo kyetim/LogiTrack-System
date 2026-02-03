@@ -3,9 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Switch } f
 import { useAppSelector, useAppDispatch } from '../../store';
 import { COLORS } from '../../utils/constants';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { startTracking, stopTracking, setConnected, setError } from '../../store/slices/locationSlice';
-import { setUseMQTT } from '../../store/slices/configSlice';
-import websocketService from '../../services/websocket';
+import { setConnected, setError, startTracking, stopTracking } from '../../store/slices/locationSlice';
 import { startLocationTracking, stopLocationTracking } from '../../services/locationTracking';
 
 export default function DashboardScreen() {
@@ -13,21 +11,6 @@ export default function DashboardScreen() {
     const { user, driver } = useAppSelector((state) => state.auth);
     const { isTracking, currentLocation, isConnected, lastUpdate } = useAppSelector((state) => state.location);
     const { shipments } = useAppSelector((state) => state.shipments);
-    const { useMQTT } = useAppSelector((state) => state.config);
-
-    // Connect WebSocket on mount
-    useEffect(() => {
-        const connectWebSocket = async () => {
-            const connected = await websocketService.connect();
-            dispatch(setConnected(connected));
-        };
-
-        connectWebSocket();
-
-        return () => {
-            websocketService.disconnect();
-        };
-    }, [dispatch]);
 
     const todayShipments = shipments.filter(s =>
         new Date(s.createdAt).toDateString() === new Date().toDateString()
@@ -51,14 +34,8 @@ export default function DashboardScreen() {
             }
         } else {
             // Start tracking
-            if (!isConnected) {
-                Alert.alert(
-                    'Bağlantı Hatası',
-                    'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.',
-                    [{ text: 'Tamam' }]
-                );
-                return;
-            }
+            // Start tracking
+            // Connection check removed - connection is established during startLocationTracking
 
             const started = await startLocationTracking();
             if (started) {
@@ -82,15 +59,6 @@ export default function DashboardScreen() {
         if (diff < 60) return `${diff} saniye önce`;
         if (diff < 3600) return `${Math.floor(diff / 60)} dakika önce`;
         return `${Math.floor(diff / 3600)} saat önce`;
-    };
-
-    const handleToggleMQTT = () => {
-        dispatch(setUseMQTT(!useMQTT));
-        Alert.alert(
-            'Protocol Değiştirildi',
-            `${!useMQTT ? 'MQTT' : 'WebSocket'} protokolüne geçildi. Değişikliğin uygulanması için tracking'i durdurup tekrar başlatın.`,
-            [{ text: 'Tamam' }]
-        );
     };
 
     return (
@@ -141,30 +109,6 @@ export default function DashboardScreen() {
                         {isTracking ? 'Takibi Durdur' : 'Takibi Başlat'}
                     </Text>
                 </TouchableOpacity>
-
-                {/* MQTT Protocol Toggle */}
-                <View style={styles.protocolToggle}>
-                    <View style={styles.protocolInfo}>
-                        <MaterialCommunityIcons
-                            name={useMQTT ? "access-point" : "wifi"}
-                            size={20}
-                            color={COLORS.textLight}
-                        />
-                        <Text style={styles.protocolText}>
-                            Protocol: {useMQTT ? 'MQTT' : 'WebSocket'}
-                        </Text>
-                    </View>
-                    <Switch
-                        value={useMQTT}
-                        onValueChange={handleToggleMQTT}
-                        disabled={isTracking}
-                    />
-                </View>
-                {isTracking && (
-                    <Text style={styles.protocolWarning}>
-                        ⚠️ Tracking'i durdurup tekrar başlatın
-                    </Text>
-                )}
             </View>
 
             {/* Stats Cards */}

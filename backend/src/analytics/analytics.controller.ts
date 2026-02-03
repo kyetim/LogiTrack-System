@@ -105,6 +105,134 @@ export class AnalyticsController {
         };
     }
 
+    @Get('detailed')
+    async getDetailedAnalytics(@Query('period') period: string = '7d') {
+        const now = new Date();
+        let startDate: Date;
+
+        switch (period) {
+            case '24h':
+                startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                break;
+            case '7d':
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                break;
+            case '30d':
+                startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                break;
+            default:
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        }
+
+        // Fetch drivers
+        const drivers = await this.prisma.driverProfile.findMany({
+            include: {
+                user: { select: { email: true } },
+                vehicle: { select: { plateNumber: true } },
+            },
+        });
+
+        // Calculate stats per driver
+        const leaderboard = await Promise.all(
+            drivers.map(async (driver) => {
+                // Get location logs for distance calculation
+                const logs = await this.prisma.locationLog.findMany({
+                    where: {
+                        driverId: driver.id,
+                        timestamp: { gte: startDate },
+                    },
+                    orderBy: { timestamp: 'asc' },
+                    select: { coordinates: true, speed: true },
+                });
+
+                // Calculate total distance
+                let totalDistance = 0;
+                let totalSpeed = 0;
+                let speedCount = 0;
+
+                for (let i = 0; i < logs.length - 1; i++) {
+                    const coord1 = logs[i].coordinates as any;
+                    const coord2 = logs[i + 1].coordinates as any;
+
+                    if (coord1.latitude && coord1.longitude && coord2.latitude && coord2.longitude) {
+                        totalDistance += this.getDistanceFromLatLonInKm(
+                            coord1.latitude, coord1.longitude,
+                            coord2.latitude, coord2.longitude
+                        );
+                    }
+
+                    if (logs[i].speed !== null) {
+                        totalSpeed += logs[i].speed;
+                        speedCount++;
+                    }
+                }
+
+                // Get shipment stats
+                const shipmentStats = await this.prisma.shipment.aggregate({
+                    where: {
+                        driverId: driver.id,
+                        createdAt: { gte: startDate },
+                    },
+                    _count: { id: true },
+                });
+
+                const completedShipments = await this.prisma.shipment.count({
+                    where: {
+                        driverId: driver.id,
+                        status: 'DELIVERED',
+                        createdAt: { gte: startDate },
+                    }
+                });
+
+                return {
+                    id: driver.id,
+                    name: driver.user.email.split('@')[0],
+                    plateNumber: driver.vehicle?.plateNumber || 'N/A',
+                    totalDistance: Math.round(totalDistance * 100) / 100, // km
+                    averageSpeed: speedCount > 0 ? Math.round(totalSpeed / speedCount) : 0, // km/h
+                    totalShipments: shipmentStats._count.id,
+                    completedShipments: completedShipments,
+                    score: completedShipments * 10 + Math.round(totalDistance), // Simple score algorithm
+                };
+            })
+        );
+
+        // Sort by score (descending)
+        leaderboard.sort((a, b) => b.score - a.score);
+
+        // Fleet Totals
+        const fleetStats = {
+            totalDistance: leaderboard.reduce((sum, d) => sum + d.totalDistance, 0),
+            averageSpeed: leaderboard.length > 0
+                ? Math.round(leaderboard.reduce((sum, d) => sum + d.averageSpeed, 0) / leaderboard.length)
+                : 0,
+            activeDrivers: leaderboard.filter(d => d.totalDistance > 0).length,
+        };
+
+        return {
+            period,
+            fleetStats,
+            leaderboard,
+        };
+    }
+
+    private getDistanceFromLatLonInKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+        const R = 6371; // Radius of the earth in km
+        const dLat = this.deg2rad(lat2 - lat1);
+        const dLon = this.deg2rad(lon2 - lon1);
+        const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(this.deg2rad(lat1)) * Math.cos(this.deg2rad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const d = R * c; // Distance in km
+        return d;
+    }
+
+    private deg2rad(deg: number) {
+        return deg * (Math.PI / 180);
+    }
+
     private groupByDate(shipments: any[], startDate: Date, endDate: Date) {
         const dateMap = new Map<string, any>();
 

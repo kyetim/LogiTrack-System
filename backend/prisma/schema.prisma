@@ -37,6 +37,7 @@ model User {
   email         String          @unique
   passwordHash  String          @map("password_hash")
   role          UserRole
+  pushToken     String?         @map("push_token")
   createdAt     DateTime        @default(now()) @map("created_at")
   updatedAt     DateTime        @updatedAt @map("updated_at")
   
@@ -65,18 +66,52 @@ model DriverProfile {
   @@map("driver_profiles")
 }
 
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+  OTHER
+}
+
 model Vehicle {
-  id          String          @id @default(uuid())
-  plateNumber String          @unique @map("plate_number")
-  capacity    Float
-  type        String
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id              String           @id @default(uuid())
+  plateNumber     String           @unique @map("plate_number")
+  capacity        Float
+  type            String
+  status          VehicleStatus    @default(ACTIVE)
+  mileage         Float            @default(0)
+  lastServiceDate DateTime?        @map("last_service_date")
+  nextServiceDate DateTime?        @map("next_service_date")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
   
   // Relations
-  drivers     DriverProfile[]
+  drivers         DriverProfile[]
+  maintenanceLogs MaintenanceLog[]
   
   @@map("vehicles")
+}
+
+model MaintenanceLog {
+  id          String          @id @default(uuid())
+  vehicleId   String          @map("vehicle_id")
+  type        MaintenanceType
+  description String
+  cost        Float
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
+  
+  // Relations
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  @@index([vehicleId])
+  @@map("maintenance_logs")
 }
 
 // ============================================
@@ -99,6 +134,7 @@ model Shipment {
   
   estimatedArrival  DateTime?       @map("estimated_arrival")
   proofOfDelivery   Json?           @map("proof_of_delivery")
+  sequence          Int?            // Optimized delivery order (1, 2, 3...)
   
   createdAt         DateTime        @default(now()) @map("created_at")
   updatedAt         DateTime        @updatedAt @map("updated_at")

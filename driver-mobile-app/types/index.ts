@@ -99,7 +99,6 @@ export interface MapState {
 }
 
 export interface ConfigState {
-    useMQTT: boolean;
     mqttEnabled: boolean;
 }
 

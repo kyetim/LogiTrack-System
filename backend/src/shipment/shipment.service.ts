@@ -5,9 +5,14 @@ import { UpdateShipmentDto } from './dto/update-shipment.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ShipmentStatus } from '@prisma/client';
 
+import { NotificationService } from '../notification/notification.service';
+
 @Injectable()
 export class ShipmentService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private notificationService: NotificationService
+    ) { }
 
     async findAll(filters?: { status?: ShipmentStatus; driverId?: string; startDate?: Date; endDate?: Date }) {
         const where: any = {};
@@ -143,7 +148,7 @@ export class ShipmentService {
             updateData.status = ShipmentStatus.IN_TRANSIT;
         }
 
-        return this.prisma.shipment.update({
+        const updatedShipment = await this.prisma.shipment.update({
             where: { id },
             data: updateData,
             include: {
@@ -156,6 +161,16 @@ export class ShipmentService {
                 },
             },
         });
+
+        // Send notification to the driver
+        await this.notificationService.sendPushNotification(
+            driverId,
+            'Yeni Sevkiyat Atandı',
+            `Size yeni bir sevkiyat atandı: ${updatedShipment.trackingNumber}`,
+            { shipmentId: updatedShipment.id }
+        );
+
+        return updatedShipment;
     }
 
     async updateStatus(id: string, updateStatusDto: UpdateStatusDto) {
@@ -175,7 +190,7 @@ export class ShipmentService {
             updateData.proofOfDelivery = proofOfDelivery;
         }
 
-        return this.prisma.shipment.update({
+        const updatedShipment = await this.prisma.shipment.update({
             where: { id },
             data: updateData,
             include: {
@@ -188,6 +203,19 @@ export class ShipmentService {
                 },
             },
         });
+
+        // Notify driver about status change (if relevant logic exists, or for admin)
+        // For now, we only notify if status is CANCELLED
+        if (status === ShipmentStatus.CANCELLED && updatedShipment.driverId) {
+            await this.notificationService.sendPushNotification(
+                updatedShipment.driverId,
+                'Sevkiyat İptal Edildi',
+                `Sevkiyat iptal edildi: ${updatedShipment.trackingNumber}`,
+                { shipmentId: updatedShipment.id }
+            );
+        }
+
+        return updatedShipment;
     }
 
     async remove(id: string) {

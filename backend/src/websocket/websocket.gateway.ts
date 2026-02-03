@@ -14,7 +14,12 @@ import { LocationService } from '../location/location.service';
 
 @WebSocketGateway({
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://192.168.1.125:3000',
+      'http://192.168.1.125:3001'
+    ],
     credentials: true,
   },
 })

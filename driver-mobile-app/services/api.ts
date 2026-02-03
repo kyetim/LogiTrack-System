@@ -100,6 +100,11 @@ class ApiClient {
     async sendLocationBatch(locations: LocationUpdate[]): Promise<void> {
         await this.client.post('/locations/batch', { locations });
     }
+
+    // Notifications
+    async registerPushToken(token: string): Promise<void> {
+        await this.client.post('/notifications/token', { token });
+    }
 }
 
 export const api = new ApiClient();
