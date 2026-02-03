@@ -129,6 +129,12 @@ export class RouteOptimizationService {
                 })),
                 travelMode: 'DRIVE' as any,
                 routingPreference: 'TRAFFIC_UNAWARE' as any,
+            }, {
+                otherArgs: {
+                    headers: {
+                        'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline',
+                    },
+                },
             });
 
             const unoptimizedRoute = unoptimizedResponse[0]?.routes?.[0];
@@ -166,6 +172,12 @@ export class RouteOptimizationService {
                 travelMode: 'DRIVE' as any,
                 routingPreference: 'TRAFFIC_UNAWARE' as any,
                 optimizeWaypointOrder: true,
+            }, {
+                otherArgs: {
+                    headers: {
+                        'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline,routes.optimizedIntermediateWaypointIndex',
+                    },
+                },
             });
 
             const optimizedRoute = optimizedResponse[0]?.routes?.[0];
