@@ -45,6 +45,12 @@ export default function ShipmentCard({ shipment, onPress }: ShipmentCardProps) {
                     <Text style={styles.trackingNumber}>
                         {shipment.trackingNumber}
                     </Text>
+                    {/* Sequence Badge */}
+                    {shipment.sequence && (
+                        <View style={styles.sequenceBadge}>
+                            <Text style={styles.sequenceText}>#{shipment.sequence}</Text>
+                        </View>
+                    )}
                 </View>
                 <StatusBadge status={shipment.status} />
             </View>
@@ -158,5 +164,17 @@ const styles = StyleSheet.create({
     date: {
         fontSize: 12,
         color: COLORS.textLight,
+    },
+    sequenceBadge: {
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 12,
+        marginLeft: 4,
+    },
+    sequenceText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#FFFFFF',
     },
 });

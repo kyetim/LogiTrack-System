@@ -32,6 +32,30 @@ export default function ShipmentsScreen() {
         router.push(`/shipments/${shipmentId}`);
     };
 
+    // Sort shipments by sequence and status
+    const sortedShipments = React.useMemo(() => {
+        return [...shipments].sort((a, b) => {
+            // Status priority: PENDING > IN_TRANSIT > PICKED_UP > DELIVERED > CANCELLED
+            const statusOrder: Record<string, number> = {
+                'PENDING': 0,
+                'IN_TRANSIT': 1,
+                'PICKED_UP': 2,
+                'DELIVERED': 3,
+                'CANCELLED': 4,
+            };
+
+            const statusDiff = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+            if (statusDiff !== 0) return statusDiff;
+
+            // Then sort by sequence (ascending)
+            if (a.sequence && b.sequence) return a.sequence - b.sequence;
+            if (a.sequence) return -1; // a has sequence, prioritize
+            if (b.sequence) return 1;  // b has sequence, prioritize
+
+            return 0;
+        });
+    }, [shipments]);
+
     // Loading state
     if (isLoading && shipments.length === 0) {
         return (
@@ -77,7 +101,7 @@ export default function ShipmentsScreen() {
     return (
         <View style={styles.container}>
             <FlatList
-                data={shipments}
+                data={sortedShipments}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                     <ShipmentCard
@@ -98,7 +122,7 @@ export default function ShipmentsScreen() {
                     <View style={styles.header}>
                         <Text style={styles.headerTitle}>Sevkiyatlarım</Text>
                         <Text style={styles.headerSubtitle}>
-                            {shipments.length} sevkiyat
+                            {sortedShipments.length} sevkiyat
                         </Text>
                     </View>
                 }

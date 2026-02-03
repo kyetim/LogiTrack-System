@@ -23,6 +23,11 @@ export default function DashboardScreen() {
         new Date(s.updatedAt).toDateString() === new Date().toDateString()
     );
 
+    // Find next delivery (lowest sequence among PENDING/IN_TRANSIT)
+    const nextDelivery = [...pendingShipments, ...inTransitShipments]
+        .filter(s => s.sequence)
+        .sort((a, b) => (a.sequence || 0) - (b.sequence || 0))[0];
+
     const handleToggleTracking = async () => {
         if (isTracking) {
             // Stop tracking
@@ -110,6 +115,28 @@ export default function DashboardScreen() {
                     </Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Next Delivery Card */}
+            {nextDelivery && (
+                <View style={[styles.card, styles.nextDeliveryCard]}>
+                    <View style={styles.cardHeader}>
+                        <MaterialCommunityIcons name="truck-fast" size={24} color={COLORS.success} />
+                        <Text style={styles.cardTitle}>Sıradaki Teslimat</Text>
+                        <View style={styles.nextBadge}>
+                            <Text style={styles.nextBadgeText}>#{nextDelivery.sequence}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.nextDeliveryInfo}>
+                        <Text style={styles.nextTrackingNumber}>{nextDelivery.trackingNumber}</Text>
+                        <View style={styles.nextAddress}>
+                            <MaterialCommunityIcons name="map-marker" size={16} color={COLORS.danger} />
+                            <Text style={styles.nextAddressText} numberOfLines={1}>
+                                {nextDelivery.destination}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+            )}
 
             {/* Stats Cards */}
             <View style={styles.statsGrid}>
@@ -332,5 +359,40 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: COLORS.text,
         marginTop: 4,
+    },
+    nextDeliveryCard: {
+        borderLeftWidth: 4,
+        borderLeftColor: COLORS.success,
+    },
+    nextBadge: {
+        backgroundColor: COLORS.success,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        marginLeft: 'auto',
+    },
+    nextBadgeText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#FFFFFF',
+    },
+    nextDeliveryInfo: {
+        marginTop: 12,
+        gap: 8,
+    },
+    nextTrackingNumber: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: COLORS.text,
+    },
+    nextAddress: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    nextAddressText: {
+        flex: 1,
+        fontSize: 14,
+        color: COLORS.textLight,
     },
 });

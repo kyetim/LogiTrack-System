@@ -37,6 +37,7 @@ export interface Shipment {
     customerName?: string;
     customerPhone?: string;
     notes?: string;
+    sequence?: number; // Optimized delivery order (1, 2, 3...)
     createdAt: string;
     updatedAt: string;
 }
