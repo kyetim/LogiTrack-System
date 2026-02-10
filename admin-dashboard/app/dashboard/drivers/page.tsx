@@ -19,8 +19,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpDown, FileText } from 'lucide-react';
 import { toast } from 'sonner';
+import { DriverDocumentsModal } from '@/components/DriverDocumentsModal';
 
 interface Driver {
     id: string;
@@ -52,6 +53,8 @@ export default function DriversPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
+    const [docsModalOpen, setDocsModalOpen] = useState(false);
+    const [docsDriver, setDocsDriver] = useState<{ id: string; name: string } | null>(null);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -143,6 +146,11 @@ export default function DriversPage() {
     const handleEdit = (driver: Driver) => {
         setSelectedDriver(driver);
         setModalOpen(true);
+    };
+
+    const handleViewDocuments = (driver: Driver) => {
+        setDocsDriver({ id: driver.id, name: driver.user.email });
+        setDocsModalOpen(true);
     };
 
     const handleSubmit = async (data: DriverFormData) => {
@@ -282,6 +290,14 @@ export default function DriversPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         <div className="flex justify-end gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => handleViewDocuments(driver)}
+                                                                title={t('drivers.documents')}
+                                                            >
+                                                                <FileText className="h-4 w-4" />
+                                                            </Button>
                                                             <Button variant="outline" size="sm" onClick={() => handleEdit(driver)}>
                                                                 <Pencil className="h-4 w-4" />
                                                             </Button>
@@ -311,6 +327,13 @@ export default function DriversPage() {
                 onSubmit={handleSubmit}
                 driver={selectedDriver}
                 users={users}
+            />
+
+            <DriverDocumentsModal
+                open={docsModalOpen}
+                onClose={() => setDocsModalOpen(false)}
+                driverId={docsDriver?.id || null}
+                driverName={docsDriver?.name || ''}
             />
         </div>
     );

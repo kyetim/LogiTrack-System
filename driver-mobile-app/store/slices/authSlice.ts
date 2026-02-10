@@ -17,21 +17,33 @@ export const login = createAsyncThunk(
     'auth/login',
     async ({ email, password }: { email: string; password: string }, { rejectWithValue }) => {
         try {
+            console.log('🔐 Login attempt:', email);
+            console.log('API URL:', await import('../../utils/constants').then(m => m.API_URL));
+
             const response = await api.login(email, password);
+            console.log('✅ Login API success:', response);
 
             // Store token
             await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.access_token);
             await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
 
             // Get driver profile
+            console.log('📋 Fetching driver profile...');
             const driver = await api.getMyProfile();
+            console.log('✅ Driver profile success:', driver);
 
             // Store driver profile for MQTT
             await AsyncStorage.setItem(STORAGE_KEYS.DRIVER, JSON.stringify(driver));
 
             return { user: response.user, token: response.access_token, driver };
         } catch (error: any) {
-            return rejectWithValue(error.response?.data?.message || 'Login failed');
+            console.error('❌ Login error:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+            console.error('Error message:', error.message);
+
+            const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+            return rejectWithValue(errorMessage);
         }
     }
 );

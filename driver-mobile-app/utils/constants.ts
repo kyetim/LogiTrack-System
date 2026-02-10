@@ -1,7 +1,7 @@
 // API Base URL - Update for production
 // IMPORTANT: If login fails, check your network IP with 'ipconfig' and update below
-export const API_URL = 'http://192.168.1.125:4000/api';
-export const WS_URL = 'http://192.168.1.125:4000';
+export const API_URL = 'http://192.168.1.126:3000/api';
+export const WS_URL = 'http://192.168.1.126:3000';
 
 // GPS Tracking
 export const GPS_UPDATE_INTERVAL = 30000; // 30 seconds

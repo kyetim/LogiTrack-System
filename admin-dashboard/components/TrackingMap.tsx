@@ -68,7 +68,7 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
     // Get marker icon based on driver status
     const getMarkerIcon = (status: string) => {
         // Check if google maps is loaded
-        if (typeof google === 'undefined' || !google.maps) {
+        if (typeof google === 'undefined' || !google.maps || !google.maps.SymbolPath) {
             return undefined;
         }
 

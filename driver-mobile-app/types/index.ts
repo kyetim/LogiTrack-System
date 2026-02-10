@@ -3,13 +3,18 @@ export interface User {
     id: string;
     email: string;
     role: 'DRIVER' | 'ADMIN' | 'DISPATCHER';
+    firstName?: string;
+    lastName?: string;
 }
 
 export interface Driver {
     id: string;
     userId: string;
+    firstName?: string;
+    lastName?: string;
     licenseNumber: string;
     phoneNumber: string;
+    profileImage?: string;
     status: 'ON_DUTY' | 'OFF_DUTY';
     user: User;
     vehicle?: Vehicle;
@@ -30,13 +35,22 @@ export interface Shipment {
     status: 'PENDING' | 'PICKED_UP' | 'IN_TRANSIT' | 'DELIVERED' | 'CANCELLED';
     origin: string;
     destination: string;
-    pickupLocation?: any; // JSON object with lat, lng, address
-    deliveryLocation?: any; // JSON object with lat, lng, address
+    pickupLocation: {
+        lat: number;
+        lng: number;
+        address: string;
+    };
+    deliveryLocation: {
+        lat: number;
+        lng: number;
+        address: string;
+    };
     driverId?: string;
     driver?: Driver;
     customerName?: string;
     customerPhone?: string;
     notes?: string;
+    waybillUrl?: string; // Uploaded waybill URL
     sequence?: number; // Optimized delivery order (1, 2, 3...)
     createdAt: string;
     updatedAt: string;
@@ -56,7 +70,115 @@ export interface LocationUpdate {
     timestamp: Date;
 }
 
-// API Response Types
+// ==================== NEW TYPES ====================
+
+// Messaging Types
+export interface Message {
+    id: string;
+    senderId: string;
+    recipientId: string;
+    content: string;
+    read: boolean;
+    createdAt: string;
+    sender?: User;
+    recipient?: User;
+}
+
+export interface Conversation {
+    user: User;
+    lastMessage: Message;
+    unreadCount: number;
+}
+
+// Scoring Types
+export interface DriverScore {
+    driverId: string;
+    overallScore: number; // 0-100
+    safetyScore: number;
+    punctualityScore: number;
+    fuelEfficiency: number;
+    customerRating: number;
+    rank?: number;
+    updatedAt: string;
+}
+
+export interface LeaderboardEntry {
+    driver: Driver;
+    score: DriverScore;
+    rank: number;
+}
+
+// Document Types
+export interface Document {
+    id: string;
+    entityType: 'USER' | 'DRIVER' | 'VEHICLE' | 'COMPANY';
+    entityId: string;
+    documentType: string; // 'LICENSE', 'INSURANCE', 'REGISTRATION', etc.
+    fileUrl: string;
+    fileName: string;
+    displayName?: string;  // User-friendly title
+    fileSize: number;
+    mimeType: string;
+    expiryDate?: string;
+    verified: boolean;
+    verifiedBy?: string;
+    uploadedAt: string;
+}
+
+export interface UploadDocumentRequest {
+    entityType: 'USER' | 'DRIVER' | 'VEHICLE' | 'COMPANY';
+    entityId: string;
+    documentType: string;
+    expiryDate?: string;
+}
+
+// Geofencing Types
+export interface Geofence {
+    id: string;
+    name: string;
+    type: 'WAREHOUSE' | 'CUSTOMER_LOCATION' | 'RESTRICTED_AREA' | 'PREFERRED_ZONE';
+    center: {
+        lat: number;
+        lng: number;
+    };
+    radius: number; // in meters
+    active: boolean;
+    createdAt: string;
+}
+
+export interface GeofenceEvent {
+    id: string;
+    geofenceId: string;
+    driverId: string;
+    eventType: 'ENTER' | 'EXIT';
+    location: {
+        lat: number;
+        lng: number;
+    };
+    timestamp: string;
+    geofence?: Geofence;
+}
+
+export interface GeofenceCheckResult {
+    inside: boolean;
+    geofences: Geofence[];
+    distance?: number; // distance to nearest geofence
+}
+
+// Driver Availability Types
+export type AvailabilityStatus = 'AVAILABLE' | 'ON_DUTY' | 'OFF_DUTY';
+
+export interface AvailabilitySummary {
+    driverId: string;
+    status: AvailabilityStatus;
+    lastUpdated: string;
+    capacity?: number;
+    currentLoad?: number;
+}
+
+// ==================== END NEW TYPES ====================
+
+//API Response Types
 export interface ApiResponse<T> {
     data: T;
     message?: string;
@@ -103,10 +225,62 @@ export interface ConfigState {
     mqttEnabled: boolean;
 }
 
+// ==================== NEW STATE TYPES ====================
+
+export interface MessagesState {
+    conversations: Conversation[];
+    messagesByConversation: Record<string, Message[]>;
+    currentMessages: Message[];
+    unreadCount: number;
+    isLoading: boolean;
+    error: string | null;
+}
+
+export interface LeaderboardEntry {
+    rank: number;
+    driverId: string;
+    driver: Driver;
+    score: DriverScore;
+}
+
+export interface ScoringState {
+    leaderboard: LeaderboardEntry[];
+    myScore: DriverScore | null;
+    isLoading: boolean;
+    error: string | null;
+}
+
+export interface DocumentsState {
+    documents: Document[];
+    isLoading: boolean;
+    error: string | null;
+}
+
+export interface GeofencingState {
+    geofences: Geofence[];
+    events: GeofenceEvent[];
+    currentCheck: GeofenceCheckResult | null;
+    isLoading: boolean;
+    error: string | null;
+}
+
+export interface AvailabilityState {
+    status: AvailabilityStatus;
+    isUpdating: boolean;
+    error: string | null;
+}
+
+// ==================== END NEW STATE TYPES ====================
+
 export interface RootState {
     auth: AuthState;
     shipments: ShipmentsState;
     location: LocationState;
     map: MapState;
     config: ConfigState;
+    messages: MessagesState; // NEW
+    scoring: ScoringState; // NEW
+    documents: DocumentsState; // NEW
+    geofencing: GeofencingState; // NEW
+    availability: AvailabilityState; // NEW
 }

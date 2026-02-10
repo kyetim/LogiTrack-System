@@ -16,7 +16,8 @@
         "success": "Başarılı",
         "error": "Hata",
         "required": "Zorunlu alan",
-        "optional": "İsteğe bağlı"
+        "optional": "İsteğe bağlı",
+        "noResults": "Sonuç bulunamadı"
     },
     "auth": {
         "login": "Giriş Yap",
@@ -69,7 +70,8 @@
         "licenseNumber": "Ehliyet Numarası",
         "phoneNumber": "Telefon Numarası",
         "status": "Durum",
-        "assignedVehicle": "Atanan Araç"
+        "assignedVehicle": "Atanan Araç",
+        "documents": "Sürücü Belgeleri"
     },
     "vehicles": {
         "title": "Araç Yönetimi",
@@ -109,5 +111,33 @@
         "AVAILABLE": "Müsait",
         "IN_USE": "Kullanımda",
         "MAINTENANCE": "Bakımda"
+    },
+    "documents": {
+        "title": "Belgeler",
+        "type": "Belge Tipi",
+        "fileName": "Dosya Adı",
+        "uploadDate": "Yükleme Tarihi",
+        "expiryDate": "Bitiş Tarihi",
+        "status": "Durum",
+        "verified": "Onaylandı",
+        "pending": "Bekliyor",
+        "verifySuccess": "Belge doğrulandı",
+        "verifyFailed": "Belge doğrulanamadı",
+        "view": "Görüntüle",
+        "verify": "Doğrula"
+    },
+    "messages": {
+        "title": "Mesajlar",
+        "searchPlaceholder": "Sohbet veya sürücü ara...",
+        "noResults": "Sonuç bulunamadı",
+        "typeMessage": "Bir mesaj yazın...",
+        "send": "Gönder",
+        "noConversation": "Konuşma yok",
+        "selectConversation": "Bir sohbet seçin veya yeni başlatın",
+        "newChat": "Yeni Sohbet",
+        "online": "Çevrimiçi",
+        "offline": "Çevrimdışı",
+        "startChat": "Sohbet Başlat",
+        "me": "Ben"
     }
 }

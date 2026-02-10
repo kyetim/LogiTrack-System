@@ -27,7 +27,7 @@ export default function Index() {
         const isAuthenticated = !!(token && user);
 
         if (isAuthenticated) {
-            router.replace('/(tabs)');
+            router.replace('/(drawer)/(tabs)');
         } else {
             router.replace('/(auth)/login');
         }

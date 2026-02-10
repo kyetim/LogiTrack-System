@@ -54,6 +54,26 @@ export function DeliveryProofModal({ shipmentId, isOpen, onClose }: DeliveryProo
         link.click();
     };
 
+    const getFullImageUrl = (url?: string) => {
+        if (!url) return '';
+
+        // Get base URL from env
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api$/, '') || 'http://localhost:3000';
+
+        // Check if it's a local upload URL (contains /uploads/)
+        if (url.includes('/uploads/')) {
+            // Extract path starting from /uploads/
+            const path = url.substring(url.indexOf('/uploads/'));
+            return `${baseUrl}${path}`;
+        }
+
+        if (url.startsWith('http')) return url;
+
+        // Ensure url starts with / if not present
+        const path = url.startsWith('/') ? url : `/${url}`;
+        return `${baseUrl}${path}`;
+    };
+
     if (!proof && !loading) {
         return null;
     }
@@ -79,14 +99,14 @@ export function DeliveryProofModal({ shipmentId, isOpen, onClose }: DeliveryProo
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => downloadImage(proof.photoUrl!, 'delivery-photo.jpg')}
+                                        onClick={() => downloadImage(getFullImageUrl(proof.photoUrl), 'delivery-photo.jpg')}
                                     >
                                         <Download className="h-4 w-4 mr-2" />
                                         Download
                                     </Button>
                                 </div>
                                 <img
-                                    src={proof.photoUrl}
+                                    src={getFullImageUrl(proof.photoUrl)}
                                     alt="Delivery Photo"
                                     className="w-full rounded-lg border"
                                 />
@@ -101,7 +121,7 @@ export function DeliveryProofModal({ shipmentId, isOpen, onClose }: DeliveryProo
                                     <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => downloadImage(proof.signatureUrl!, 'signature.png')}
+                                        onClick={() => downloadImage(getFullImageUrl(proof.signatureUrl), 'signature.png')}
                                     >
                                         <Download className="h-4 w-4 mr-2" />
                                         Download
@@ -109,7 +129,7 @@ export function DeliveryProofModal({ shipmentId, isOpen, onClose }: DeliveryProo
                                 </div>
                                 <div className="bg-white p-4 rounded-lg border">
                                     <img
-                                        src={proof.signatureUrl}
+                                        src={getFullImageUrl(proof.signatureUrl)}
                                         alt="Signature"
                                         className="max-h-48 mx-auto"
                                     />

@@ -239,7 +239,153 @@ export class DriverService {
         return driver;
     }
 
+    /**
+     * Update driver status and availability atomically
+     * Used by mobile app availability toggle
+     */
+    async updateStatusAndAvailability(
+        id: string,
+        status: DriverStatus,
+        isAvailable: boolean
+    ) {
+        await this.findOne(id);
+
+        const driver = await this.prisma.driverProfile.update({
+            where: { id },
+            data: {
+                status,
+                isAvailable,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+                vehicle: true,
+            },
+        });
+
+        return driver;
+    }
+
+
     async getActiveDrivers() {
         return this.findAll({ isActive: true, status: DriverStatus.ON_DUTY });
     }
+
+    /**
+     * Get all available drivers (not currently assigned) with their vehicle info
+     */
+    async getAvailableDrivers() {
+        const drivers = await this.prisma.driverProfile.findMany({
+            where: {
+                isActive: true,
+                status: DriverStatus.ON_DUTY,
+                isAvailable: true, // New field for internal availability tracking
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        role: true,
+                        phoneNumber: true,
+                    },
+                },
+                vehicle: {
+                    select: {
+                        id: true,
+                        plateNumber: true,
+                        type: true,
+                        vehicleTypeEnum: true,
+                        capacity: true,
+                        maxWeight: true,
+                        maxVolume: true,
+                        status: true,
+                    },
+                },
+                score: {
+                    select: {
+                        overallScore: true,
+                        safetyScore: true,
+                        punctualityScore: true,
+                    },
+                },
+            },
+            orderBy: [
+                { score: { overallScore: 'desc' } }, // Best drivers first
+                { createdAt: 'asc' },
+            ],
+        });
+
+        return drivers;
+    }
+
+    /**
+     * Update driver availability status
+     */
+    async updateAvailability(id: string, availabilityData: {
+        isAvailable?: boolean;
+        currentLoadCapacity?: number;
+        preferredRoutes?: any;
+    }) {
+        await this.findOne(id);
+
+        const driver = await this.prisma.driverProfile.update({
+            where: { id },
+            data: {
+                isAvailable: availabilityData.isAvailable,
+                currentLoadCapacity: availabilityData.currentLoadCapacity,
+                preferredRoutes: availabilityData.preferredRoutes,
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+                vehicle: true,
+            },
+        });
+
+        return driver;
+    }
+
+    /**
+     * Get driver availability summary (for dispatcher dashboard)
+     */
+    async getAvailabilitySummary() {
+        const [total, active, onDuty, available] = await Promise.all([
+            this.prisma.driverProfile.count(),
+            this.prisma.driverProfile.count({ where: { isActive: true } }),
+            this.prisma.driverProfile.count({
+                where: {
+                    isActive: true,
+                    status: DriverStatus.ON_DUTY,
+                },
+            }),
+            this.prisma.driverProfile.count({
+                where: {
+                    isActive: true,
+                    status: DriverStatus.ON_DUTY,
+                    isAvailable: true,
+                },
+            }),
+        ]);
+
+        return {
+            total,
+            active,
+            onDuty,
+            available,
+            offDuty: active - onDuty,
+            busy: onDuty - available,
+        };
+    }
 }
+

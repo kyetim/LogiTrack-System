@@ -8,6 +8,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ShipmentFormModal, ShipmentFormData } from '@/components/ShipmentFormModal';
 import { AssignDriverModal } from '@/components/AssignDriverModal';
 import { DeliveryProofModal } from '@/components/DeliveryProofModal';
+import { WaybillUploadModal } from '@/components/WaybillUploadModal';
 import { TableFilters } from '@/components/TableFilters';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown, Route } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpDown, Route, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Shipment {
@@ -62,6 +63,8 @@ export default function ShipmentsPage() {
     const [selectedShipmentForAssign, setSelectedShipmentForAssign] = useState<Shipment | null>(null);
     const [podModalOpen, setPodModalOpen] = useState(false);
     const [selectedShipmentForPod, setSelectedShipmentForPod] = useState<string | null>(null);
+    const [waybillModalOpen, setWaybillModalOpen] = useState(false);
+    const [selectedShipmentForWaybill, setSelectedShipmentForWaybill] = useState<string | null>(null);
     const [optimizeModalOpen, setOptimizeModalOpen] = useState(false);
     const [selectedDriverForOptimize, setSelectedDriverForOptimize] = useState<{ id: string; email: string } | null>(null);
 
@@ -343,6 +346,17 @@ export default function ShipmentsPage() {
                                                                 </Button>
                                                             )}
                                                             <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => {
+                                                                    setSelectedShipmentForWaybill(shipment.id);
+                                                                    setWaybillModalOpen(true);
+                                                                }}
+                                                                title="İrsaliye Yükle"
+                                                            >
+                                                                <Upload className="h-4 w-4" />
+                                                            </Button>
+                                                            <Button
                                                                 variant="secondary"
                                                                 size="sm"
                                                                 onClick={() => handleAssignDriver(shipment)}
@@ -394,6 +408,16 @@ export default function ShipmentsPage() {
                 onClose={() => {
                     setPodModalOpen(false);
                     setSelectedShipmentForPod(null);
+                    setSelectedShipmentForPod(null);
+                }}
+            />
+
+            <WaybillUploadModal
+                shipmentId={selectedShipmentForWaybill}
+                open={waybillModalOpen}
+                onClose={() => {
+                    setWaybillModalOpen(false);
+                    setSelectedShipmentForWaybill(null);
                 }}
             />
         </div>

@@ -16,6 +16,15 @@ import { UploadModule } from './upload/upload.module';
 import { WebsocketModule } from './websocket/websocket.module';
 import { NotificationModule } from './notification/notification.module';
 import { RouteOptimizationModule } from './route-optimization/route-optimization.module';
+import { CompanyModule } from './company/company.module';
+import { GeofencingModule } from './geofencing/geofencing.module';
+import { DocumentModule } from './document/document.module';
+import { MessagingModule } from './messaging/messaging.module';
+import { ScoringModule } from './scoring/scoring.module';
+import { BillingModule } from './billing/billing.module';
+import { PushNotificationModule } from './push-notification/push-notification.module';
+import { EmailModule } from './email/email.module';
+import { FileUploadModule } from './file-upload/file-upload.module';
 
 @Module({
   imports: [
@@ -52,6 +61,19 @@ import { RouteOptimizationModule } from './route-optimization/route-optimization
     WebsocketModule,
     NotificationModule,
     RouteOptimizationModule,
+
+    // TIRPORT Features
+    CompanyModule,
+    GeofencingModule,
+    DocumentModule,
+    MessagingModule,
+    ScoringModule,
+    BillingModule,
+    PushNotificationModule,
+
+    // Global Services
+    EmailModule,
+    FileUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

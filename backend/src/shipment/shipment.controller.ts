@@ -10,8 +10,17 @@ import {
     Request,
     Query,
     ForbiddenException,
+    BadRequestException,
+    Res,
+    UseInterceptors,
+    UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
+import { join } from 'path';
+import * as fs from 'fs';
 import { ShipmentService } from './shipment.service';
+import { WaybillService } from './waybill.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
 import { AssignDriverDto } from './dto/assign-driver.dto';
@@ -24,7 +33,10 @@ import { UserRole, ShipmentStatus } from '@prisma/client';
 @Controller('shipments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ShipmentController {
-    constructor(private readonly shipmentService: ShipmentService) { }
+    constructor(
+        private readonly shipmentService: ShipmentService,
+        private readonly waybillService: WaybillService
+    ) { }
 
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
@@ -156,5 +168,50 @@ export class ShipmentController {
         }
 
         return this.shipmentService.getDeliveryProof(id);
+    }
+
+    @Get(':id/waybill')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+    async getWaybill(@Param('id') id: string, @Request() req, @Res() res: Response) {
+        // Verify access (Driver can only see their own - simplified check)
+        const shipment = await this.shipmentService.findOne(id);
+
+        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
+            throw new ForbiddenException('You can only access waybill for your own shipments');
+        }
+
+        // If manual waybill uploaded, serve it
+        if (shipment.waybillUrl) {
+            const filename = shipment.waybillUrl.split('/').pop();
+            const filePath = join(process.cwd(), 'uploads', 'documents', filename);
+
+            if (fs.existsSync(filePath)) {
+                res.sendFile(filePath);
+                return;
+            }
+        }
+
+        const buffer = await this.waybillService.generateWaybill(id);
+
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename=waybill-${shipment.trackingNumber}.pdf`,
+            'Content-Length': buffer.length,
+        });
+
+        res.end(buffer);
+    }
+
+    @Post(':id/upload-waybill')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadWaybill(
+        @Param('id') id: string,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
+        if (!file) {
+            throw new BadRequestException('File is required');
+        }
+        return this.shipmentService.uploadManualWaybill(id, file);
     }
 }

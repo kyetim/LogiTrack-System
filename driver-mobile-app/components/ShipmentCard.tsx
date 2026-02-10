@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Shipment } from '../types';
-import { COLORS } from '../utils/constants';
+import { Colors, Typography, Spacing, BorderRadius } from '../constants/theme';
 import StatusBadge from './StatusBadge';
+import { TransitCard } from './ui/TransitCard';
 
 interface ShipmentCardProps {
     shipment: Shipment;
@@ -13,6 +14,7 @@ interface ShipmentCardProps {
 export default function ShipmentCard({ shipment, onPress }: ShipmentCardProps) {
     // Format date to Turkish locale
     const formatDate = (dateString: string) => {
+        if (!dateString) return '';
         const date = new Date(dateString);
         return date.toLocaleDateString('tr-TR', {
             day: '2-digit',
@@ -22,159 +24,150 @@ export default function ShipmentCard({ shipment, onPress }: ShipmentCardProps) {
         });
     };
 
-    // Shorten address for display
-    const shortenAddress = (address: string, maxLength = 40) => {
-        if (address.length <= maxLength) return address;
-        return address.substring(0, maxLength) + '...';
+    const getStatusColor = (status: Shipment['status']) => {
+        switch (status) {
+            case 'PENDING': return Colors.warning;
+            case 'IN_TRANSIT': return Colors.info;
+            case 'DELIVERED': return Colors.success;
+            case 'CANCELLED': return Colors.danger;
+            default: return Colors.gray400;
+        }
     };
 
     return (
-        <TouchableOpacity
-            style={styles.card}
+        <TransitCard
             onPress={onPress}
-            activeOpacity={0.7}
+            statusBorder={getStatusColor(shipment.status)}
+            style={styles.card}
         >
-            {/* Header */}
             <View style={styles.header}>
-                <View style={styles.headerLeft}>
-                    <MaterialCommunityIcons
-                        name="package-variant"
-                        size={20}
-                        color={COLORS.primary}
-                    />
-                    <Text style={styles.trackingNumber}>
-                        {shipment.trackingNumber}
+                <View style={styles.trackingContainer}>
+                    <Text style={styles.label}>TAKİP NO</Text>
+                    <Text style={styles.trackingNumber}>{shipment.trackingNumber}</Text>
+                </View>
+                {shipment.sequence && (
+                    <View style={styles.sequenceBadge}>
+                        <Text style={styles.sequenceText}>#{shipment.sequence}</Text>
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.addressSection}>
+                <View style={styles.pathVisual}>
+                    <View style={[styles.dot, { backgroundColor: Colors.success }]} />
+                    <View style={styles.line} />
+                    <View style={[styles.dot, { backgroundColor: Colors.danger }]} />
+                </View>
+                <View style={styles.addressTextContainer}>
+                    <Text style={styles.addressText} numberOfLines={1}>
+                        {shipment.origin || 'Yükleme Noktası'}
                     </Text>
-                    {/* Sequence Badge */}
-                    {shipment.sequence && (
-                        <View style={styles.sequenceBadge}>
-                            <Text style={styles.sequenceText}>#{shipment.sequence}</Text>
-                        </View>
-                    )}
-                </View>
-                <StatusBadge status={shipment.status} />
-            </View>
-
-            {/* Addresses */}
-            <View style={styles.addresses}>
-                {/* Pickup */}
-                <View style={styles.addressRow}>
-                    <MaterialCommunityIcons
-                        name="map-marker-up"
-                        size={18}
-                        color={COLORS.success}
-                    />
-                    <View style={styles.addressText}>
-                        <Text style={styles.addressLabel}>Alış</Text>
-                        <Text style={styles.addressValue} numberOfLines={1}>
-                            {shortenAddress(shipment.origin || 'Bilinmiyor')}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Delivery */}
-                <View style={styles.addressRow}>
-                    <MaterialCommunityIcons
-                        name="map-marker-down"
-                        size={18}
-                        color={COLORS.danger}
-                    />
-                    <View style={styles.addressText}>
-                        <Text style={styles.addressLabel}>Teslim</Text>
-                        <Text style={styles.addressValue} numberOfLines={1}>
-                            {shortenAddress(shipment.destination || 'Bilinmiyor')}
-                        </Text>
-                    </View>
+                    <View style={{ height: 16 }} />
+                    <Text style={[styles.addressText, styles.destinationText]} numberOfLines={1}>
+                        {shipment.destination || 'Teslim Noktası'}
+                    </Text>
                 </View>
             </View>
 
-            {/* Footer */}
             <View style={styles.footer}>
-                <Text style={styles.date}>
-                    {formatDate(shipment.createdAt)}
-                </Text>
-                <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={20}
-                    color={COLORS.textLight}
-                />
+                <View style={styles.infoItem}>
+                    <MaterialCommunityIcons name="calendar" size={14} color={Colors.gray400} />
+                    <Text style={styles.infoText}>{formatDate(shipment.createdAt)}</Text>
+                </View>
+                <View style={styles.statusContainer}>
+                    <StatusBadge status={shipment.status} />
+                </View>
             </View>
-        </TouchableOpacity>
+        </TransitCard>
     );
 }
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: 'white',
-        borderRadius: 12,
-        padding: 16,
-        marginHorizontal: 16,
-        marginBottom: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        marginBottom: Spacing.md,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
+        alignItems: 'flex-start',
+        marginBottom: Spacing.md,
     },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
+    trackingContainer: {
+        gap: 2,
+    },
+    label: {
+        fontSize: 10,
+        fontWeight: Typography.bold,
+        color: Colors.gray400,
+        letterSpacing: 1,
     },
     trackingNumber: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: COLORS.text,
+        fontSize: Typography.md,
+        fontWeight: Typography.bold,
+        color: Colors.gray900,
     },
-    addresses: {
-        gap: 12,
-        marginBottom: 12,
+    sequenceBadge: {
+        backgroundColor: Colors.primary,
+        paddingHorizontal: Spacing.sm,
+        paddingVertical: 4,
+        borderRadius: BorderRadius.md,
     },
-    addressRow: {
+    sequenceText: {
+        color: Colors.white,
+        fontSize: Typography.sm,
+        fontWeight: Typography.bold,
+    },
+    addressSection: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 8,
+        marginBottom: Spacing.md,
     },
-    addressText: {
+    pathVisual: {
+        alignItems: 'center',
+        marginRight: Spacing.md,
+        paddingTop: 6,
+    },
+    dot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    line: {
+        width: 1,
+        height: 18,
+        backgroundColor: Colors.gray200,
+        marginVertical: 4,
+    },
+    addressTextContainer: {
         flex: 1,
     },
-    addressLabel: {
-        fontSize: 11,
-        color: COLORS.textLight,
-        marginBottom: 2,
+    addressText: {
+        fontSize: Typography.base,
+        color: Colors.gray700,
+        fontWeight: Typography.medium,
     },
-    addressValue: {
-        fontSize: 14,
-        color: COLORS.text,
+    destinationText: {
+        fontWeight: Typography.bold,
+        color: Colors.gray900,
     },
     footer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingTop: 12,
+        paddingTop: Spacing.sm,
         borderTopWidth: 1,
-        borderTopColor: COLORS.border,
+        borderTopColor: Colors.gray100,
     },
-    date: {
-        fontSize: 12,
-        color: COLORS.textLight,
+    infoItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
-    sequenceBadge: {
-        backgroundColor: COLORS.primary,
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 12,
-        marginLeft: 4,
+    infoText: {
+        fontSize: Typography.xs,
+        color: Colors.gray500,
     },
-    sequenceText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#FFFFFF',
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
 });

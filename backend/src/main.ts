@@ -33,9 +33,9 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  // Global API prefix (exclude Swagger docs and uploads)
+  // Global API prefix (exclude Swagger docs, uploads, and file-upload)
   app.setGlobalPrefix('api', {
-    exclude: ['docs', 'docs/(.*)', 'uploads', 'uploads/(.*)'],
+    exclude: ['docs', 'docs/(.*)', 'uploads', 'uploads/(.*)', 'file-upload', 'file-upload/(.*)'],
   });
 
   // Swagger configuration

@@ -1,0 +1,148 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  passwordHash  String         @map("password_hash")
+  role          UserRole
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  pushToken     String?        @map("push_token")
+  driverProfile DriverProfile?
+  shipments     Shipment[]     @relation("AssignedDriver")
+
+  @@map("users")
+}
+
+model DriverProfile {
+  id            String        @id @default(uuid())
+  userId        String        @unique @map("user_id")
+  licenseNumber String        @unique @map("license_number")
+  vehicleId     String?       @map("vehicle_id")
+  isActive      Boolean       @default(true) @map("is_active")
+  status        DriverStatus  @default(OFF_DUTY)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle?      @relation(fields: [vehicleId], references: [id])
+  locationLogs  LocationLog[]
+
+  @@map("driver_profiles")
+}
+
+model Vehicle {
+  id              String           @id @default(uuid())
+  plateNumber     String           @unique @map("plate_number")
+  capacity        Float
+  type            String
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  lastServiceDate DateTime?        @map("last_service_date")
+  mileage         Float            @default(0)
+  nextServiceDate DateTime?        @map("next_service_date")
+  status          VehicleStatus    @default(ACTIVE)
+  drivers         DriverProfile[]
+  maintenanceLogs MaintenanceLog[]
+
+  @@map("vehicles")
+}
+
+model MaintenanceLog {
+  id          String          @id @default(uuid())
+  vehicleId   String          @map("vehicle_id")
+  type        MaintenanceType
+  description String
+  cost        Float
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@map("maintenance_logs")
+}
+
+model Shipment {
+  id               String         @id @default(uuid())
+  driverId         String?        @map("driver_id")
+  status           ShipmentStatus @default(PENDING)
+  pickupLocation   Json           @map("pickup_location")
+  deliveryLocation Json           @map("delivery_location")
+  estimatedArrival DateTime?      @map("estimated_arrival")
+  proofOfDelivery  Json?          @map("proof_of_delivery")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  trackingNumber   String         @unique @map("tracking_number")
+  origin           String
+  destination      String
+  sequence         Int?
+  deliveryProof    DeliveryProof?
+  driver           User?          @relation("AssignedDriver", fields: [driverId], references: [id])
+
+  @@map("shipments")
+}
+
+model DeliveryProof {
+  id            String   @id @default(uuid())
+  shipmentId    String   @unique @map("shipment_id")
+  photoUrl      String?  @map("photo_url")
+  signatureUrl  String?  @map("signature_url")
+  recipientName String?  @map("recipient_name")
+  notes         String?
+  deliveredAt   DateTime @default(now()) @map("delivered_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  shipment      Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@map("delivery_proofs")
+}
+
+model LocationLog {
+  id          String        @id @default(uuid())
+  driverId    String        @map("driver_id")
+  coordinates Json
+  heading     Float?
+  speed       Float?
+  timestamp   DateTime      @default(now())
+  driver      DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([timestamp])
+  @@map("location_logs")
+}
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  DRIVER
+}
+
+enum DriverStatus {
+  ON_DUTY
+  OFF_DUTY
+}
+
+enum ShipmentStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+  OTHER
+}

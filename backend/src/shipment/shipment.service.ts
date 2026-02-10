@@ -6,12 +6,14 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { ShipmentStatus } from '@prisma/client';
 
 import { NotificationService } from '../notification/notification.service';
+import { FileUploadService } from '../file-upload/file-upload.service';
 
 @Injectable()
 export class ShipmentService {
     constructor(
         private prisma: PrismaService,
-        private notificationService: NotificationService
+        private notificationService: NotificationService,
+        private fileUploadService: FileUploadService
     ) { }
 
     async findAll(filters?: { status?: ShipmentStatus; driverId?: string; startDate?: Date; endDate?: Date }) {
@@ -296,5 +298,38 @@ export class ShipmentService {
         }
 
         return deliveryProof;
+    }
+
+    async uploadManualWaybill(id: string, file: Express.Multer.File) {
+        const shipment = await this.findOne(id);
+
+        // Upload file
+        const uploadResult = await this.fileUploadService.uploadDocument(file);
+
+        // Update shipment
+        const updatedShipment = await this.prisma.shipment.update({
+            where: { id },
+            data: { waybillUrl: uploadResult.fileUrl },
+            include: {
+                driver: {
+                    select: {
+                        id: true,
+                        pushToken: true
+                    }
+                }
+            }
+        });
+
+        // Notify driver
+        if (updatedShipment.driverId) {
+            await this.notificationService.sendPushNotification(
+                updatedShipment.driverId,
+                'İrsaliye Yüklendi',
+                `Sevkiyatınız için yeni irsaliye yüklendi: ${shipment.trackingNumber}`,
+                { shipmentId: id, type: 'WAYBILL_UPLOADED' }
+            );
+        }
+
+        return updatedShipment;
     }
 }

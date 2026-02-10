@@ -64,6 +64,44 @@ export class DriverController {
         return driver;
     }
 
+    @Patch('me/availability')
+    @Roles(UserRole.DRIVER)
+    async updateMyAvailability(
+        @Request() req,
+        @Body() availabilityDto: { status: 'AVAILABLE' | 'ON_DUTY' | 'OFF_DUTY' },
+    ) {
+        const driver = await this.driverService.findByUserId(req.user.id);
+        if (!driver) {
+            throw new ForbiddenException('Driver profile not found');
+        }
+
+        // Map frontend status to backend status + isAvailable
+        let driverStatus: DriverStatus;
+        let isAvailable: boolean;
+
+        switch (availabilityDto.status) {
+            case 'AVAILABLE':
+                driverStatus = DriverStatus.ON_DUTY;
+                isAvailable = true;
+                break;
+            case 'ON_DUTY':
+                driverStatus = DriverStatus.ON_DUTY;
+                isAvailable = false; // On duty but busy
+                break;
+            case 'OFF_DUTY':
+                driverStatus = DriverStatus.OFF_DUTY;
+                isAvailable = false;
+                break;
+        }
+
+        // Update both status and isAvailable
+        return this.driverService.updateStatusAndAvailability(
+            driver.id,
+            driverStatus,
+            isAvailable
+        );
+    }
+
     @Get(':id')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async findOne(@Param('id') id: string, @Request() req) {
@@ -133,4 +171,43 @@ export class DriverController {
     assignVehicle(@Param('id') id: string, @Body('vehicleId') vehicleId: string) {
         return this.driverService.assignVehicle(id, vehicleId);
     }
+
+    // ============================================
+    // DRIVER AVAILABILITY ENDPOINTS (Internal Fleet)
+    // ============================================
+
+    @Get('availability/summary')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    getAvailabilitySummary() {
+        return this.driverService.getAvailabilitySummary();
+    }
+
+    @Get('availability/available')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    getAvailableDrivers() {
+        return this.driverService.getAvailableDrivers();
+    }
+
+    @Patch(':id/availability')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
+    async updateAvailability(
+        @Param('id') id: string,
+        @Body() availabilityDto: {
+            isAvailable?: boolean;
+            currentLoadCapacity?: number;
+            preferredRoutes?: any;
+        },
+        @Request() req,
+    ) {
+        // Drivers can only update their own availability
+        if (req.user.role === UserRole.DRIVER) {
+            const userDriver = await this.driverService.findByUserId(req.user.id);
+            if (!userDriver || userDriver.id !== id) {
+                throw new ForbiddenException('You can only update your own availability');
+            }
+        }
+
+        return this.driverService.updateAvailability(id, availabilityDto);
+    }
 }
+

@@ -32,7 +32,7 @@ export default function LoginScreen() {
     useEffect(() => {
         // Navigate to tabs when login successful
         if (user) {
-            router.replace('/(tabs)');
+            router.replace('/(drawer)/(tabs)');
         }
     }, [user]);
 

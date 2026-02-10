@@ -17,7 +17,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import api from '@/lib/api';
-import { Users, Truck, Package, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
+import { Users, Truck, Package, MapPin, TrendingUp, TrendingDown, MessageSquare } from 'lucide-react';
 
 export default function DashboardPage() {
     const { user, logout, isLoading } = useAuth();
@@ -259,6 +259,12 @@ export default function DashboardPage() {
                                 <div className="text-center">
                                     <TrendingUp className="h-6 w-6 mx-auto mb-2 text-purple-600" />
                                     <div className="text-sm font-medium text-purple-600">Detaylı Analiz</div>
+                                </div>
+                            </Button>
+                            <Button variant="outline" className="h-20 bg-green-50 border-green-200 hover:bg-green-100" onClick={() => router.push('/dashboard/messages')}>
+                                <div className="text-center">
+                                    <MessageSquare className="h-6 w-6 mx-auto mb-2 text-green-600" />
+                                    <div className="text-sm font-medium text-green-600">{t('messages.title')}</div>
                                 </div>
                             </Button>
                         </div>

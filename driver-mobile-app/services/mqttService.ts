@@ -28,7 +28,7 @@ class MQTTService {
             this.driverId = JSON.parse(driverData).id;
 
             const MQTT_URL = __DEV__
-                ? 'ws://192.168.1.125:9001' // WebSocket port
+                ? 'ws://192.168.1.126:9001' // WebSocket port
                 : 'wss://your-production-url.com:9001';
 
             console.log(`🔌 Connecting to MQTT: ${MQTT_URL}`);
