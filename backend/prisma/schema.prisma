@@ -65,8 +65,13 @@ model DriverProfile {
   
   // Availability & Capacity (Internal Fleet Management)
   isAvailable        Boolean   @default(true) @map("is_available")
-  currentLoadCapacity Float?    @map("current_load_capacity")
-  preferredRoutes    Json?     @map("preferred_routes")
+  currentLoadCapacity  Float    @default(0) @map("current_load_capacity")
+  preferredRoutes      Json?    @map("preferred_routes")
+
+  // Location tracking for job matching
+  currentLocation      Unsupported("geography(Point,4326)")? @map("current_location")
+  lastLocationUpdate   DateTime? @map("last_location_update")
+  isAvailableForWork   Boolean   @default(false) @map("is_available_for_work")
   
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
@@ -208,9 +213,13 @@ model Shipment {
   origin            String
   destination       String
   
-  // Locations stored as JSON for now (will use PostGIS geometry later)
-  pickupLocation    Json            @map("pickup_location")
-  deliveryLocation  Json            @map("delivery_location")
+  // Coordinates stored as JSON for display/backward compatibility
+  originCoordinates      Json            @map("origin_coordinates")
+  destinationCoordinates Json            @map("destination_coordinates")
+  
+  // PostGIS geography columns for proximity searches
+  pickupLocationGeo      Unsupported("geography(Point,4326)")? @map("pickup_location")
+  deliveryLocationGeo    Unsupported("geography(Point,4326)")? @map("delivery_location")
   
   estimatedArrival  DateTime?       @map("estimated_arrival")
   proofOfDelivery   Json?           @map("proof_of_delivery")

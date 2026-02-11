@@ -209,5 +209,44 @@ export class DriverController {
 
         return this.driverService.updateAvailability(id, availabilityDto);
     }
+
+    // ============================================
+    // LOCATION TRACKING & JOB MATCHING (New)
+    // ============================================
+
+    @Post('me/location')
+    @Roles(UserRole.DRIVER)
+    async updateMyLocation(
+        @Request() req,
+        @Body() locationDto: { lat: number; lng: number }
+    ) {
+        const driver = await this.driverService.findByUserId(req.user.id);
+        if (!driver) {
+            throw new ForbiddenException('Driver profile not found');
+        }
+
+        return this.driverService.updateDriverLocation(
+            driver.id,
+            locationDto.lat,
+            locationDto.lng
+        );
+    }
+
+    @Post('me/availability-for-work')
+    @Roles(UserRole.DRIVER)
+    async setMyAvailabilityForWork(
+        @Request() req,
+        @Body() availabilityDto: { isAvailable: boolean }
+    ) {
+        const driver = await this.driverService.findByUserId(req.user.id);
+        if (!driver) {
+            throw new ForbiddenException('Driver profile not found');
+        }
+
+        return this.driverService.setAvailabilityForWork(
+            driver.id,
+            availabilityDto.isAvailable
+        );
+    }
 }
 

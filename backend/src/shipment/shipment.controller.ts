@@ -214,4 +214,20 @@ export class ShipmentController {
         }
         return this.shipmentService.uploadManualWaybill(id, file);
     }
+
+    @Get('nearby')
+    @Roles(UserRole.DRIVER)
+    async getNearbyShipments(
+        @Request() req,
+        @Query('radius') radius?: number
+    ) {
+        const driverId = req.user.driverProfile?.id;
+
+        if (!driverId) {
+            throw new ForbiddenException('Driver profile not found');
+        }
+
+        const radiusKm = radius ? Number(radius) : 50;
+        return this.shipmentService.findNearbyShipments(driverId, radiusKm);
+    }
 }

@@ -332,4 +332,43 @@ export class ShipmentService {
 
         return updatedShipment;
     }
+
+    /**
+     * Find shipments near driver's current location using PostGIS
+     */
+    async findNearbyShipments(driverId: string, radiusKm: number = 50) {
+        // Use raw SQL to get driver location and find nearby shipments
+        // Note: Using raw SQL to avoid Prisma client regeneration issues
+        const nearbyShipments = await this.prisma.$queryRaw<any[]>`
+            WITH driver_loc AS (
+                SELECT current_location
+                FROM driver_profiles
+                WHERE id = ${driverId}
+            )
+            SELECT 
+                s.*,
+                ST_Distance(
+                    s.pickup_location::geography,
+                    driver_loc.current_location::geography
+                )::integer AS distance_meters
+            FROM shipments s, driver_loc
+            WHERE 
+                s.status = 'PENDING'
+                AND driver_loc.current_location IS NOT NULL
+                AND ST_DWithin(
+                    s.pickup_location::geography,
+                    driver_loc.current_location::geography,
+                    ${radiusKm * 1000}
+                )
+            ORDER BY 
+                ST_Distance(s.pickup_location, driver_loc.current_location)
+            LIMIT 10
+        `;
+
+        if (!nearbyShipments || nearbyShipments.length === 0) {
+            return [];
+        }
+
+        return nearbyShipments;
+    }
 }

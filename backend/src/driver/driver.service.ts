@@ -387,5 +387,40 @@ export class DriverService {
             busy: onDuty - available,
         };
     }
+
+    /**
+     * Update driver's current location using PostGIS
+     */
+    async updateDriverLocation(driverId: string, lat: number, lng: number) {
+        await this.findOne(driverId);
+
+        await this.prisma.$executeRaw`
+            UPDATE driver_profiles
+            SET 
+                current_location = ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+                last_location_update = NOW()
+            WHERE id = ${driverId}
+        `;
+
+        return { success: true, message: 'Location updated successfully' };
+    }
+
+    /**
+     * Set driver availability for work (for nearby job matching)
+     */
+    async setAvailabilityForWork(driverId: string, isAvailable: boolean) {
+        await this.findOne(driverId);
+
+        // Use raw SQL to update availability until Prisma client regenerates
+        await this.prisma.$executeRaw`
+            UPDATE driver_profiles
+            SET is_available_for_work = ${isAvailable}
+            WHERE id = ${driverId}
+        `;
+
+        // Return updated driver
+        return this.findOne(driverId);
+    }
 }
+
 
