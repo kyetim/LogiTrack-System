@@ -12,21 +12,20 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAppDispatch, useAppSelector } from '../../../store';
-import {
-    fetchDocuments,
-    uploadDocument,
-    deleteDocument,
-} from '../../../store/slices/documentsSlice';
+import { fetchDocuments, deleteDocument } from '../../../store/slices/documentsSlice';
 import { DocumentCard } from '../../../components/documents/DocumentCard';
 import { DocumentUploadButton } from '../../../components/documents/DocumentUploadButton';
 import { Colors, Spacing, Typography } from '../../../constants/theme';
 import { api } from '../../../services/api';
-import { API_URL, STORAGE_KEYS } from '../../../utils/constants';
+import { STORAGE_KEYS, API_URL } from '../../../utils/constants';
 
 export default function DocumentsScreen() {
     const dispatch = useAppDispatch();
-    const { documents, isLoading, error } = useAppSelector((state) => state.documents);
-    const { user, driver } = useAppSelector((state) => state.auth);
+    const user = useAppSelector((state) => state.auth.user);
+    const driver = useAppSelector((state) => state.auth.driver);
+    const documents = useAppSelector((state) => state.documents.documents);
+    const isLoading = useAppSelector((state) => state.documents.isLoading);
+    const error = useAppSelector((state) => state.documents.error);
     const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
@@ -72,12 +71,29 @@ export default function DocumentsScreen() {
 
     const handleViewDocument = async (document: any) => {
         console.log('📄 Viewing document:', document.displayName || document.fileName);
-        console.log('🔗 File URL:', document.fileUrl);
+        console.log('🔗 File URL (original):', document.fileUrl);
 
         try {
+            // Parse URL to extract path (handles IP changes)
+            let fileUrl = document.fileUrl;
+            try {
+                const url = new URL(document.fileUrl);
+                // Extract path (e.g., /file-upload/documents/filename.pdf)
+                const path = url.pathname;
+
+                // Reconstruct with current API base
+                // API_URL = http://192.168.1.125:3000/api, remove /api suffix
+                const baseUrl = API_URL.replace('/api', '');
+                fileUrl = `${baseUrl}${path}`;
+
+                console.log('🔄 Reconstructed URL:', fileUrl);
+            } catch (urlError) {
+                console.warn('⚠️ Could not parse URL, using as-is:', urlError);
+            }
+
             // Test with fetch first
             console.log('🌐 Testing URL with fetch...');
-            const fetchResponse = await fetch(document.fileUrl);
+            const fetchResponse = await fetch(fileUrl);
             console.log('📥 Fetch response status:', fetchResponse.status);
             console.log('📥 Fetch response ok:', fetchResponse.ok);
 

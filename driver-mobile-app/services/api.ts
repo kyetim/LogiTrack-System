@@ -167,7 +167,10 @@ class ApiClient {
     async uploadDocumentV2(file: FormData): Promise<any> {
         console.log('🚀 API: uploadDocumentV2 (FETCH) called');
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-        const response = await fetch(`${API_URL}/file-upload/document`, {
+
+        // file-upload is excluded from /api prefix on backend
+        const baseUrl = API_URL.replace('/api', '');
+        const response = await fetch(`${baseUrl}/file-upload/document`, {
             method: 'POST',
             body: file as any,
             headers: {

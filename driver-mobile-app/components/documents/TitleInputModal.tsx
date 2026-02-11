@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: Typography.lg,
         fontWeight: '600',
-        color: Colors.text,
+        color: Colors.gray900,
         marginBottom: Spacing.sm,
         textAlign: 'center',
     },
