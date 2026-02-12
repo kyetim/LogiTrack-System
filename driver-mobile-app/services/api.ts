@@ -246,6 +246,28 @@ class ApiClient {
         return data;
     }
 
+    // Smart Job Matching (NEW)
+    async getNearbyShipments(radius?: number): Promise<Shipment[]> {
+        const { data } = await this.client.get<Shipment[]>('/shipments/nearby', {
+            params: { radius: radius || 50 },
+        });
+        return data;
+    }
+
+    async updateMyLocation(lat: number, lng: number): Promise<void> {
+        await this.client.post('/drivers/me/location', {
+            lat,
+            lng,
+        });
+    }
+
+    async setAvailabilityForWork(isAvailable: boolean): Promise<any> {
+        const { data } = await this.client.post('/drivers/me/availability-for-work', {
+            isAvailable,
+        });
+        return data;
+    }
+
     // ==================== END NEW ENDPOINTS ====================
 }
 

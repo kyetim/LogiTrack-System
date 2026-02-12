@@ -34,6 +34,16 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
+                name="nearby-jobs"
+                options={{
+                    title: 'Yakındaki İşler',
+                    tabBarLabel: 'Yakındakiler',
+                    tabBarIcon: ({ color, size }) => (
+                        <MaterialCommunityIcons name="map-marker-radius" size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="messages"
                 options={{
                     title: 'Mesajlar',

@@ -69,7 +69,7 @@ export class RouteOptimizationService {
         // Extract waypoints from shipments
         const waypoints: Waypoint[] = shipments.map(s => ({
             shipmentId: s.id,
-            location: s.deliveryLocation as any,
+            location: s.destinationCoordinates as any,
             address: s.destination,
         }));
 

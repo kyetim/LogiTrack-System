@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { AnalyticsCharts } from '@/components/AnalyticsCharts';
+import { SmartMatchingCard } from '@/components/SmartMatchingCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -214,6 +215,9 @@ export default function DashboardPage() {
                         </Card>
                     </div>
                 )}
+
+                {/* Smart Matching Card */}
+                <SmartMatchingCard />
 
                 {/* Analytics Charts */}
                 {analytics && <AnalyticsCharts data={analytics} />}

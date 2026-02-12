@@ -82,6 +82,25 @@ export class ShipmentController {
         return this.shipmentService.findByDriver(req.user.id);
     }
 
+    @Get('nearby')
+    @Roles(UserRole.DRIVER)
+    async getNearbyShipments(
+        @Request() req,
+        @Query('radius') radius?: number
+    ) {
+        // Get driver profile for authenticated user
+        const driverProfile = await this.shipmentService['prisma'].driverProfile.findUnique({
+            where: { userId: req.user.id },
+        });
+
+        if (!driverProfile) {
+            throw new ForbiddenException('Driver profile not found');
+        }
+
+        const radiusKm = radius ? Number(radius) : 50;
+        return this.shipmentService.findNearbyShipments(driverProfile.id, radiusKm);
+    }
+
     @Get(':id')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async findOne(@Param('id') id: string, @Request() req) {
@@ -213,21 +232,5 @@ export class ShipmentController {
             throw new BadRequestException('File is required');
         }
         return this.shipmentService.uploadManualWaybill(id, file);
-    }
-
-    @Get('nearby')
-    @Roles(UserRole.DRIVER)
-    async getNearbyShipments(
-        @Request() req,
-        @Query('radius') radius?: number
-    ) {
-        const driverId = req.user.driverProfile?.id;
-
-        if (!driverId) {
-            throw new ForbiddenException('Driver profile not found');
-        }
-
-        const radiusKm = radius ? Number(radius) : 50;
-        return this.shipmentService.findNearbyShipments(driverId, radiusKm);
     }
 }
