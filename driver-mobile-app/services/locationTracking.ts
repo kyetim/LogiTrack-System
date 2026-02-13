@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import mqttService from './mqttService';
 import { store } from '../store';
 import { api } from './api';
+import { offlineStorage } from './OfflineStorage';
 
 let locationSubscription: Location.LocationSubscription | null = null;
 
@@ -44,24 +45,46 @@ export const startLocationTracking = async (): Promise<boolean> => {
                 distanceInterval: 50, // 50 meters
             },
             async (location) => {
-                console.log('📍 Location update:', location.coords);
+                const timestamp = new Date(location.timestamp).toISOString();
+                // console.log('📍 Location update:', location.coords, timestamp);
 
                 const coords = {
                     latitude: location.coords.latitude,
                     longitude: location.coords.longitude,
                 };
-                const speed = location.coords.speed || undefined;
-                const heading = location.coords.heading || undefined;
 
-                // Send via HTTP API (MQTT disabled due to connection issues)
-                console.log('📡 Sending location via HTTP API');
+                // 1. Try to send immediate update
                 try {
-                    await api.updateMyLocation(coords.latitude, coords.longitude);
+                    await api.updateMyLocation(coords.latitude, coords.longitude, timestamp);
                     store.dispatch({ type: 'location/setConnected', payload: true });
-                    console.log('✅ Location sent successfully');
+                    // console.log('✅ Location sent successfully');
+
+                    // 2. If valid connection, try to sync ONE offline item (Piggyback sync)
+                    // This creates a "drip feed" effect without complex background tasks
+                    const offlineLocations = await offlineStorage.getLocations();
+                    if (offlineLocations.length > 0) {
+                        const oldest = offlineLocations[0];
+                        console.log(`♻️ Syncing offline location: ${oldest.timestamp}`);
+                        try {
+                            await api.updateMyLocation(oldest.latitude, oldest.longitude, oldest.timestamp);
+                            await offlineStorage.removeLocations([oldest.id]);
+                        } catch (e) {
+                            console.warn('Piggyback sync failed');
+                        }
+                    }
+
                 } catch (error) {
-                    console.warn('HTTP location update failed:', error);
+                    console.warn('❌ Online update failed. Saving to offline storage.');
                     store.dispatch({ type: 'location/setConnected', payload: false });
+
+                    // 3. Save to Offline Queue
+                    await offlineStorage.saveLocation({
+                        latitude: coords.latitude,
+                        longitude: coords.longitude,
+                        timestamp: timestamp,
+                        speed: location.coords.speed || undefined,
+                        heading: location.coords.heading || undefined,
+                    });
                 }
             }
         );

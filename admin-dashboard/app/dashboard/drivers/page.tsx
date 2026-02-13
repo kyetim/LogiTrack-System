@@ -4,24 +4,24 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { DriverFormModal, DriverFormData } from '@/components/DriverFormModal';
-import { TableFilters } from '@/components/TableFilters';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, Truck, UserCheck, Clock, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { DriverDocumentsModal } from '@/components/DriverDocumentsModal';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { StatusBadge } from '@/components/StatusBadge';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface Driver {
     id: string;
@@ -41,9 +41,6 @@ interface User {
     role: string;
 }
 
-type SortField = 'email' | 'licenseNumber' | 'status';
-type SortOrder = 'asc' | 'desc';
-
 export default function DriversPage() {
     const { user, isLoading: authLoading } = useAuth();
     const router = useRouter();
@@ -55,12 +52,6 @@ export default function DriversPage() {
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
     const [docsModalOpen, setDocsModalOpen] = useState(false);
     const [docsDriver, setDocsDriver] = useState<{ id: string; name: string } | null>(null);
-
-    // Filters
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [sortField, setSortField] = useState<SortField>('email');
-    const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -82,7 +73,7 @@ export default function DriversPage() {
             setDrivers(data);
         } catch (error) {
             console.error('Failed to fetch drivers:', error);
-            toast.error(t('common.error'));
+            // toast.error(t('common.error'));
         } finally {
             setIsLoading(false);
         }
@@ -95,46 +86,6 @@ export default function DriversPage() {
             setUsers(driverUsers);
         } catch (error) {
             console.error('Failed to fetch users:', error);
-        }
-    };
-
-    // Filtered and sorted drivers
-    const filteredDrivers = useMemo(() => {
-        let filtered = drivers;
-
-        // Search filter
-        if (searchTerm) {
-            filtered = filtered.filter(d =>
-                d.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                d.licenseNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                d.phoneNumber.includes(searchTerm)
-            );
-        }
-
-        // Status filter
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter(d => d.status === statusFilter);
-        }
-
-        // Sort
-        filtered.sort((a, b) => {
-            let aValue: any = sortField === 'email' ? a.user.email : a[sortField];
-            let bValue: any = sortField === 'email' ? b.user.email : b[sortField];
-
-            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        return filtered;
-    }, [drivers, searchTerm, statusFilter, sortField, sortOrder]);
-
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortOrder('asc');
         }
     };
 
@@ -180,6 +131,67 @@ export default function DriversPage() {
         }
     };
 
+    // Columns
+    const columns: ColumnDef<Driver>[] = [
+        {
+            accessorKey: "user.email",
+            id: "email",
+            header: t('users.email'),
+            cell: ({ row }) => <div className="font-semibold text-foreground">{row.original.user.email}</div>,
+        },
+        {
+            accessorKey: "licenseNumber",
+            header: t('drivers.licenseNumber'),
+            cell: ({ row }) => <div className="font-mono text-xs">{row.getValue("licenseNumber")}</div>,
+        },
+        {
+            accessorKey: "phoneNumber",
+            header: t('drivers.phoneNumber'),
+            cell: ({ row }) => <div className="text-sm">{row.getValue("phoneNumber")}</div>,
+        },
+        {
+            accessorKey: "status",
+            header: t('drivers.status'),
+            cell: ({ row }) => (
+                <StatusBadge
+                    status={row.getValue("status")}
+                    labels={{
+                        'ON_DUTY': t('statuses.ON_DUTY'),
+                        'OFF_DUTY': t('statuses.OFF_DUTY')
+                    }}
+                />
+            ),
+        },
+        {
+            id: "actions",
+            cell: ({ row }) => {
+                const driver = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleViewDocuments(driver)}>
+                                <FileText className="mr-2 h-4 w-4" /> {t('drivers.documents')}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEdit(driver)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Düzenle
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(driver.id)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Sil
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
     if (authLoading || !user) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -189,137 +201,72 @@ export default function DriversPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{t('drivers.title')}</h1>
-                        <p className="text-sm text-gray-600">{t('drivers.subtitle')}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <LanguageSwitcher />
-                        <Badge variant="outline">{t(`roles.${user.role}`)}</Badge>
-                        <Button onClick={() => router.push('/dashboard')}>{t('users.backToDashboard')}</Button>
-                    </div>
+        <div className="p-6 space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t('drivers.title')}</h2>
+                    <p className="text-gray-500">{t('drivers.subtitle')}</p>
                 </div>
-            </header>
+                <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t('drivers.addDriver')}
+                </Button>
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>{t('drivers.allDrivers')} ({filteredDrivers.length})</CardTitle>
-                        <Button onClick={handleCreate}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            {t('drivers.addDriver')}
-                        </Button>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="border-none shadow-soft bg-gradient-to-br from-primary to-primary/80 text-primary-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-primary-foreground/90">
+                            Toplam Sürücü
+                        </CardTitle>
+                        <Truck className="h-4 w-4 text-primary-foreground/90" />
                     </CardHeader>
                     <CardContent>
-                        <TableFilters
-                            searchTerm={searchTerm}
-                            onSearchChange={setSearchTerm}
-                            statusFilter={statusFilter}
-                            onStatusFilterChange={setStatusFilter}
-                            statusOptions={[
-                                { value: 'ON_DUTY', label: t('statuses.ON_DUTY') },
-                                { value: 'OFF_DUTY', label: t('statuses.OFF_DUTY') },
-                            ]}
-                            searchPlaceholder="E-posta, ehliyet veya telefon ara..."
-                        />
-
-                        {isLoading ? (
-                            <div className="text-center py-8">{t('common.loading')}</div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('email')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('users.email')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('licenseNumber')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('drivers.licenseNumber')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>{t('drivers.phoneNumber')}</TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('status')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('drivers.status')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead className="text-right">{t('users.actions')}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredDrivers.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                                                    Sonuç bulunamadı
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            filteredDrivers.map((driver) => (
-                                                <TableRow key={driver.id}>
-                                                    <TableCell className="font-medium">{driver.user.email}</TableCell>
-                                                    <TableCell>{driver.licenseNumber}</TableCell>
-                                                    <TableCell>{driver.phoneNumber}</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={driver.status === 'ON_DUTY' ? 'default' : 'secondary'}>
-                                                            {t(`statuses.${driver.status}`)}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleViewDocuments(driver)}
-                                                                title={t('drivers.documents')}
-                                                            >
-                                                                <FileText className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button variant="outline" size="sm" onClick={() => handleEdit(driver)}>
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                onClick={() => handleDelete(driver.id)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
+                        <div className="text-2xl font-bold">{drivers.length}</div>
+                        <p className="text-xs text-primary-foreground/80 mt-1 opacity-80">Kayıtlı sürücü sayısı</p>
                     </CardContent>
                 </Card>
-            </main>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-secondary-foreground/90">
+                            Görevde
+                        </CardTitle>
+                        <UserCheck className="h-4 w-4 text-secondary-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{drivers.filter(d => d.status === 'ON_DUTY').length}</div>
+                        <p className="text-xs text-secondary-foreground/80 mt-1 opacity-80">Şu an aktif çalışan</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-accent to-accent/90 text-accent-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-accent-foreground/90">
+                            Müsait / İzinli
+                        </CardTitle>
+                        <Clock className="h-4 w-4 text-accent-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{drivers.filter(d => d.status !== 'ON_DUTY').length}</div>
+                        <p className="text-xs text-accent-foreground/80 mt-1 opacity-80">Görev bekleyen</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Data Table */}
+            <DataTable
+                columns={columns}
+                data={drivers}
+                searchKey="email" // Nested accessor search might need custom handling or just use email if flattened
+                searchPlaceholder="E-posta ara..."
+                filterColumn="status"
+                filterOptions={[
+                    { value: 'ON_DUTY', label: t('statuses.ON_DUTY') },
+                    { value: 'OFF_DUTY', label: t('statuses.OFF_DUTY') },
+                ]}
+            />
 
             <DriverFormModal
                 open={modalOpen}

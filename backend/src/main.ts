@@ -61,7 +61,7 @@ async function bootstrap() {
   console.log(`🚀 LogiTrack Backend running on: http://localhost:${port}`);
   console.log(`📚 Swagger API docs available at: http://localhost:${port}/docs`);
   console.log(`🔗 API endpoints available at: http://localhost:${port}/api/*`);
-  console.log(`🌐 Network access: http://192.168.1.127:${port}/api/*`);
+  console.log(`🌐 Network access: http://192.168.1.125:${port}/api/*`);
 }
 
 bootstrap();

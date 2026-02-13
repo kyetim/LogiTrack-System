@@ -133,7 +133,7 @@ export class LocationService {
     }
 
     async create(createLocationDto: CreateLocationDto) {
-        const { driverId, coordinates, speed, heading } = createLocationDto;
+        const { driverId, coordinates, speed, heading, timestamp } = createLocationDto;
 
         // Verify driver exists
         const driver = await this.prisma.driverProfile.findUnique({
@@ -150,6 +150,7 @@ export class LocationService {
                 coordinates,
                 speed,
                 heading,
+                timestamp: timestamp ? new Date(timestamp) : undefined, // Use provided timestamp or default to now()
             },
             include: {
                 driver: {

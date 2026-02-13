@@ -4,25 +4,25 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { VehicleFormModal, VehicleFormData } from '@/components/VehicleFormModal';
-import { TableFilters } from '@/components/TableFilters';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown, Wrench, UserPlus } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowUpDown, Wrench, UserPlus, Truck, CheckCircle, AlertTriangle, MoreHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { MaintenanceHistoryDialog } from '@/components/MaintenanceHistoryDialog';
 import { AssignDriverToVehicleModal } from '@/components/AssignDriverToVehicleModal';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { StatusBadge } from '@/components/StatusBadge';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface Vehicle {
     id: string;
@@ -37,8 +37,6 @@ interface Vehicle {
     }>;
     createdAt: string;
 }
-
-// ... imports and interfaces ...
 
 export default function VehiclesPage() {
     const { user, isLoading: authLoading } = useAuth();
@@ -56,12 +54,6 @@ export default function VehiclesPage() {
     // Assign Driver Modal State
     const [assignDriverModalOpen, setAssignDriverModalOpen] = useState(false);
     const [assignDriverVehicleId, setAssignDriverVehicleId] = useState<string | null>(null);
-
-    // Filters
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [sortField, setSortField] = useState<keyof Vehicle>('plateNumber');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     const handleMaintenance = (vehicleId: string) => {
         setMaintenanceVehicleId(vehicleId);
@@ -92,49 +84,9 @@ export default function VehiclesPage() {
             setVehicles(data);
         } catch (error) {
             console.error('Failed to fetch vehicles:', error);
-            toast.error(t('common.error'));
+            // toast.error(t('common.error'));
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    const filteredVehicles = useMemo(() => {
-        let filtered = vehicles;
-
-        // Search filter
-        if (searchTerm) {
-            filtered = filtered.filter(v =>
-                v.plateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                v.model.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        // Status filter
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter(v => v.status === statusFilter);
-        }
-
-        // Sort
-        filtered.sort((a, b) => {
-            const aValue = a[sortField];
-            const bValue = b[sortField];
-
-            if (aValue === undefined || bValue === undefined) return 0;
-
-            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        return filtered;
-    }, [vehicles, searchTerm, statusFilter, sortField, sortOrder]);
-
-    const handleSort = (field: keyof Vehicle) => {
-        if (sortField === field) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortOrder('asc');
         }
     };
 
@@ -176,6 +128,92 @@ export default function VehiclesPage() {
         }
     };
 
+    // Columns
+    const columns: ColumnDef<Vehicle>[] = [
+        {
+            accessorKey: "plateNumber",
+            header: t('vehicles.plateNumber'),
+            cell: ({ row }) => <div className="font-bold text-foreground bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded border border-gray-300 dark:border-gray-700 tracking-wider inline-block">{row.getValue("plateNumber")}</div>,
+        },
+        {
+            accessorKey: "model",
+            header: t('vehicles.model'),
+            cell: ({ row }) => <div className="font-medium">{row.getValue("model")}</div>,
+        },
+        {
+            accessorKey: "capacity",
+            header: t('vehicles.capacity'),
+            cell: ({ row }) => <div>{row.getValue("capacity")} kg</div>,
+        },
+        {
+            accessorKey: "mileage",
+            header: "Kilometre",
+            cell: ({ row }) => <div>{row.original.mileage || 0} km</div>,
+        },
+        {
+            accessorKey: "status",
+            header: t('drivers.status'),
+            cell: ({ row }) => (
+                <StatusBadge
+                    status={row.getValue("status")}
+                    labels={{
+                        'ACTIVE': 'Aktif',
+                        'MAINTENANCE': 'Bakımda',
+                        'RETIRED': 'Emekli'
+                    }}
+                />
+            ),
+        },
+        {
+            id: "drivers",
+            header: "Sürücüler",
+            cell: ({ row }) => {
+                const drivers = row.original.drivers;
+                return (drivers && drivers.length > 0) ? (
+                    <div className="flex -space-x-2">
+                        {drivers.map(d => (
+                            <div key={d.id} className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] border border-white" title={d.user.email}>
+                                {d.user.email.charAt(0).toUpperCase()}
+                            </div>
+                        ))}
+                    </div>
+                ) : <span className="text-muted-foreground text-xs italic">Yok</span>
+            }
+        },
+        {
+            id: "actions",
+            cell: ({ row }) => {
+                const vehicle = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleAssignDriver(vehicle.id)}>
+                                <UserPlus className="mr-2 h-4 w-4" /> Sürücü Ata
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleMaintenance(vehicle.id)}>
+                                <Wrench className="mr-2 h-4 w-4" /> Bakım Geçmişi
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleEdit(vehicle)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Düzenle
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDelete(vehicle.id)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Sil
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
     if (authLoading || !user) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -185,169 +223,73 @@ export default function VehiclesPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{t('vehicles.title')}</h1>
-                        <p className="text-sm text-gray-600">{t('vehicles.subtitle')}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <LanguageSwitcher />
-                        <Badge variant="outline">{t(`roles.${user.role}`)}</Badge>
-                        <Button onClick={() => router.push('/dashboard')}>{t('users.backToDashboard')}</Button>
-                    </div>
+        <div className="p-6 space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t('vehicles.title')}</h2>
+                    <p className="text-gray-500">{t('vehicles.subtitle')}</p>
                 </div>
-            </header>
+                <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t('vehicles.addVehicle')}
+                </Button>
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>{t('vehicles.allVehicles')} ({filteredVehicles.length})</CardTitle>
-                        <Button onClick={handleCreate}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            {t('vehicles.addVehicle')}
-                        </Button>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="border-none shadow-soft bg-gradient-to-br from-primary to-primary/80 text-primary-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-primary-foreground/90">
+                            Toplam Araç
+                        </CardTitle>
+                        <Truck className="h-4 w-4 text-primary-foreground/90" />
                     </CardHeader>
                     <CardContent>
-                        <TableFilters
-                            searchTerm={searchTerm}
-                            onSearchChange={setSearchTerm}
-                            statusFilter={statusFilter}
-                            onStatusFilterChange={setStatusFilter}
-                            statusOptions={[
-                                { value: 'ACTIVE', label: 'Aktif' },
-                                { value: 'MAINTENANCE', label: 'Bakımda' },
-                                { value: 'RETIRED', label: 'Emekli' },
-                            ]}
-                            searchPlaceholder="Plaka veya model ara..."
-                        />
-
-                        {isLoading ? (
-                            <div className="text-center py-8">{t('common.loading')}</div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('plateNumber')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('vehicles.plateNumber')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('model')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('vehicles.model')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('capacity')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('vehicles.capacity')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                Kilometre
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('status')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('drivers.status')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead className="text-right">{t('users.actions')}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredVehicles.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                                                    Sonuç bulunamadı
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            filteredVehicles.map((vehicle) => (
-                                                <TableRow key={vehicle.id}>
-                                                    <TableCell className="font-medium">{vehicle.plateNumber}</TableCell>
-                                                    <TableCell>{vehicle.model}</TableCell>
-                                                    <TableCell>{vehicle.capacity} kg</TableCell>
-                                                    <TableCell>{vehicle.mileage || 0} km</TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={
-                                                            vehicle.status === 'ACTIVE' ? 'default' :
-                                                                vehicle.status === 'MAINTENANCE' ? 'destructive' : 'secondary'
-                                                        }>
-                                                            {vehicle.status === 'ACTIVE' ? 'Aktif' :
-                                                                vehicle.status === 'MAINTENANCE' ? 'Bakımda' : 'Emekli'}
-                                                        </Badge>
-                                                        {vehicle.drivers && vehicle.drivers.length > 0 && (
-                                                            <div className="mt-1 text-xs text-gray-500">
-                                                                {vehicle.drivers.map(d => d.user.email).join(', ')}
-                                                            </div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleAssignDriver(vehicle.id)}
-                                                                title="Sürücü Ata"
-                                                            >
-                                                                <UserPlus className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => handleMaintenance(vehicle.id)}
-                                                                title="Bakım Geçmişi"
-                                                            >
-                                                                <Wrench className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button variant="outline" size="sm" onClick={() => handleEdit(vehicle)}>
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                onClick={() => handleDelete(vehicle.id)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
+                        <div className="text-2xl font-bold">{vehicles.length}</div>
+                        <p className="text-xs text-primary-foreground/80 mt-1 opacity-80">Filodaki toplam araç</p>
                     </CardContent>
                 </Card>
-            </main>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-secondary-foreground/90">
+                            Aktif Araçlar
+                        </CardTitle>
+                        <CheckCircle className="h-4 w-4 text-secondary-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'ACTIVE').length}</div>
+                        <p className="text-xs text-secondary-foreground/80 mt-1 opacity-80">Şu an kullanımda</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-destructive to-destructive/90 text-white transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-white/90">
+                            Bakımda / Arızalı
+                        </CardTitle>
+                        <AlertTriangle className="h-4 w-4 text-white/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{vehicles.filter(v => v.status === 'MAINTENANCE').length}</div>
+                        <p className="text-xs text-white/80 mt-1 opacity-80">Servis durumunda</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Data Table */}
+            <DataTable
+                columns={columns}
+                data={vehicles}
+                searchKey="plateNumber"
+                searchPlaceholder="Plaka ara..."
+                filterColumn="status"
+                filterOptions={[
+                    { value: 'ACTIVE', label: 'Aktif' },
+                    { value: 'MAINTENANCE', label: 'Bakımda' },
+                    { value: 'RETIRED', label: 'Emekli' },
+                ]}
+            />
 
             <VehicleFormModal
                 open={modalOpen}

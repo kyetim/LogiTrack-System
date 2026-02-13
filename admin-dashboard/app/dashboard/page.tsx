@@ -4,12 +4,9 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { AnalyticsCharts } from '@/components/AnalyticsCharts';
 import { SmartMatchingCard } from '@/components/SmartMatchingCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
     Select,
     SelectContent,
@@ -18,10 +15,12 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import api from '@/lib/api';
-import { Users, Truck, Package, MapPin, TrendingUp, TrendingDown, MessageSquare } from 'lucide-react';
+import { Users, Truck, Package, MapPin, TrendingUp, AlertCircle, Clock } from 'lucide-react';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
+import { LogisticCapacityAnalysis } from '@/components/LogisticCapacityAnalysis';
 
 export default function DashboardPage() {
-    const { user, logout, isLoading } = useAuth();
+    const { user, isLoading } = useAuth();
     const router = useRouter();
     const t = useTranslations();
     const [period, setPeriod] = useState('7d');
@@ -32,6 +31,7 @@ export default function DashboardPage() {
         shipments: 0,
     });
     const [analytics, setAnalytics] = useState<any>(null);
+    const [loadingData, setLoadingData] = useState(true);
 
     useEffect(() => {
         if (!isLoading && !user) {
@@ -41,10 +41,19 @@ export default function DashboardPage() {
 
     useEffect(() => {
         if (user) {
-            fetchStats();
-            fetchAnalytics();
+            loadDashboardData();
         }
     }, [user, period]);
+
+    const loadDashboardData = async () => {
+        setLoadingData(true);
+        try {
+            await Promise.all([fetchStats(), fetchAnalytics()]);
+        } finally {
+            // Artificial delay to show off the skeleton loader (optional, remove in prod)
+            setTimeout(() => setLoadingData(false), 800);
+        }
+    };
 
     const fetchStats = async () => {
         try {
@@ -75,42 +84,23 @@ export default function DashboardPage() {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <div className="text-lg">Loading...</div>
-            </div>
-        );
+    if (isLoading || loadingData) {
+        return <DashboardSkeleton />;
     }
 
-    if (!user) {
-        return null;
-    }
+    if (!user) return null;
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
-                        <p className="text-sm text-gray-600">{t('dashboard.welcomeBack')}, {user.email}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <LanguageSwitcher />
-                        <Badge variant="outline">{t(`roles.${user.role}`)}</Badge>
-                        <Button onClick={logout} variant="outline">{t('common.logout')}</Button>
-                    </div>
+        <div className="p-6 space-y-8 animate-in fade-in duration-500">
+            {/* Header & Controls */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight text-gray-900">Genel Bakış</h2>
+                    <p className="text-gray-500">Şirket performansını ve operasyonlarını anlık takip edin.</p>
                 </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-                {/* Period Selector */}
-                <div className="flex justify-between items-center">
-                    <h2 className="text-xl font-semibold">Analytics</h2>
+                <div className="flex items-center gap-2">
                     <Select value={period} onValueChange={setPeriod}>
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-[180px] bg-white">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -120,167 +110,157 @@ export default function DashboardPage() {
                         </SelectContent>
                     </Select>
                 </div>
+            </div>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-600">
-                                {t('dashboard.totalUsers')}
-                            </CardTitle>
-                            <Users className="h-4 w-4 text-gray-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.users}</div>
-                        </CardContent>
-                    </Card>
+            {/* Bento Grid Layout - Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="relative overflow-hidden border-none shadow-soft bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-primary-foreground/90">
+                            {t('dashboard.totalUsers')}
+                        </CardTitle>
+                        <Users className="h-4 w-4 text-primary-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">{stats.users}</div>
+                        <p className="text-xs text-primary-foreground/80 mt-1">+12% geçen haftaya göre</p>
+                        <div className="absolute -bottom-4 -right-4 h-24 w-24 bg-white/10 rounded-full blur-xl"></div>
+                    </CardContent>
+                </Card>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-600">
-                                {t('dashboard.activeDrivers')}
-                            </CardTitle>
-                            <Truck className="h-4 w-4 text-gray-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.drivers}</div>
-                        </CardContent>
-                    </Card>
+                <Card className="relative overflow-hidden border-none shadow-soft bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-secondary-foreground/90">
+                            {t('dashboard.activeDrivers')}
+                        </CardTitle>
+                        <Truck className="h-4 w-4 text-secondary-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">{stats.drivers}</div>
+                        <p className="text-xs text-secondary-foreground/80 mt-1">Şu an aktif</p>
+                        <div className="absolute -bottom-4 -right-4 h-24 w-24 bg-white/10 rounded-full blur-xl"></div>
+                    </CardContent>
+                </Card>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-600">
-                                {t('dashboard.fleetVehicles')}
-                            </CardTitle>
-                            <MapPin className="h-4 w-4 text-gray-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.vehicles}</div>
-                        </CardContent>
-                    </Card>
+                <Card className="relative overflow-hidden border-none shadow-soft bg-gradient-to-br from-accent to-accent/90 text-accent-foreground">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-accent-foreground/90">
+                            {t('dashboard.fleetVehicles')}
+                        </CardTitle>
+                        <MapPin className="h-4 w-4 text-accent-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">{stats.vehicles}</div>
+                        <p className="text-xs text-accent-foreground/80 mt-1">Tüm filo</p>
+                        <div className="absolute -bottom-4 -right-4 h-24 w-24 bg-white/10 rounded-full blur-xl"></div>
+                    </CardContent>
+                </Card>
 
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between pb-2">
-                            <CardTitle className="text-sm font-medium text-gray-600">
-                                {t('dashboard.totalShipments')}
-                            </CardTitle>
-                            <Package className="h-4 w-4 text-gray-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{stats.shipments}</div>
-                        </CardContent>
-                    </Card>
+                <Card className="relative overflow-hidden border-none shadow-soft bg-gradient-to-br from-[#3A4F41] to-[#2E5B43] text-white">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-white/90">
+                            {t('dashboard.totalShipments')}
+                        </CardTitle>
+                        <Package className="h-4 w-4 text-white/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-3xl font-bold">{stats.shipments}</div>
+                        <p className="text-xs text-white/80 mt-1">Bu ayki hedefler</p>
+                        <div className="absolute -bottom-4 -right-4 h-24 w-24 bg-white/10 rounded-full blur-xl"></div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Bento Grid - Middle Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+                {/* Main Analytics Chart (Spans 4 columns) */}
+                <div className="lg:col-span-4 space-y-6">
+                    {analytics && <AnalyticsCharts data={analytics} />}
                 </div>
 
-                {/* Performance Metrics */}
-                {analytics?.summary && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <Card>
-                            <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    Toplam Sevkiyat
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{analytics.summary.totalShipments}</div>
-                                <p className="text-xs text-gray-500 mt-1">{period === '24h' ? 'Son 24 saat' : period === '7d' ? 'Son 7 gün' : 'Son 30 gün'}</p>
-                            </CardContent>
-                        </Card>
+                {/* Secondary Panels (Spans 3 columns) */}
+                <div className="lg:col-span-3 space-y-6">
+                    {/* Capacity Analysis - Nature Inspired Art */}
+                    <div className="h-[400px]">
+                        <LogisticCapacityAnalysis />
+                    </div>
 
-                        <Card>
+                    {/* Quick Stats Mini Grid */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <Card className="glass-card border-none">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    Tamamlanan
-                                </CardTitle>
+                                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Başarı Oranı</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="flex items-center gap-2">
-                                    <div className="text-2xl font-bold text-green-600">{analytics.summary.completedShipments}</div>
-                                    <TrendingUp className="h-4 w-4 text-green-600" />
+                                <div className="flex items-end gap-2">
+                                    <span className="text-2xl font-bold text-foreground">{analytics?.summary?.completionRate || 0}%</span>
+                                    <TrendingUp className="h-4 w-4 text-primary mb-1" />
                                 </div>
-                                <p className="text-xs text-gray-500 mt-1">Teslim edildi</p>
                             </CardContent>
                         </Card>
-
-                        <Card>
+                        <Card className="glass-card border-none">
                             <CardHeader className="pb-2">
-                                <CardTitle className="text-sm font-medium text-gray-600">
-                                    Başarı Oranı
-                                </CardTitle>
+                                <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ort. Teslimat</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold text-blue-600">{analytics.summary.completionRate}%</div>
-                                <p className="text-xs text-gray-500 mt-1">Tamamlanma oranı</p>
+                                <div className="flex items-end gap-2">
+                                    <span className="text-2xl font-bold text-foreground">42dk</span>
+                                    <Clock className="h-4 w-4 text-secondary mb-1" />
+                                </div>
                             </CardContent>
                         </Card>
                     </div>
-                )}
+                </div>
+            </div>
 
-                {/* Smart Matching Card */}
-                <SmartMatchingCard />
-
-                {/* Analytics Charts */}
-                {analytics && <AnalyticsCharts data={analytics} />}
-
-                {/* Quick Actions */}
-                <Card>
+            {/* Bottom Section - Recent Activity or Alerts */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="col-span-1 md:col-span-3 border-none shadow-soft bg-gradient-to-r from-primary/90 to-primary text-primary-foreground overflow-hidden">
+                    <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16"></div>
                     <CardHeader>
-                        <CardTitle>{t('dashboard.quickActions')}</CardTitle>
+                        <div className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-accent" />
+                            <CardTitle>Sistem Durumu</CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                            <Button variant="outline" className="h-20" onClick={() => router.push('/dashboard/users')}>
-                                <div className="text-center">
-                                    <Users className="h-6 w-6 mx-auto mb-2" />
-                                    <div className="text-sm">{t('dashboard.manageUsers')}</div>
+                        <div className="flex flex-col md:flex-row gap-8">
+                            <div className="flex-1">
+                                <h4 className="font-medium text-primary-foreground/90 mb-2">Sunucu Metrikleri</h4>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-primary-foreground/70">CPU Kullanımı</span>
+                                        <span>%12</span>
+                                    </div>
+                                    <div className="w-full bg-black/20 h-1.5 rounded-full overflow-hidden">
+                                        <div className="bg-accent h-full w-[12%]"></div>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-primary-foreground/70">Bellek</span>
+                                        <span>%45</span>
+                                    </div>
+                                    <div className="w-full bg-black/20 h-1.5 rounded-full overflow-hidden">
+                                        <div className="bg-accent/80 h-full w-[45%]"></div>
+                                    </div>
                                 </div>
-                            </Button>
-                            <Button variant="outline" className="h-20" onClick={() => router.push('/dashboard/drivers')}>
-                                <div className="text-center">
-                                    <Truck className="h-6 w-6 mx-auto mb-2" />
-                                    <div className="text-sm">{t('dashboard.manageDrivers')}</div>
+                            </div>
+                            <div className="flex-1 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-8">
+                                <h4 className="font-medium text-primary-foreground/90 mb-2">Canlı Operasyon</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <div className="text-2xl font-bold">14</div>
+                                        <div className="text-xs text-primary-foreground/70">Aktif Sevkiyat</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-2xl font-bold">3</div>
+                                        <div className="text-xs text-primary-foreground/70">Bekleyen Talep</div>
+                                    </div>
                                 </div>
-                            </Button>
-                            <Button variant="outline" className="h-20" onClick={() => router.push('/dashboard/vehicles')}>
-                                <div className="text-center">
-                                    <MapPin className="h-6 w-6 mx-auto mb-2" />
-                                    <div className="text-sm">{t('dashboard.manageVehicles')}</div>
-                                </div>
-                            </Button>
-                            <Button variant="outline" className="h-20" onClick={() => router.push('/dashboard/shipments')}>
-                                <div className="text-center">
-                                    <Package className="h-6 w-6 mx-auto mb-2" />
-                                    <div className="text-sm">{t('dashboard.manageShipments')}</div>
-                                </div>
-                            </Button>
-                            <Button variant="outline" className="h-20 bg-blue-50 border-blue-200 hover:bg-blue-100" onClick={() => router.push('/dashboard/tracking')}>
-                                <div className="text-center">
-                                    <MapPin className="h-6 w-6 mx-auto mb-2 text-blue-600" />
-                                    <div className="text-sm font-medium text-blue-600">Canlı Takip</div>
-                                </div>
-                            </Button>
-                            <Button variant="outline" className="h-20 bg-orange-50 border-orange-200 hover:bg-orange-100" onClick={() => router.push('/dashboard/map')}>
-                                <div className="text-center">
-                                    <MapPin className="h-6 w-6 mx-auto mb-2 text-orange-600" />
-                                    <div className="text-sm font-medium text-orange-600">Harita</div>
-                                </div>
-                            </Button>
-                            <Button variant="outline" className="h-20 bg-purple-50 border-purple-200 hover:bg-purple-100" onClick={() => router.push('/dashboard/analytics')}>
-                                <div className="text-center">
-                                    <TrendingUp className="h-6 w-6 mx-auto mb-2 text-purple-600" />
-                                    <div className="text-sm font-medium text-purple-600">Detaylı Analiz</div>
-                                </div>
-                            </Button>
-                            <Button variant="outline" className="h-20 bg-green-50 border-green-200 hover:bg-green-100" onClick={() => router.push('/dashboard/messages')}>
-                                <div className="text-center">
-                                    <MessageSquare className="h-6 w-6 mx-auto mb-2 text-green-600" />
-                                    <div className="text-sm font-medium text-green-600">{t('messages.title')}</div>
-                                </div>
-                            </Button>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
-            </main>
+            </div>
         </div>
     );
 }

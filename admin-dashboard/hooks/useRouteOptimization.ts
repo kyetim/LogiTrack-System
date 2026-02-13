@@ -1,4 +1,4 @@
-import api from '../services/api';
+import api from '@/lib/api';
 import { OptimizationResult } from '../types';
 import { useState } from 'react';
 

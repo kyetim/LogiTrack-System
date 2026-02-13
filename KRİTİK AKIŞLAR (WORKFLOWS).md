@@ -16,7 +16,7 @@ sequenceDiagram
         DB-->>API: Success
         API-->>App: "200 OK (Yeşil Tik)"
     else İnternet YOKSA (Offline Mod)
-        App->>App: "Veriyi Yerel DB'ye (MMKV) Kaydet 💾"
+        App->>App: "Veriyi Yerel DB'ye (AsyncStorage) Kaydet 💾"
         App-->>Driver: "Kuyruğa Eklendi, Bekliyor (Sarı İkon)"
         
         loop Arka Plan Servisi

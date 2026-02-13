@@ -22,4 +22,7 @@ export class CreateLocationDto {
     @Min(0)
     @Max(360)
     heading?: number;
+
+    @IsOptional()
+    timestamp?: Date | string;
 }

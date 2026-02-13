@@ -254,10 +254,11 @@ class ApiClient {
         return data;
     }
 
-    async updateMyLocation(lat: number, lng: number): Promise<void> {
+    async updateMyLocation(lat: number, lng: number, timestamp?: string): Promise<void> {
         await this.client.post('/drivers/me/location', {
             lat,
             lng,
+            timestamp,
         });
     }
 

@@ -4,26 +4,26 @@ import { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
-import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ShipmentFormModal, ShipmentFormData } from '@/components/ShipmentFormModal';
 import { AssignDriverModal } from '@/components/AssignDriverModal';
 import { DeliveryProofModal } from '@/components/DeliveryProofModal';
 import { WaybillUploadModal } from '@/components/WaybillUploadModal';
-import { TableFilters } from '@/components/TableFilters';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Pencil, Trash2, ArrowUpDown, Route, Upload } from 'lucide-react';
+import { Package, Clock, Truck, CheckCircle, Plus, MoreHorizontal, Pencil, Trash2, Upload, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { DataTable } from '@/components/ui/data-table';
+import { ColumnDef } from '@tanstack/react-table';
+import { StatusBadge } from '@/components/StatusBadge';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface Shipment {
     id: string;
@@ -47,9 +47,6 @@ interface Driver {
     };
 }
 
-type SortField = 'trackingNumber' | 'origin' | 'destination' | 'status';
-type SortOrder = 'asc' | 'desc';
-
 export default function ShipmentsPage() {
     const { user, isLoading: authLoading } = useAuth();
     const router = useRouter();
@@ -65,14 +62,6 @@ export default function ShipmentsPage() {
     const [selectedShipmentForPod, setSelectedShipmentForPod] = useState<string | null>(null);
     const [waybillModalOpen, setWaybillModalOpen] = useState(false);
     const [selectedShipmentForWaybill, setSelectedShipmentForWaybill] = useState<string | null>(null);
-    const [optimizeModalOpen, setOptimizeModalOpen] = useState(false);
-    const [selectedDriverForOptimize, setSelectedDriverForOptimize] = useState<{ id: string; email: string } | null>(null);
-
-    // Filters
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [sortField, setSortField] = useState<SortField>('trackingNumber');
-    const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -94,7 +83,7 @@ export default function ShipmentsPage() {
             setShipments(data);
         } catch (error) {
             console.error('Failed to fetch shipments:', error);
-            toast.error(t('common.error'));
+            // Don't show toast on initial load error if it's just empty or network blip
         } finally {
             setIsLoading(false);
         }
@@ -106,46 +95,6 @@ export default function ShipmentsPage() {
             setDrivers(data);
         } catch (error) {
             console.error('Failed to fetch drivers:', error);
-        }
-    };
-
-    // Filtered and sorted shipments
-    const filteredShipments = useMemo(() => {
-        let filtered = shipments;
-
-        // Search filter
-        if (searchTerm) {
-            filtered = filtered.filter(s =>
-                s.trackingNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                s.destination.toLowerCase().includes(searchTerm.toLowerCase())
-            );
-        }
-
-        // Status filter
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter(s => s.status === statusFilter);
-        }
-
-        // Sort
-        filtered.sort((a, b) => {
-            let aValue = a[sortField];
-            let bValue = b[sortField];
-
-            if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-            if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-            return 0;
-        });
-
-        return filtered;
-    }, [shipments, searchTerm, statusFilter, sortField, sortOrder]);
-
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortOrder('asc');
         }
     };
 
@@ -204,6 +153,117 @@ export default function ShipmentsPage() {
         }
     };
 
+    // Define Columns
+    const columns: ColumnDef<Shipment>[] = [
+        {
+            accessorKey: "trackingNumber",
+            header: t('shipments.trackingNumber'),
+            cell: ({ row }) => <div className="font-bold text-foreground">{row.getValue("trackingNumber")}</div>,
+        },
+        {
+            accessorKey: "origin",
+            header: t('shipments.origin'),
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary/40"></div>
+                    {row.getValue("origin")}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "destination",
+            header: t('shipments.destination'),
+            cell: ({ row }) => (
+                <div className="flex items-center gap-2">
+                    <MapPin className="h-3 w-3 text-secondary" />
+                    {row.getValue("destination")}
+                </div>
+            ),
+        },
+        {
+            accessorKey: "driver",
+            header: t('shipments.assignedDriver'),
+            cell: ({ row }) => {
+                const driver = row.original.driver;
+                return driver ? (
+                    <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
+                            {driver.email.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-sm text-muted-foreground">{driver.email}</span>
+                    </div>
+                ) : (
+                    <span className="text-xs text-muted-foreground italic">Atanmamış</span>
+                );
+            },
+        },
+        {
+            accessorKey: "status",
+            header: t('shipments.status'),
+            cell: ({ row }) => (
+                <StatusBadge
+                    status={row.getValue("status")}
+                    labels={{
+                        'PENDING': t('statuses.PENDING'),
+                        'IN_TRANSIT': t('statuses.IN_TRANSIT'),
+                        'DELIVERED': t('statuses.DELIVERED'),
+                        'CANCELLED': t('statuses.CANCELLED')
+                    }}
+                />
+            ),
+        },
+        {
+            id: "actions",
+            cell: ({ row }) => {
+                const shipment = row.original;
+                return (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl">
+                            <DropdownMenuLabel>İşlemler</DropdownMenuLabel>
+                            <DropdownMenuItem
+                                onClick={() => navigator.clipboard.writeText(shipment.trackingNumber)}
+                            >
+                                Kopyala (Takip No)
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleEdit(shipment)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Düzenle
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAssignDriver(shipment)}>
+                                <Truck className="mr-2 h-4 w-4" /> Sürücü Ata
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                                setSelectedShipmentForWaybill(shipment.id);
+                                setWaybillModalOpen(true);
+                            }}>
+                                <Upload className="mr-2 h-4 w-4" /> İrsaliye Yükle
+                            </DropdownMenuItem>
+
+                            {shipment.status === 'DELIVERED' && (
+                                <DropdownMenuItem onClick={() => {
+                                    setSelectedShipmentForPod(shipment.id);
+                                    setPodModalOpen(true);
+                                }}>
+                                    <CheckCircle className="mr-2 h-4 w-4" /> View POD
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleDelete(shipment.id)} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Sil
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                );
+            },
+        },
+    ];
+
     if (authLoading || !user) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -213,178 +273,87 @@ export default function ShipmentsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{t('shipments.title')}</h1>
-                        <p className="text-sm text-gray-600">{t('shipments.subtitle')}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <LanguageSwitcher />
-                        <Badge variant="outline">{t(`roles.${user.role}`)}</Badge>
-                        <Button onClick={() => router.push('/dashboard')}>{t('users.backToDashboard')}</Button>
-                    </div>
+        <div className="p-6 space-y-6 animate-in fade-in duration-500">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t('shipments.title')}</h2>
+                    <p className="text-gray-500">{t('shipments.subtitle')}</p>
                 </div>
-            </header>
+                <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
+                    <Plus className="h-4 w-4 mr-2" />
+                    {t('shipments.addShipment')}
+                </Button>
+            </div>
 
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>{t('shipments.allShipments')} ({filteredShipments.length})</CardTitle>
-                        <Button onClick={handleCreate}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            {t('shipments.addShipment')}
-                        </Button>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card className="border-none shadow-soft bg-gradient-to-br from-primary to-primary/80 text-primary-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-primary-foreground/90">
+                            Toplam
+                        </CardTitle>
+                        <Package className="h-4 w-4 text-primary-foreground/90" />
                     </CardHeader>
                     <CardContent>
-                        <TableFilters
-                            searchTerm={searchTerm}
-                            onSearchChange={setSearchTerm}
-                            statusFilter={statusFilter}
-                            onStatusFilterChange={setStatusFilter}
-                            statusOptions={[
-                                { value: 'PENDING', label: t('statuses.PENDING') },
-                                { value: 'IN_TRANSIT', label: t('statuses.IN_TRANSIT') },
-                                { value: 'DELIVERED', label: t('statuses.DELIVERED') },
-                                { value: 'CANCELLED', label: t('statuses.CANCELLED') },
-                            ]}
-                            searchPlaceholder="Takip no, başlangıç veya varış ara..."
-                        />
-
-                        {isLoading ? (
-                            <div className="text-center py-8">{t('common.loading')}</div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('trackingNumber')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('shipments.trackingNumber')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('origin')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('shipments.origin')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('destination')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('shipments.destination')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead>{t('shipments.assignedDriver')}</TableHead>
-                                            <TableHead>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleSort('status')}
-                                                    className="hover:bg-transparent"
-                                                >
-                                                    {t('shipments.status')}
-                                                    <ArrowUpDown className="ml-2 h-4 w-4" />
-                                                </Button>
-                                            </TableHead>
-                                            <TableHead className="text-right">{t('users.actions')}</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredShipments.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                                                    Sonuç bulunamadı
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            filteredShipments.map((shipment) => (
-                                                <TableRow key={shipment.id}>
-                                                    <TableCell className="font-medium">{shipment.trackingNumber}</TableCell>
-                                                    <TableCell>{shipment.origin}</TableCell>
-                                                    <TableCell>{shipment.destination}</TableCell>
-                                                    <TableCell>
-                                                        {shipment.driver ? shipment.driver.email : '-'}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant={
-                                                            shipment.status === 'DELIVERED' ? 'default' :
-                                                                shipment.status === 'IN_TRANSIT' ? 'secondary' : 'outline'
-                                                        }>
-                                                            {t(`statuses.${shipment.status}`)}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            {shipment.status === 'DELIVERED' && (
-                                                                <Button
-                                                                    variant="default"
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        setSelectedShipmentForPod(shipment.id);
-                                                                        setPodModalOpen(true);
-                                                                    }}
-                                                                >
-                                                                    View POD
-                                                                </Button>
-                                                            )}
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => {
-                                                                    setSelectedShipmentForWaybill(shipment.id);
-                                                                    setWaybillModalOpen(true);
-                                                                }}
-                                                                title="İrsaliye Yükle"
-                                                            >
-                                                                <Upload className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="secondary"
-                                                                size="sm"
-                                                                onClick={() => handleAssignDriver(shipment)}
-                                                            >
-                                                                Sürücü Ata
-                                                            </Button>
-                                                            <Button variant="outline" size="sm" onClick={() => handleEdit(shipment)}>
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="destructive"
-                                                                size="sm"
-                                                                onClick={() => handleDelete(shipment.id)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            </div>
-                        )}
+                        <div className="text-2xl font-bold">{shipments.length}</div>
+                        <p className="text-xs text-primary-foreground/80 mt-1 opacity-80">Tüm sevkiyatlar</p>
                     </CardContent>
                 </Card>
-            </main>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-accent to-accent/90 text-accent-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-accent-foreground/90">
+                            Bekleyen
+                        </CardTitle>
+                        <Clock className="h-4 w-4 text-accent-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{shipments.filter(s => s.status === 'PENDING').length}</div>
+                        <p className="text-xs text-accent-foreground/80 mt-1 opacity-80">Atama bekliyor</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-secondary to-secondary/80 text-secondary-foreground transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-secondary-foreground/90">
+                            Yolda
+                        </CardTitle>
+                        <Truck className="h-4 w-4 text-secondary-foreground/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{shipments.filter(s => s.status === 'IN_TRANSIT').length}</div>
+                        <p className="text-xs text-secondary-foreground/80 mt-1 opacity-80">Teslimata giden</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-[#3A4F41] to-[#2E5B43] text-white transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-white/90">
+                            Teslim Edildi
+                        </CardTitle>
+                        <CheckCircle className="h-4 w-4 text-white/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{shipments.filter(s => s.status === 'DELIVERED').length}</div>
+                        <p className="text-xs text-white/80 mt-1 opacity-80">Tamamlanan</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Data Table */}
+            <DataTable
+                columns={columns}
+                data={shipments}
+                searchKey="trackingNumber"
+                searchPlaceholder="Takip numarası ara..."
+                filterColumn="status"
+                filterOptions={[
+                    { value: 'PENDING', label: t('statuses.PENDING') },
+                    { value: 'IN_TRANSIT', label: t('statuses.IN_TRANSIT') },
+                    { value: 'DELIVERED', label: t('statuses.DELIVERED') },
+                    { value: 'CANCELLED', label: t('statuses.CANCELLED') },
+                ]}
+            />
 
             <ShipmentFormModal
                 open={modalOpen}
@@ -401,13 +370,11 @@ export default function ShipmentsPage() {
                 drivers={drivers}
                 currentDriverId={selectedShipmentForAssign?.driverId}
             />
-
             <DeliveryProofModal
                 shipmentId={selectedShipmentForPod}
                 isOpen={podModalOpen}
                 onClose={() => {
                     setPodModalOpen(false);
-                    setSelectedShipmentForPod(null);
                     setSelectedShipmentForPod(null);
                 }}
             />
