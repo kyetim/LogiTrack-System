@@ -80,7 +80,7 @@ export default function MessagesPage() {
 
     // Socket Connection
     const connectSocket = () => {
-        const socketUrl = 'http://localhost:4000/messaging'; // Backend is on 4000
+        const socketUrl = (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3000') + '/messaging';
         const newSocket = io(socketUrl, {
             query: { userId: user?.id },
             transports: ['websocket'],

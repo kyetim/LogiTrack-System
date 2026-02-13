@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
 interface DriverLocation {
     id: string;
@@ -44,6 +44,14 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
     const [selectedLocation, setSelectedLocation] = useState<DriverLocation | null>(null);
     const [map, setMap] = useState<google.maps.Map | null>(null);
 
+    // Hardcoded key for debugging environment issues (same as LiveDriverMap)
+    const googleMapsApiKey = 'AIzaSyAdETeNnMfcZb1TXScSvqJkRIoQW7ufVcU';
+
+    const { isLoaded } = useJsApiLoader({
+        id: 'google-map-script',
+        googleMapsApiKey: googleMapsApiKey
+    });
+
     // Auto-fit bounds when locations change
     useEffect(() => {
         if (map && locations.length > 0 && typeof google !== 'undefined' && google.maps) {
@@ -59,6 +67,7 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
     }, [map, locations]);
 
     const handleMarkerClick = (location: DriverLocation) => {
+        // ... same impl
         setSelectedLocation(location);
         if (onMarkerClick) {
             onMarkerClick(location);
@@ -67,6 +76,7 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
 
     // Get marker icon based on driver status
     const getMarkerIcon = (status: string) => {
+        // ... same impl
         // Check if google maps is loaded
         if (typeof google === 'undefined' || !google.maps || !google.maps.SymbolPath) {
             return undefined;
@@ -83,74 +93,76 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
         };
     };
 
-    return (
-        <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}>
-            <GoogleMap
-                mapContainerStyle={mapContainerStyle}
-                center={defaultCenter}
-                zoom={11}
-                onLoad={(map) => setMap(map)}
-                options={{
-                    zoomControl: true,
-                    streetViewControl: false,
-                    mapTypeControl: false,
-                    fullscreenControl: true,
-                }}
-            >
-                {locations.map((location) => (
-                    <Marker
-                        key={location.id}
-                        position={{
-                            lat: location.coordinates.latitude,
-                            lng: location.coordinates.longitude,
-                        }}
-                        icon={getMarkerIcon(location.driver.status)}
-                        onClick={() => handleMarkerClick(location)}
-                        title={location.driver.user.email}
-                    />
-                ))}
+    if (!isLoaded) {
+        return <div className="h-[600px] w-full bg-gray-100 flex items-center justify-center">Harita Yükleniyor...</div>;
+    }
 
-                {selectedLocation && (
-                    <InfoWindow
-                        position={{
-                            lat: selectedLocation.coordinates.latitude,
-                            lng: selectedLocation.coordinates.longitude,
-                        }}
-                        onCloseClick={() => setSelectedLocation(null)}
-                    >
-                        <div className="p-2">
-                            <h3 className="font-semibold text-gray-900">
-                                {selectedLocation.driver.user.email}
-                            </h3>
-                            <div className="mt-2 space-y-1 text-sm text-gray-600">
+    return (
+        <GoogleMap
+            mapContainerStyle={mapContainerStyle}
+            center={defaultCenter}
+            zoom={11}
+            onLoad={(map) => setMap(map)}
+            options={{
+                zoomControl: true,
+                streetViewControl: false,
+                mapTypeControl: false,
+                fullscreenControl: true,
+            }}
+        >
+            {locations.map((location) => (
+                <Marker
+                    key={location.id}
+                    position={{
+                        lat: location.coordinates.latitude,
+                        lng: location.coordinates.longitude,
+                    }}
+                    icon={getMarkerIcon(location.driver.status)}
+                    onClick={() => handleMarkerClick(location)}
+                    title={location.driver.user.email}
+                />
+            ))}
+
+            {selectedLocation && (
+                <InfoWindow
+                    position={{
+                        lat: selectedLocation.coordinates.latitude,
+                        lng: selectedLocation.coordinates.longitude,
+                    }}
+                    onCloseClick={() => setSelectedLocation(null)}
+                >
+                    <div className="p-2">
+                        <h3 className="font-semibold text-gray-900">
+                            {selectedLocation.driver.user.email}
+                        </h3>
+                        <div className="mt-2 space-y-1 text-sm text-gray-600">
+                            <p>
+                                <span className="font-medium">Durum:</span>{' '}
+                                <span
+                                    className={`inline-block px-2 py-0.5 rounded text-xs ${selectedLocation.driver.status === 'ON_DUTY'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                        }`}
+                                >
+                                    {selectedLocation.driver.status === 'ON_DUTY' ? 'Görevde' : 'Görev Dışı'}
+                                </span>
+                            </p>
+                            <p>
+                                <span className="font-medium">Ehliyet:</span> {selectedLocation.driver.licenseNumber}
+                            </p>
+                            {selectedLocation.driver.vehicle && (
                                 <p>
-                                    <span className="font-medium">Durum:</span>{' '}
-                                    <span
-                                        className={`inline-block px-2 py-0.5 rounded text-xs ${selectedLocation.driver.status === 'ON_DUTY'
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-gray-100 text-gray-800'
-                                            }`}
-                                    >
-                                        {selectedLocation.driver.status === 'ON_DUTY' ? 'Görevde' : 'Görev Dışı'}
-                                    </span>
+                                    <span className="font-medium">Araç:</span>{' '}
+                                    {selectedLocation.driver.vehicle.plateNumber}
                                 </p>
-                                <p>
-                                    <span className="font-medium">Ehliyet:</span> {selectedLocation.driver.licenseNumber}
-                                </p>
-                                {selectedLocation.driver.vehicle && (
-                                    <p>
-                                        <span className="font-medium">Araç:</span>{' '}
-                                        {selectedLocation.driver.vehicle.plateNumber}
-                                    </p>
-                                )}
-                                <p className="text-xs text-gray-500 mt-2">
-                                    Son güncelleme: {new Date(selectedLocation.timestamp).toLocaleString('tr-TR')}
-                                </p>
-                            </div>
+                            )}
+                            <p className="text-xs text-gray-500 mt-2">
+                                Son güncelleme: {new Date(selectedLocation.timestamp).toLocaleString('tr-TR')}
+                            </p>
                         </div>
-                    </InfoWindow>
-                )}
-            </GoogleMap>
-        </LoadScript>
+                    </div>
+                </InfoWindow>
+            )}
+        </GoogleMap>
     );
 }

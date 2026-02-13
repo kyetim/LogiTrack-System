@@ -8,7 +8,7 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
     const {
-        url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:4000',
+        url = (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')) || 'http://localhost:3000',
         autoConnect = true,
     } = options;
 

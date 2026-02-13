@@ -45,7 +45,38 @@ export class DriverService {
             orderBy: { createdAt: 'desc' },
         });
 
-        return drivers;
+        // Manually fetch location for each driver using raw SQL
+        // Prisma doesn't support PostGIS geography type directly
+        const driversWithLocation = await Promise.all(drivers.map(async (driver) => {
+            try {
+                // Using queryRawUnsafe to ensure UUID casting works correctly
+                const locationResult: any[] = await this.prisma.$queryRawUnsafe(`
+                    SELECT 
+                        ST_Y(current_location::geometry) as latitude,
+                        ST_X(current_location::geometry) as longitude
+                    FROM driver_profiles 
+                    WHERE id = '${driver.id}'::uuid
+                `);
+
+                const location = locationResult[0]?.latitude ? {
+                    latitude: locationResult[0].latitude,
+                    longitude: locationResult[0].longitude
+                } : null;
+
+                // Fix: Convert Prisma object to plain JSON to ensure custom fields are included
+                const plainDriver = JSON.parse(JSON.stringify(driver));
+
+                return {
+                    ...plainDriver,
+                    locationCoordinates: location,
+                };
+            } catch (error) {
+                console.error(`Failed to fetch location for driver ${driver.id}:`, error);
+                return { ...driver, locationCoordinates: null };
+            }
+        }));
+
+        return driversWithLocation;
     }
 
     async findOne(id: string) {
@@ -321,7 +352,40 @@ export class DriverService {
             ],
         });
 
-        return drivers;
+        // Manually fetch location for each driver using raw SQL
+        // Prisma doesn't support PostGIS geography type directly
+        const driversWithLocation = await Promise.all(drivers.map(async (driver) => {
+            try {
+                // Using queryRawUnsafe to ensure UUID casting works correctly
+                const locationResult: any[] = await this.prisma.$queryRawUnsafe(`
+                    SELECT 
+                        ST_Y(current_location::geometry) as latitude,
+                        ST_X(current_location::geometry) as longitude
+                    FROM driver_profiles 
+                    WHERE id = '${driver.id}'::uuid
+                `);
+
+                // console.log(`📍 Location fetch for ${driver.id}:`, locationResult);
+
+                const location = locationResult[0]?.latitude ? {
+                    latitude: locationResult[0].latitude,
+                    longitude: locationResult[0].longitude
+                } : null;
+
+                // Fix: Convert Prisma object to plain JSON to ensure custom fields are included
+                const plainDriver = JSON.parse(JSON.stringify(driver));
+
+                return {
+                    ...plainDriver,
+                    locationCoordinates: location,
+                };
+            } catch (error) {
+                console.error(`Failed to fetch location for driver ${driver.id}:`, error);
+                return { ...driver, locationCoordinates: null };
+            }
+        }));
+
+        return driversWithLocation;
     }
 
     /**

@@ -11,6 +11,7 @@ import {
     Query,
     ForbiddenException,
 } from '@nestjs/common';
+
 import { DriverService } from './driver.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
@@ -50,8 +51,12 @@ export class DriverController {
 
     @Get('active')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
-    getActiveDrivers() {
-        return this.driverService.getActiveDrivers();
+    async getActiveDrivers() {
+        const drivers = await this.driverService.getActiveDrivers();
+        console.log('📍 Active drivers with location:', JSON.stringify(drivers, null, 2));
+
+        // Clean response after debugging
+        return drivers;
     }
 
     @Get('me')

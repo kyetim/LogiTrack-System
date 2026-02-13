@@ -259,6 +259,12 @@ export default function DashboardPage() {
                                     <div className="text-sm font-medium text-blue-600">Canlı Takip</div>
                                 </div>
                             </Button>
+                            <Button variant="outline" className="h-20 bg-orange-50 border-orange-200 hover:bg-orange-100" onClick={() => router.push('/dashboard/map')}>
+                                <div className="text-center">
+                                    <MapPin className="h-6 w-6 mx-auto mb-2 text-orange-600" />
+                                    <div className="text-sm font-medium text-orange-600">Harita</div>
+                                </div>
+                            </Button>
                             <Button variant="outline" className="h-20 bg-purple-50 border-purple-200 hover:bg-purple-100" onClick={() => router.push('/dashboard/analytics')}>
                                 <div className="text-center">
                                     <TrendingUp className="h-6 w-6 mx-auto mb-2 text-purple-600" />

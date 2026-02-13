@@ -135,27 +135,31 @@ export default function MapScreen() {
                     bottomSheetRef.current?.dismiss();
                 }}
             >
-                {shipments.map((shipment) => (
-                    <Marker
-                        key={shipment.id}
-                        coordinate={{
-                            latitude: shipment.pickupLocation.lat,
-                            longitude: shipment.pickupLocation.lng,
-                        }}
-                        onPress={() => handleMarkerPress(shipment)}
-                    >
-                        <View style={[
-                            styles.markerContainer,
-                            selectedShipmentId === shipment.id && styles.selectedMarker
-                        ]}>
-                            <MaterialCommunityIcons
-                                name="truck-delivery"
-                                size={24}
-                                color={selectedShipmentId === shipment.id ? Colors.white : Colors.primary}
-                            />
-                        </View>
-                    </Marker>
-                ))}
+                {shipments.map((shipment) => {
+                    if (!shipment.pickupLocation?.lat || !shipment.pickupLocation?.lng) return null;
+
+                    return (
+                        <Marker
+                            key={shipment.id}
+                            coordinate={{
+                                latitude: shipment.pickupLocation.lat,
+                                longitude: shipment.pickupLocation.lng,
+                            }}
+                            onPress={() => handleMarkerPress(shipment)}
+                        >
+                            <View style={[
+                                styles.markerContainer,
+                                selectedShipmentId === shipment.id && styles.selectedMarker
+                            ]}>
+                                <MaterialCommunityIcons
+                                    name="truck-delivery"
+                                    size={24}
+                                    color={selectedShipmentId === shipment.id ? Colors.white : Colors.primary}
+                                />
+                            </View>
+                        </Marker>
+                    );
+                })}
             </MapView>
 
             <TouchableOpacity

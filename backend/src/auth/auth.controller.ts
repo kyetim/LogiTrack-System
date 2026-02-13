@@ -14,7 +14,15 @@ export class AuthController {
 
     @Post('login')
     async login(@Body() loginDto: LoginDto) {
-        return this.authService.login(loginDto);
+        console.log('DEBUG LOGIN REQUEST:', JSON.stringify(loginDto, null, 2));
+        try {
+            const result = await this.authService.login(loginDto);
+            console.log('DEBUG LOGIN SUCCESS:', Object.keys(result));
+            return result;
+        } catch (error) {
+            console.error('DEBUG LOGIN ERROR:', error.message);
+            throw error;
+        }
     }
 
     @UseGuards(JwtAuthGuard)

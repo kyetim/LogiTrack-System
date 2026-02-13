@@ -1,6 +1,7 @@
 import * as Location from 'expo-location';
 import mqttService from './mqttService';
 import { store } from '../store';
+import { api } from './api';
 
 let locationSubscription: Location.LocationSubscription | null = null;
 
@@ -19,18 +20,19 @@ export const startLocationTracking = async (): Promise<boolean> => {
             return false;
         }
 
+        // MQTT disabled due to Windows Firewall issues - using HTTP fallback
         // Connect to MQTT
-        console.log('🚀 Using MQTT protocol');
-        const connected = await mqttService.connect();
+        // console.log('🚀 Using MQTT protocol');
+        // const connected = await mqttService.connect();
 
-        if (connected) {
-            store.dispatch({ type: 'location/setConnected', payload: true });
-        } else {
-            console.warn('MQTT connection failed - will use offline queue');
-            // Don't fail, offline queue will handle it
-            // But we can mark as not connected for UI
-            store.dispatch({ type: 'location/setConnected', payload: false });
-        }
+        // if (connected) {
+        //     store.dispatch({ type: 'location/setConnected', payload: true });
+        // } else {
+        //     console.warn('MQTT connection failed - will use offline queue');
+        //     // Don't fail, offline queue will handle it
+        //     // But we can mark as not connected for UI
+        store.dispatch({ type: 'location/setConnected', payload: false });
+        // }
 
         console.log('⚠️ Using foreground-only tracking (Expo Go limitation)');
 
@@ -41,7 +43,7 @@ export const startLocationTracking = async (): Promise<boolean> => {
                 timeInterval: 30000, // 30 seconds
                 distanceInterval: 50, // 50 meters
             },
-            (location) => {
+            async (location) => {
                 console.log('📍 Location update:', location.coords);
 
                 const coords = {
@@ -51,16 +53,15 @@ export const startLocationTracking = async (): Promise<boolean> => {
                 const speed = location.coords.speed || undefined;
                 const heading = location.coords.heading || undefined;
 
-                // Send via MQTT
-                console.log('📡 Sending via MQTT');
-                const success = mqttService.sendLocation(coords, speed, heading);
-
-                if (!success) {
-                    const queueSize = mqttService.getQueueSize();
-                    console.warn(`MQTT send failed, queued (${queueSize} in queue)`);
-                    store.dispatch({ type: 'location/setConnected', payload: false });
-                } else {
+                // Send via HTTP API (MQTT disabled due to connection issues)
+                console.log('📡 Sending location via HTTP API');
+                try {
+                    await api.updateMyLocation(coords.latitude, coords.longitude);
                     store.dispatch({ type: 'location/setConnected', payload: true });
+                    console.log('✅ Location sent successfully');
+                } catch (error) {
+                    console.warn('HTTP location update failed:', error);
+                    store.dispatch({ type: 'location/setConnected', payload: false });
                 }
             }
         );
