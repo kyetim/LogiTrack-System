@@ -15,6 +15,8 @@ import { ConversationCard } from '../../../components/chat/ConversationCard';
 import { websocketService } from '../../../services/websocket';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../../constants/theme';
 import { useRouter } from 'expo-router';
+import { api } from '../../../services/api';
+import { TouchableOpacity, Alert } from 'react-native';
 
 export default function MessagesScreen() {
     const dispatch = useAppDispatch();
@@ -42,6 +44,26 @@ export default function MessagesScreen() {
 
     const handleConversationPress = (userId: string) => {
         router.push(`/conversation/${userId}` as any);
+    };
+
+    const handleContactAdmin = async () => {
+        try {
+            // 1. Get admins
+            const admins = await api.getAdmins();
+            if (admins.length === 0) {
+                Alert.alert('Hata', 'Sistemde yönetici bulunamadı.');
+                return;
+            }
+
+            // 2. Select first admin (for now - later can show list)
+            const targetAdmin = admins[0];
+
+            // 3. Navigate to chat
+            router.push(`/conversation/${targetAdmin.id}` as any);
+        } catch (error) {
+            console.error('Failed to contact admin:', error);
+            Alert.alert('Hata', 'Yönetici bilgisi alınamadı.');
+        }
     };
 
     if (isLoading && conversations.length === 0) {
@@ -91,6 +113,14 @@ export default function MessagesScreen() {
                     <MaterialCommunityIcons name="message-text-outline" size={80} color={Colors.gray300} />
                     <Text style={styles.emptyTitle}>Henüz mesajınız yok</Text>
                     <Text style={styles.emptySubtext}>Yönetici veya diğer kullanıcılar ile mesajlaşabilirsiniz</Text>
+
+                    <TouchableOpacity
+                        style={styles.contactAdminButton}
+                        onPress={handleContactAdmin}
+                    >
+                        <MaterialCommunityIcons name="account-tie" size={24} color="white" />
+                        <Text style={styles.contactAdminText}>Yöneticiyle İletişime Geç</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         );
@@ -103,11 +133,19 @@ export default function MessagesScreen() {
                 style={styles.header}
             >
                 <Text style={styles.headerTitle}>Mesajlar</Text>
-                {unreadCount > 0 && (
-                    <View style={styles.headerBadge}>
-                        <Text style={styles.headerBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                    </View>
-                )}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <TouchableOpacity
+                        onPress={handleContactAdmin}
+                        style={styles.headerIconButton}
+                    >
+                        <MaterialCommunityIcons name="account-tie" size={24} color="white" />
+                    </TouchableOpacity>
+                    {unreadCount > 0 && (
+                        <View style={styles.headerBadge}>
+                            <Text style={styles.headerBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                        </View>
+                    )}
+                </View>
             </LinearGradient>
 
             <FlatList
@@ -166,6 +204,11 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: Typography.bold,
     },
+    headerIconButton: {
+        padding: 8,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
     centerContent: {
         flex: 1,
         justifyContent: 'center',
@@ -196,6 +239,22 @@ const styles = StyleSheet.create({
         color: Colors.gray500,
         textAlign: 'center',
         maxWidth: 280,
+    },
+    contactAdminButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: Colors.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: BorderRadius.lg,
+        marginTop: Spacing.xl,
+        gap: 8,
+        ...Shadows.md,
+    },
+    contactAdminText: {
+        color: Colors.white,
+        fontWeight: Typography.bold,
+        fontSize: Typography.base,
     },
     listContent: {
         flexGrow: 1,

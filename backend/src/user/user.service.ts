@@ -46,6 +46,18 @@ export class UserService {
         };
     }
 
+    async findAdmins() {
+        return this.prisma.user.findMany({
+            where: { role: UserRole.ADMIN },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                createdAt: true,
+            },
+        });
+    }
+
     async findOne(id: string) {
         const user = await this.prisma.user.findUnique({
             where: { id },

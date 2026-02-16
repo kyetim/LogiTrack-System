@@ -14,6 +14,7 @@ interface DriverLocation {
     driver: {
         id: string;
         status: string;
+        isAvailable: boolean;
         licenseNumber: string;
         user: {
             email: string;
@@ -75,14 +76,19 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
     };
 
     // Get marker icon based on driver status
-    const getMarkerIcon = (status: string) => {
+    const getMarkerIcon = (driver: DriverLocation['driver']) => {
         // ... same impl
         // Check if google maps is loaded
         if (typeof google === 'undefined' || !google.maps || !google.maps.SymbolPath) {
             return undefined;
         }
 
-        const color = status === 'ON_DUTY' ? '#10b981' : '#6b7280';
+        let color = '#6b7280'; // Gray (OFF_DUTY)
+
+        if (driver.status === 'ON_DUTY') {
+            color = driver.isAvailable ? '#10b981' : '#3b82f6'; // Green (Available) vs Blue (Busy)
+        }
+
         return {
             path: google.maps.SymbolPath.CIRCLE,
             scale: 10,
@@ -117,7 +123,7 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
                         lat: location.coordinates.latitude,
                         lng: location.coordinates.longitude,
                     }}
-                    icon={getMarkerIcon(location.driver.status)}
+                    icon={getMarkerIcon(location.driver)}
                     onClick={() => handleMarkerClick(location)}
                     title={location.driver.user.email}
                 />
@@ -139,12 +145,14 @@ export function TrackingMap({ locations, onMarkerClick }: TrackingMapProps) {
                             <p>
                                 <span className="font-medium">Durum:</span>{' '}
                                 <span
-                                    className={`inline-block px-2 py-0.5 rounded text-xs ${selectedLocation.driver.status === 'ON_DUTY'
-                                        ? 'bg-green-100 text-green-800'
-                                        : 'bg-gray-100 text-gray-800'
+                                    className={`inline-block px-2 py-0.5 rounded text-xs text-white ${selectedLocation.driver.status === 'ON_DUTY'
+                                        ? (selectedLocation.driver.isAvailable ? 'bg-green-500' : 'bg-blue-500')
+                                        : 'bg-gray-500'
                                         }`}
                                 >
-                                    {selectedLocation.driver.status === 'ON_DUTY' ? 'Görevde' : 'Görev Dışı'}
+                                    {selectedLocation.driver.status === 'ON_DUTY'
+                                        ? (selectedLocation.driver.isAvailable ? 'Müsait' : 'Görevde')
+                                        : 'Görev Dışı'}
                                 </span>
                             </p>
                             <p>

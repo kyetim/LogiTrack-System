@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { RefreshCw, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { StatusBadge } from '@/components/StatusBadge';
 
 interface DriverLocation {
     id: string;
@@ -25,6 +26,7 @@ interface DriverLocation {
     driver: {
         id: string;
         status: string;
+        isAvailable: boolean;
         licenseNumber: string;
         user: {
             email: string;
@@ -80,12 +82,29 @@ export default function TrackingPage() {
                             ...newLocations[index],
                             coordinates: data.coordinates,
                             timestamp: data.timestamp || new Date().toISOString(),
+                            // Update status if provided
+                            driver: {
+                                ...newLocations[index].driver,
+                                status: data.driver?.status || newLocations[index].driver.status,
+                                isAvailable: data.driver?.isAvailable ?? newLocations[index].driver.isAvailable
+                            }
                         };
                         return newLocations;
                     }
 
-                    // If driver is not in list (newly active), we should probably fetch/refresh
-                    // For now, we just ignore or we can trigger a refresh
+                    // If driver is not in list but we have full driver details, add them!
+                    if (data.driver) {
+                        const newLocation: DriverLocation = {
+                            id: data.driverId, // Construct a temporary ID or use driverID
+                            driverId: data.driverId,
+                            coordinates: data.coordinates,
+                            timestamp: data.timestamp || new Date().toISOString(),
+                            driver: data.driver
+                        };
+                        return [...prev, newLocation];
+                    }
+
+                    // If we don't have details, try fetching (fallback)
                     fetchLocations();
                     return prev;
                 });
@@ -180,16 +199,18 @@ export default function TrackingPage() {
                                                                 </p>
                                                             )}
                                                         </div>
-                                                        <Badge
-                                                            variant={
-                                                                location.driver.status === 'ON_DUTY'
-                                                                    ? 'default'
-                                                                    : 'secondary'
+                                                        <StatusBadge
+                                                            status={
+                                                                location.driver.status === 'OFF_DUTY' ? 'OFF_DUTY' :
+                                                                    (location.driver.status === 'ON_DUTY' ? (location.driver.isAvailable ? 'AVAILABLE' : 'ON_DUTY') : location.driver.status)
                                                             }
+                                                            labels={{
+                                                                'ON_DUTY': 'Görevde',
+                                                                'OFF_DUTY': 'Görev Dışı',
+                                                                'AVAILABLE': 'Müsait'
+                                                            }}
                                                             className="ml-2"
-                                                        >
-                                                            {location.driver.status === 'ON_DUTY' ? 'Görevde' : 'Görev Dışı'}
-                                                        </Badge>
+                                                        />
                                                     </div>
                                                     <p className="text-xs text-gray-400 mt-2">
                                                         {new Date(location.timestamp).toLocaleTimeString('tr-TR')}

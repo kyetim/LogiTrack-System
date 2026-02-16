@@ -1,9 +1,10 @@
-import React from 'react';
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../../constants/theme';
 
 export default function TabsLayout() {
+    // Location tracking is now manually controlled from the Dashboard
+
     return (
         <Tabs
             screenOptions={{

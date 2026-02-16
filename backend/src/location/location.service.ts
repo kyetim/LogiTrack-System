@@ -88,10 +88,11 @@ export class LocationService {
     }
 
     async getLatestLocations() {
-        // Get all active drivers
+        // Get all active drivers who are ON_DUTY
         const drivers = await this.prisma.driverProfile.findMany({
             where: {
                 isActive: true,
+                // status: 'ON_DUTY', // Removing strict filter so all active drivers show up
             },
             include: {
                 user: {
@@ -107,29 +108,50 @@ export class LocationService {
             },
         });
 
-        // Get latest location for each driver
-        const locationsPromises = drivers.map(async (driver) => {
-            const location = await this.prisma.locationLog.findFirst({
-                where: { driverId: driver.id },
-                orderBy: { timestamp: 'desc' },
-            });
+        // Fetch location for each driver using raw SQL (PostGIS)
+        const locationsWithDrivers = await Promise.all(drivers.map(async (driver) => {
+            try {
+                // Using queryRawUnsafe to ensure UUID casting works correctly
+                const locationResult: any[] = await this.prisma.$queryRawUnsafe(`
+                    SELECT 
+                        ST_Y(current_location::geometry) as latitude,
+                        ST_X(current_location::geometry) as longitude,
+                        last_location_update as timestamp
+                    FROM driver_profiles 
+                    WHERE id = '${driver.id}'
+                `);
 
-            if (!location) return null;
+                const rawLoc = locationResult[0];
 
-            return {
-                ...location,
-                driver: {
-                    id: driver.id,
-                    status: driver.status,
-                    licenseNumber: driver.licenseNumber,
-                    user: driver.user,
-                    vehicle: driver.vehicle,
-                },
-            };
-        });
+                // Only return if valid location exists
+                if (!rawLoc || !rawLoc.latitude) return null;
 
-        const locations = await Promise.all(locationsPromises);
-        return locations.filter(loc => loc !== null);
+                // Return in the structure expected by the frontend (simulating a LocationLog)
+                return {
+                    id: driver.id, // Use driver ID as unique key for the "location" object
+                    driverId: driver.id,
+                    coordinates: {
+                        latitude: rawLoc.latitude,
+                        longitude: rawLoc.longitude,
+                    },
+                    speed: 0, // Not stored in profile currently
+                    heading: 0, // Not stored in profile currently
+                    timestamp: rawLoc.timestamp || new Date(),
+                    driver: {
+                        id: driver.id,
+                        status: driver.status,
+                        licenseNumber: driver.licenseNumber,
+                        user: driver.user,
+                        vehicle: driver.vehicle,
+                    },
+                };
+            } catch (error) {
+                console.error(`Failed to fetch location for driver ${driver.id}:`, error);
+                return null;
+            }
+        }));
+
+        return locationsWithDrivers.filter(loc => loc !== null);
     }
 
     async create(createLocationDto: CreateLocationDto) {

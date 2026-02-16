@@ -4,9 +4,14 @@ import { CreateDriverDto } from './dto/create-driver.dto';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { DriverStatus } from '@prisma/client';
 
+import { WebsocketGateway } from '../websocket/websocket.gateway';
+
 @Injectable()
 export class DriverService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private websocketGateway: WebsocketGateway
+    ) { }
 
     async findAll(filters?: { isActive?: boolean; status?: DriverStatus; vehicleId?: string }) {
         const where: any = {};
@@ -55,7 +60,7 @@ export class DriverService {
                         ST_Y(current_location::geometry) as latitude,
                         ST_X(current_location::geometry) as longitude
                     FROM driver_profiles 
-                    WHERE id = '${driver.id}'::uuid
+                    WHERE id = '${driver.id}'
                 `);
 
                 const location = locationResult[0]?.latitude ? {
@@ -164,7 +169,14 @@ export class DriverService {
                         role: true,
                     },
                 },
-                vehicle: true,
+                vehicle: {
+                    select: {
+                        id: true,
+                        plateNumber: true,
+                        type: true,
+                        capacity: true,
+                    },
+                },
             },
         });
 
@@ -299,7 +311,55 @@ export class DriverService {
             },
         });
 
+        // Broadcast the status change
+        await this.broadcastDriverUpdate(id);
+
         return driver;
+    }
+
+    private async broadcastDriverUpdate(driverId: string) {
+        try {
+            const driver = await this.findOne(driverId);
+
+            // Re-use the location:update event structure since it carries full driver info
+            // or we could create a specific driver:update event. 
+            // For now, let's use location:update as the frontend already listens to it and updates the list.
+            // We need to fetch the latest location for this.
+
+            const locationResult: any[] = await this.prisma.$queryRawUnsafe(`
+                SELECT 
+                    ST_Y(current_location::geometry) as latitude,
+                    ST_X(current_location::geometry) as longitude
+                FROM driver_profiles 
+                WHERE id = '${driver.id}'
+            `);
+
+            const coordinates = locationResult[0]?.latitude ? {
+                latitude: locationResult[0].latitude,
+                longitude: locationResult[0].longitude
+            } : { latitude: 0, longitude: 0 }; // Fallback if no location yet
+
+            this.websocketGateway.server.to('dispatchers').emit('location:update', {
+                driverId: driver.id,
+                driverEmail: driver.user.email,
+                coordinates: coordinates,
+                timestamp: new Date(),
+                driver: {
+                    id: driver.id,
+                    status: driver.status,
+                    isAvailable: driver.isAvailable,
+                    licenseNumber: driver.licenseNumber,
+                    user: {
+                        email: driver.user.email
+                    },
+                    vehicle: driver.vehicle ? {
+                        plateNumber: driver.vehicle.plateNumber
+                    } : undefined
+                }
+            });
+        } catch (error) {
+            console.error('Failed to broadcast driver update:', error);
+        }
     }
 
 
@@ -362,7 +422,7 @@ export class DriverService {
                         ST_Y(current_location::geometry) as latitude,
                         ST_X(current_location::geometry) as longitude
                     FROM driver_profiles 
-                    WHERE id = '${driver.id}'::uuid
+                    WHERE id = '${driver.id}'
                 `);
 
                 // console.log(`📍 Location fetch for ${driver.id}:`, locationResult);
@@ -458,6 +518,7 @@ export class DriverService {
     async updateDriverLocation(driverId: string, lat: number, lng: number) {
         await this.findOne(driverId);
 
+        // Initialize the location update in DB
         await this.prisma.$executeRaw`
             UPDATE driver_profiles
             SET 
@@ -465,6 +526,35 @@ export class DriverService {
                 last_location_update = NOW()
             WHERE id = ${driverId}
         `;
+
+        // Retrieve driver details for broadcast
+        // We need user email and other details
+        const driver = await this.findOne(driverId);
+
+        // Broadcast to dispatchers via WebSocket
+        try {
+            this.websocketGateway.server.to('dispatchers').emit('location:update', {
+                driverId: driver.id,
+                driverEmail: driver.user.email,
+                coordinates: { latitude: lat, longitude: lng },
+                timestamp: new Date(),
+                // Send full driver details so frontend can add to list if missing
+                driver: {
+                    id: driver.id,
+                    status: driver.status,
+                    licenseNumber: driver.licenseNumber,
+                    user: {
+                        email: driver.user.email
+                    },
+                    vehicle: driver.vehicle ? {
+                        plateNumber: driver.vehicle.plateNumber
+                    } : undefined
+                }
+            });
+        } catch (error) {
+            console.error('Failed to broadcast location update:', error);
+            // Don't fail the HTTP request if socket broadcast fails
+        }
 
         return { success: true, message: 'Location updated successfully' };
     }
@@ -486,5 +576,3 @@ export class DriverService {
         return this.findOne(driverId);
     }
 }
-
-

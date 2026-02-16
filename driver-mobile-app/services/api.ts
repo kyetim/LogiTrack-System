@@ -62,6 +62,11 @@ class ApiClient {
         return data;
     }
 
+    async getAdmins(): Promise<AuthResponse['user'][]> {
+        const { data } = await this.client.get<AuthResponse['user'][]>('/users/admins');
+        return data;
+    }
+
     // Shipments
     async getMyShipments(): Promise<Shipment[]> {
         const { data } = await this.client.get<Shipment[]>('/shipments/my');

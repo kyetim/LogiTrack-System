@@ -33,6 +33,12 @@ export class UserController {
         );
     }
 
+    @Get('admins')
+    @Roles(UserRole.ADMIN, UserRole.DRIVER, UserRole.DISPATCHER)
+    async getAdmins() {
+        return this.userService.findAdmins();
+    }
+
     @Get(':id')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async findOne(@Param('id') id: string, @Request() req) {

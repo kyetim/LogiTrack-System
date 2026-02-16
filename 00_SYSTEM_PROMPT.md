@@ -76,7 +76,7 @@ Bu proje, ulusal çapta hizmet veren bir lojistik firması için geliştirilen, 
 * **Language:** TypeScript (Strict Mode)
 * **Database:** PostgreSQL (Ana Veri), PostGIS (Harita/Konum)
 * **Cache & Queue:** Redis, BullMQ
-* **Real-time:** Socket.io (NestJS Gateway)
+* **Real-time:** Socket.io (NestJS Gateway) & MQTT (High Frequency Telemetry)
 * **ORM:** Prisma ORM
 
 #### 2. Mobil Uygulama (Driver App)
@@ -206,6 +206,7 @@ Yukarıdaki tüm akıl yürütme süreçleri tükenene kadar pes etme:
 
 * **Backend:** Node.js, NestJS (Framework), TypeScript
 * **Database:** PostgreSQL (Ana Veri), PostGIS (Harita/Konum), Redis (Cache/Queue)
+* **Telemetry:** MQTT Broker (Veri Alımı)
 * **ORM:** Prisma ORM (Type-safety için)
 * **Mobile App:** React Native (Expo Framework), TypeScript
 * **Admin Panel:** Next.js (React), TypeScript

@@ -14,8 +14,8 @@ export function StatusBadge({ status, type = 'shipment', className, labels }: St
     const getColor = (status: string) => {
         const s = status.toUpperCase();
 
-        // Success / Completed / Active
-        if (['DELIVERED', 'COMPLETED', 'ACTIVE', 'ON_DUTY', 'ADMIN'].includes(s)) {
+        // Success / Completed / Active / Available
+        if (['DELIVERED', 'COMPLETED', 'ACTIVE', 'AVAILABLE', 'ADMIN'].includes(s)) {
             return {
                 bg: 'bg-primary/10',
                 text: 'text-primary',
@@ -24,8 +24,17 @@ export function StatusBadge({ status, type = 'shipment', className, labels }: St
             };
         }
 
-        // Processing / In Progress / Info
-        if (['IN_TRANSIT', 'DRIVER', 'DISPATCHER'].includes(s)) {
+        // Processing / In Progress / Info / On Duty (Busy)
+        if (['IN_TRANSIT', 'ON_DUTY'].includes(s)) {
+            return {
+                bg: 'bg-blue-100',
+                text: 'text-blue-700',
+                dot: 'bg-blue-500',
+                border: 'border-blue-200'
+            };
+        }
+
+        if (['DRIVER', 'DISPATCHER'].includes(s)) {
             return {
                 bg: 'bg-secondary/10',
                 text: 'text-secondary',

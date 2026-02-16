@@ -22,6 +22,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Driver {
     id: string;
@@ -32,6 +33,7 @@ interface Driver {
     licenseNumber: string;
     phoneNumber: string;
     status: string;
+    isAvailable: boolean; // Added isAvailable field
     createdAt: string;
 }
 
@@ -52,6 +54,30 @@ export default function DriversPage() {
     const [selectedDriver, setSelectedDriver] = useState<Driver | null>(null);
     const [docsModalOpen, setDocsModalOpen] = useState(false);
     const [docsDriver, setDocsDriver] = useState<{ id: string; name: string } | null>(null);
+    const { socket } = useWebSocket();
+
+    useEffect(() => {
+        if (socket) {
+            socket.on('location:update', (data: any) => {
+                if (data.driver) {
+                    setDrivers(prev => prev.map(d => {
+                        if (d.id === data.driver.id) {
+                            return {
+                                ...d,
+                                status: data.driver.status,
+                                isAvailable: data.driver.isAvailable,
+                            };
+                        }
+                        return d;
+                    }));
+                }
+            });
+
+            return () => {
+                socket.off('location:update');
+            };
+        }
+    }, [socket]);
 
     useEffect(() => {
         if (!authLoading && !user) {
@@ -70,6 +96,7 @@ export default function DriversPage() {
         try {
             setIsLoading(true);
             const { data } = await api.get('/drivers');
+            console.log('DEBUG: Fetched Drivers:', data); // Debug log
             setDrivers(data);
         } catch (error) {
             console.error('Failed to fetch drivers:', error);
@@ -83,7 +110,7 @@ export default function DriversPage() {
         try {
             const { data } = await api.get('/users');
             const driverUsers = (data.data || data).filter((u: User) => u.role === 'DRIVER');
-            setUsers(driverUsers);
+            setUsers(users);
         } catch (error) {
             console.error('Failed to fetch users:', error);
         }
@@ -131,6 +158,15 @@ export default function DriversPage() {
         }
     };
 
+    // Helper to determine display status
+    const getDisplayStatus = (driver: Driver) => {
+        if (driver.status === 'OFF_DUTY') return 'OFF_DUTY';
+        if (driver.status === 'ON_DUTY') {
+            return driver.isAvailable ? 'AVAILABLE' : 'ON_DUTY';
+        }
+        return driver.status;
+    };
+
     // Columns
     const columns: ColumnDef<Driver>[] = [
         {
@@ -139,6 +175,8 @@ export default function DriversPage() {
             header: t('users.email'),
             cell: ({ row }) => <div className="font-semibold text-foreground">{row.original.user.email}</div>,
         },
+
+        // ... columns ...
         {
             accessorKey: "licenseNumber",
             header: t('drivers.licenseNumber'),
@@ -150,17 +188,22 @@ export default function DriversPage() {
             cell: ({ row }) => <div className="text-sm">{row.getValue("phoneNumber")}</div>,
         },
         {
-            accessorKey: "status",
+            id: "status", // Use custom id for combined status
+            accessorFn: (row) => getDisplayStatus(row), // Accessor for filtering/sorting
             header: t('drivers.status'),
-            cell: ({ row }) => (
-                <StatusBadge
-                    status={row.getValue("status")}
-                    labels={{
-                        'ON_DUTY': t('statuses.ON_DUTY'),
-                        'OFF_DUTY': t('statuses.OFF_DUTY')
-                    }}
-                />
-            ),
+            cell: ({ row }) => {
+                const displayStatus = getDisplayStatus(row.original);
+                return (
+                    <StatusBadge
+                        status={displayStatus}
+                        labels={{
+                            'ON_DUTY': t('statuses.ON_DUTY'), // "Görevde" (Busy)
+                            'OFF_DUTY': t('statuses.OFF_DUTY'),
+                            'AVAILABLE': 'Müsait' // Add translation key if missing, or hardcode for now
+                        }}
+                    />
+                );
+            },
         },
         {
             id: "actions",
@@ -236,7 +279,9 @@ export default function DriversPage() {
                         <UserCheck className="h-4 w-4 text-secondary-foreground/90" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{drivers.filter(d => d.status === 'ON_DUTY').length}</div>
+                        <div className="text-2xl font-bold">
+                            {drivers.filter(d => d.status === 'ON_DUTY' && !d.isAvailable).length}
+                        </div>
                         <p className="text-xs text-secondary-foreground/80 mt-1 opacity-80">Şu an aktif çalışan</p>
                     </CardContent>
                 </Card>
@@ -249,7 +294,9 @@ export default function DriversPage() {
                         <Clock className="h-4 w-4 text-accent-foreground/90" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{drivers.filter(d => d.status !== 'ON_DUTY').length}</div>
+                        <div className="text-2xl font-bold">
+                            {drivers.filter(d => d.status !== 'ON_DUTY' || (d.status === 'ON_DUTY' && d.isAvailable)).length}
+                        </div>
                         <p className="text-xs text-accent-foreground/80 mt-1 opacity-80">Görev bekleyen</p>
                     </CardContent>
                 </Card>
