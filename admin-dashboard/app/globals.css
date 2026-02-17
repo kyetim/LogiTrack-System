@@ -47,93 +47,91 @@
 }
 
 :root {
-  --radius: 1.5rem;
-  /* 24px */
+  --radius: 0.75rem;
+  /* More professional, less playful radius */
 
-  /* Nature-Industrial Palette (Converted to OKLCH for consistency or kept as Hex where logical, but sticking to variable structure) */
-  /* Used Hex for direct mapping per user request, but defining semantic names if needed, or mapping to standard shadcn vars */
+  /* Corporate Blue Palette */
 
   --background: oklch(0.98 0.01 100);
-  /* #FAF9F6 Off-white */
-  --foreground: oklch(0.145 0 0);
-  /* Keep dark text */
+  /* #F8FAFC Slate-50 */
+  --foreground: oklch(0.20 0.02 265);
+  /* #0F172A Slate-900 */
 
-  --card: oklch(0.98 0.01 100);
-  /* #FAF9F6 */
-  --card-foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  /* White */
+  --card-foreground: oklch(0.20 0.02 265);
 
-  --popover: oklch(0.98 0.01 100);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.20 0.02 265);
 
-  --primary: oklch(0.42 0.08 155);
-  /* #2E5B43 Forest Green */
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.35 0.12 255);
+  /* #003366 Deep Navy / Royal Blue equivalent in OKLCH approx */
+  /* Adjusted for better vibrance: OKLCH(0.35 0.12 255) is close to a deep corporate blue */
+  --primary-foreground: oklch(0.98 0.01 100);
 
-  --secondary: oklch(0.35 0.06 60);
-  /* #4A3728 Deep Earth Brown */
-  --secondary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.55 0.05 255);
+  /* #64748B Slate Blueish */
+  --secondary-foreground: oklch(0.98 0.01 100);
 
-  --muted: oklch(0.95 0.04 100);
-  /* #F5F5DC Sand Beige */
-  --muted-foreground: oklch(0.35 0.06 60);
-  /* Brownish text */
+  --muted: oklch(0.96 0.01 255);
+  /* Slate-100 */
+  --muted-foreground: oklch(0.55 0.05 255);
 
-  --accent: oklch(0.75 0.15 85);
-  /* #D4AF37 Gold */
-  --accent-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.75 0.16 75);
+  /* #F59E0B Amber/Gold for logistics */
+  --accent-foreground: oklch(0.20 0.02 265);
 
   --destructive: oklch(0.577 0.245 27.325);
+  /* Keep standard red error */
 
-  --border: oklch(0.42 0.08 155 / 0.1);
-  /* Low opacity primary for borders */
-  --input: oklch(0.42 0.08 155 / 0.1);
-  --ring: oklch(0.42 0.08 155 / 0.2);
+  --border: oklch(0.85 0.02 255);
+  /* Slate-200 */
+  --input: oklch(0.85 0.02 255);
+  --ring: oklch(0.35 0.12 255 / 0.2);
 
-  --chart-1: oklch(0.42 0.08 155);
-  /* Forest */
-  --chart-2: oklch(0.35 0.06 60);
-  /* Earth */
-  --chart-3: oklch(0.75 0.15 85);
-  /* Gold */
-  --chart-4: oklch(0.65 0.10 140);
-  /* Lighter Green */
-  --chart-5: oklch(0.85 0.05 90);
-  /* Sand */
+  /* Charts - Corporate & Calm */
+  --chart-1: oklch(0.35 0.12 255);
+  /* Primary Blue */
+  --chart-2: oklch(0.55 0.05 255);
+  /* Slate */
+  --chart-3: oklch(0.75 0.16 75);
+  /* Amber */
+  --chart-4: oklch(0.60 0.15 200);
+  /* Teal/Cyan */
+  --chart-5: oklch(0.70 0.10 40);
+  /* Burnt Orange */
 
-  --sidebar: oklch(0.42 0.08 155);
-  /* Forest Green Sidebar */
-  --sidebar-foreground: oklch(0.98 0.01 100);
-  /* Off-white text */
-  --sidebar-primary: oklch(0.75 0.15 85);
-  /* Gold active state */
-  --sidebar-primary-foreground: oklch(0.145 0 0);
-  --sidebar-accent: oklch(0.35 0.06 60);
-  /* Earth Brown hover */
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.98 0.01 100 / 0.1);
-  --sidebar-ring: oklch(0.75 0.15 85);
+  --sidebar: oklch(0.20 0.04 265);
+  /* Dark Slate Sidebar #0F172A */
+  --sidebar-foreground: oklch(0.98 0.01 255);
+  --sidebar-primary: oklch(0.35 0.12 255);
+  --sidebar-primary-foreground: oklch(0.98 0.01 100);
+  --sidebar-accent: oklch(0.30 0.04 265);
+  --sidebar-accent-foreground: oklch(0.98 0.01 100);
+  --sidebar-border: oklch(1 0 0 / 0.1);
+  --sidebar-ring: oklch(0.80 0.05 255);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.98 0.01 100);
-  /* Dark mode tweaks can be added here, but focusing on light mode request first */
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.42 0.08 155);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.35 0.06 60);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.75 0.15 85);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.12 0.02 260);
+  --foreground: oklch(0.98 0.01 255);
+  --card: oklch(0.17 0.02 260);
+  --card-foreground: oklch(0.98 0.01 255);
+  --popover: oklch(0.17 0.02 260);
+  --popover-foreground: oklch(0.98 0.01 255);
+  --primary: oklch(0.45 0.12 255);
+  /* Slightly lighter blue for dark mode */
+  --primary-foreground: oklch(0.98 0.01 100);
+  --secondary: oklch(0.30 0.05 255);
+  --secondary-foreground: oklch(0.98 0.01 100);
+  --muted: oklch(0.25 0.02 260);
+  --muted-foreground: oklch(0.70 0.04 255);
+  --accent: oklch(0.75 0.16 75);
+  --accent-foreground: oklch(0.20 0.02 265);
+  --destructive: oklch(0.60 0.20 25);
+  --border: oklch(0.30 0.02 260);
+  --input: oklch(0.30 0.02 260);
+  --ring: oklch(0.45 0.12 255 / 0.4);
 }
 
 @layer base {
@@ -143,23 +141,28 @@
 
   body {
     @apply bg-background text-foreground tracking-tight;
-    /* Micro-texture noise */
-    background-image: repeating-conic-gradient(rgba(0, 0, 0, 0.002) 0% 25%, transparent 0% 50%);
-    background-size: 20px 20px;
+    /* Clean, tech background */
+    background-image: radial-gradient(circle at 1px 1px, rgba(148, 163, 184, 0.15) 1px, transparent 0);
+    background-size: 24px 24px;
   }
 
   .glass-panel {
-    @apply bg-[#FAF9F6]/80 backdrop-blur-xl border border-[#2E5B43]/10 shadow-[0_20px_50px_-12px_#2E5B431A];
+    @apply bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 shadow-lg shadow-slate-900/5 z-10;
   }
 
   .glass-card {
-    @apply bg-[#FAF9F6]/90 backdrop-blur-md border border-[#2E5B43]/5 shadow-[0_10px_30px_-10px_#2E5B4314] transition-all duration-500 hover:shadow-[0_20px_40px_-10px_#2E5B4326] hover:-translate-y-1;
+    @apply bg-white dark:bg-slate-800 backdrop-blur-none border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 z-10;
   }
 
-  /* Custom input styling for rounded-3xl */
+  /* Professional Inputs */
   input,
   button,
   .button {
-    @apply rounded-3xl;
+    @apply rounded-lg;
+    /* Changed from rounded-3xl to lg for corporate feel */
+  }
+
+  .shadow-soft {
+    box-shadow: 0 10px 40px -10px rgba(0, 51, 102, 0.1);
   }
 }

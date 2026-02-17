@@ -24,7 +24,7 @@ export function DashboardHeader() {
     if (!user) return null;
 
     return (
-        <div className="border-b bg-white/50 backdrop-blur-md sticky top-0 z-30 px-6 py-3 flex items-center justify-between gap-4">
+        <header className="h-16 border-b border-border bg-white/95 backdrop-blur-md px-6 flex items-center justify-between sticky top-0 z-40 shadow-sm transition-all duration-300">
             {/* Search Bar */}
             <div className="hidden md:flex items-center relative w-full max-w-md">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
@@ -86,6 +86,6 @@ export function DashboardHeader() {
                     </DropdownMenu>
                 </div>
             </div>
-        </div>
+        </header>
     );
 }

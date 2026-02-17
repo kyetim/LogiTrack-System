@@ -145,6 +145,34 @@ class ApiClient {
         return data.count || 0;
     }
 
+    // Support Tickets
+    async getMyTicket(): Promise<any> {
+        const { data } = await this.client.get('/support/my-ticket');
+        return data;
+    }
+
+    async sendSupportMessage(content: string): Promise<any> {
+        const { data } = await this.client.post('/support/my-ticket/messages', {
+            content,
+        });
+        return data;
+    }
+
+    async closeMyTicket(): Promise<any> {
+        const { data } = await this.client.patch('/support/my-ticket/close');
+        return data;
+    }
+
+    async createEmergencyTicket(location?: string): Promise<any> {
+        const { data } = await this.client.post('/support/emergency', { location });
+        return data;
+    }
+
+    async getMyClosedTickets(): Promise<any[]> {
+        const { data } = await this.client.get('/support/tickets/history');
+        return data;
+    }
+
     // Scoring
     async getLeaderboard(limit: number = 10): Promise<any> {
         const { data } = await this.client.get('/scoring/leaderboard', {

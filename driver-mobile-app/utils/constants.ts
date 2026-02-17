@@ -23,15 +23,15 @@ export const APP_CONFIG = {
     supportEmail: 'support@logitrack.com',
 } as const;
 
-// Colors (matching admin dashboard)
+// Colors (matching admin dashboard - Corporate Blue)
 export const COLORS = {
-    primary: '#2563eb',
-    success: '#10b981',
-    warning: '#f59e0b',
-    danger: '#ef4444',
-    info: '#3b82f6',
-    background: '#f9fafb',
-    text: '#111827',
-    textLight: '#6b7280',
-    border: '#e5e7eb',
+    primary: '#003366', // Deep Navy
+    success: '#10b981', // Standard Green
+    warning: '#f59e0b', // Amber
+    danger: '#ef4444',  // Red
+    info: '#64748B',    // Slate Blue (Secondary)
+    background: '#F8FAFC', // Slate-50
+    text: '#0F172A',    // Slate-900
+    textLight: '#64748B', // Slate-500
+    border: '#E2E8F0',  // Slate-200
 } as const;

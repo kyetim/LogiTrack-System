@@ -37,7 +37,8 @@
         "manageUsers": "Kullanıcıları Yönet",
         "manageDrivers": "Sürücüleri Yönet",
         "manageVehicles": "Araçları Yönet",
-        "manageShipments": "Sevkiyatları Yönet"
+        "manageShipments": "Sevkiyatları Yönet",
+        "capacityAnalysis": "Lojistik Kapasite Analizi"
     },
     "users": {
         "title": "Kullanıcı Yönetimi",

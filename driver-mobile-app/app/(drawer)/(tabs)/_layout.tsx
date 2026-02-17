@@ -55,6 +55,16 @@ export default function TabsLayout() {
                 }}
             />
             <Tabs.Screen
+                name="support"
+                options={{
+                    title: 'Destek',
+                    tabBarLabel: 'Destek',
+                    tabBarIcon: ({ color, size }) => (
+                        <Ionicons name="help-buoy" size={size} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
                 name="leaderboard"
                 options={{
                     title: 'Liderlik Tablosu',

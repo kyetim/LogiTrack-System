@@ -175,4 +175,80 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       timestamp: new Date(),
     });
   }
+
+  // ==================== SUPPORT TICKET EVENTS ====================
+
+  // Emit new support ticket created (to all admins/dispatchers)
+  emitNewSupportTicket(ticket: any) {
+    this.server.to('dispatchers').emit('support:new-ticket', {
+      ticketId: ticket.id,
+      ticketNumber: ticket.ticketNumber,
+      driverId: ticket.driverId,
+      subject: ticket.subject,
+      timestamp: new Date(),
+    });
+  }
+
+  // Emit admin reply (to specific driver)
+  emitAdminReply(driverId: string, message: any) {
+    this.server.to(`driver:${driverId}`).emit('support:admin-reply', {
+      messageId: message.id,
+      content: message.content,
+      sender: message.sender,
+      timestamp: new Date(),
+    });
+  }
+
+  // Emit ticket assignment (to all admins + driver)
+  emitTicketAssigned(ticketId: string, driverId: string, admin: any) {
+    // Notify driver
+    this.server.to(`driver:${driverId}`).emit('support:ticket-assigned', {
+      ticketId,
+      assignedTo: admin,
+      timestamp: new Date(),
+    });
+
+    // Notify dispatchers
+    this.server.to('dispatchers').emit('support:ticket-assigned', {
+      ticketId,
+      assignedTo: admin,
+      timestamp: new Date(),
+    });
+  }
+
+  // Emit ticket status change
+  emitTicketStatusChanged(ticketId: string, driverId: string, status: string) {
+    // Notify driver
+    this.server.to(`driver:${driverId}`).emit('support:status-changed', {
+      ticketId,
+      status,
+      timestamp: new Date(),
+    });
+
+    // Notify dispatchers
+    this.server.to('dispatchers').emit('support:status-changed', {
+      ticketId,
+      status,
+      timestamp: new Date(),
+    });
+  }
+
+  // Emit new message in ticket (to driver or admins depending on sender)
+  emitNewTicketMessage(ticketId: string, driverId: string, message: any, senderRole: string) {
+    if (senderRole === 'DRIVER') {
+      // Driver sent message - notify admins
+      this.server.to('dispatchers').emit('support:new-message', {
+        ticketId,
+        message,
+        timestamp: new Date(),
+      });
+    } else {
+      // Admin sent message - notify driver
+      this.server.to(`driver:${driverId}`).emit('support:new-message', {
+        ticketId,
+        message,
+        timestamp: new Date(),
+      });
+    }
+  }
 }

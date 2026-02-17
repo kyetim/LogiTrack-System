@@ -10,6 +10,7 @@ import scoringReducer from './slices/scoringSlice';
 import documentsReducer from './slices/documentsSlice';
 import geofencingReducer from './slices/geofencingSlice';
 import availabilityReducer from './slices/availabilitySlice';
+import supportReducer from './slices/supportSlice';
 import { RootState } from '../types';
 export { RootState };
 
@@ -25,6 +26,7 @@ export const store = configureStore({
         documents: documentsReducer,
         geofencing: geofencingReducer,
         availability: availabilityReducer,
+        support: supportReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

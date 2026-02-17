@@ -36,7 +36,8 @@
         "manageUsers": "Manage Users",
         "manageDrivers": "Manage Drivers",
         "manageVehicles": "Manage Vehicles",
-        "manageShipments": "Manage Shipments"
+        "manageShipments": "Manage Shipments",
+        "capacityAnalysis": "Logistics Capacity Analysis"
     },
     "users": {
         "title": "Users Management",

@@ -25,6 +25,7 @@ import { BillingModule } from './billing/billing.module';
 import { PushNotificationModule } from './push-notification/push-notification.module';
 import { EmailModule } from './email/email.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
+import { SupportModule } from './support/support.module';
 
 @Module({
   imports: [
@@ -74,6 +75,9 @@ import { FileUploadModule } from './file-upload/file-upload.module';
     // Global Services
     EmailModule,
     FileUploadModule,
+
+    // Support System
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],

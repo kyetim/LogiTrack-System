@@ -18,7 +18,8 @@ const theme = {
     colors: {
         ...MD3LightTheme.colors,
         primary: COLORS.primary,
-        secondary: COLORS.success,
+        secondary: COLORS.info, // Corrected to use Slate Blue as Secondary
+        tertiary: COLORS.warning, // Added Amber as Tertiary/Accent
         error: COLORS.danger,
     },
 };

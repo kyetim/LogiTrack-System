@@ -1,38 +1,38 @@
 // Design tokens for easy theming later
 export const Colors = {
-    // Primary
-    primary: '#007AFF',
-    primaryLight: '#5AC8FA',
-    primaryDark: '#0051D5',
+    // Primary - Deep Navy
+    primary: '#003366',
+    primaryLight: '#335C85',
+    primaryDark: '#002244',
 
     // Status
-    success: '#34C759',
-    warning: '#FF9500',
-    danger: '#FF3B30',
-    info: '#5AC8FA',
+    success: '#10b981',
+    warning: '#f59e0b', // Amber/Gold
+    danger: '#ef4444',
+    info: '#64748B',    // Slate Blue
 
     // Neutrals
     black: '#000000',
     white: '#FFFFFF',
-    gray900: '#1C1C1E',
-    gray800: '#2C2C2E',
-    gray700: '#3A3A3C',
-    gray600: '#48484A',
-    gray500: '#636366',
-    gray400: '#8E8E93',
-    gray300: '#C7C7CC',
-    gray200: '#E5E5EA',
-    gray100: '#F2F2F7',
+    gray900: '#0F172A', // Slate-900
+    gray800: '#1E293B',
+    gray700: '#334155',
+    gray600: '#475569',
+    gray500: '#64748B',
+    gray400: '#94A3B8',
+    gray300: '#CBD5E1',
+    gray200: '#E2E8F0',
+    gray100: '#F1F5F9', // Slate-100
 
     // Background
-    background: '#FFFFFF',
-    surface: '#F2F2F7',
-    overlay: 'rgba(0, 0, 0, 0.5)',
+    background: '#F8FAFC',
+    surface: '#FFFFFF',
+    overlay: 'rgba(15, 23, 42, 0.6)', // Darker slate overlay based on navy
 
     // Text
-    textPrimary: '#000000',
-    textSecondary: '#8E8E93',
-    textTertiary: '#C7C7CC',
+    textPrimary: '#0F172A',
+    textSecondary: '#64748B',
+    textTertiary: '#94A3B8',
     textInverse: '#FFFFFF',
 };
 

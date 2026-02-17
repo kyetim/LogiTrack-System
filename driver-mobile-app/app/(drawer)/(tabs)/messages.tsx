@@ -16,13 +16,15 @@ import { websocketService } from '../../../services/websocket';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../../constants/theme';
 import { useRouter } from 'expo-router';
 import { api } from '../../../services/api';
-import { TouchableOpacity, Alert } from 'react-native';
+import { TouchableOpacity, Alert, Modal } from 'react-native';
 
 export default function MessagesScreen() {
     const dispatch = useAppDispatch();
     const router = useRouter();
     const { conversations, isLoading, error, unreadCount } = useAppSelector((state) => state.messages);
     const [refreshing, setRefreshing] = useState(false);
+    const [showAdminSelector, setShowAdminSelector] = useState(false);
+    const [admins, setAdmins] = useState<any[]>([]);
 
     useEffect(() => {
         // Load conversations
@@ -46,24 +48,42 @@ export default function MessagesScreen() {
         router.push(`/conversation/${userId}` as any);
     };
 
-    const handleContactAdmin = async () => {
+    const handleNewMessage = async () => {
         try {
-            // 1. Get admins
-            const admins = await api.getAdmins();
-            if (admins.length === 0) {
-                Alert.alert('Hata', 'Sistemde yönetici bulunamadı.');
+            const adminList = await api.getAdmins();
+            if (adminList.length === 0) {
+                Alert.alert('Bilgi', 'Sistemde aktif admin bulunamadı.');
                 return;
             }
-
-            // 2. Select first admin (for now - later can show list)
-            const targetAdmin = admins[0];
-
-            // 3. Navigate to chat
-            router.push(`/conversation/${targetAdmin.id}` as any);
+            setAdmins(adminList);
+            setShowAdminSelector(true);
         } catch (error) {
-            console.error('Failed to contact admin:', error);
-            Alert.alert('Hata', 'Yönetici bilgisi alınamadı.');
+            console.error('Failed to fetch admins:', error);
+            Alert.alert('Hata', 'Admin listesi yüklenemedi.');
         }
+    };
+
+    const handleSelectAdmin = (adminId: string) => {
+        setShowAdminSelector(false);
+        router.push(`/conversation/${adminId}` as any);
+    };
+
+    const handleDeleteConversation = (userId: string, userEmail: string) => {
+        Alert.alert(
+            'Konuşmayı Sil',
+            `${userEmail} ile olan konuşmanızı silmek istediğinizden emin misiniz?`,
+            [
+                { text: 'İptal', style: 'cancel' },
+                {
+                    text: 'Sil',
+                    style: 'destructive',
+                    onPress: () => {
+                        // TODO: Backend endpoint eklenecek
+                        Alert.alert('Bilgi', 'Konuşma silme özelliği yakında eklenecek');
+                    },
+                },
+            ]
+        );
     };
 
     if (isLoading && conversations.length === 0) {
@@ -112,14 +132,14 @@ export default function MessagesScreen() {
                 <View style={styles.centerContent}>
                     <MaterialCommunityIcons name="message-text-outline" size={80} color={Colors.gray300} />
                     <Text style={styles.emptyTitle}>Henüz mesajınız yok</Text>
-                    <Text style={styles.emptySubtext}>Yönetici veya diğer kullanıcılar ile mesajlaşabilirsiniz</Text>
+                    <Text style={styles.emptySubtext}>Yönetici ile mesajlaşabilirsiniz</Text>
 
                     <TouchableOpacity
                         style={styles.contactAdminButton}
-                        onPress={handleContactAdmin}
+                        onPress={handleNewMessage}
                     >
-                        <MaterialCommunityIcons name="account-tie" size={24} color="white" />
-                        <Text style={styles.contactAdminText}>Yöneticiyle İletişime Geç</Text>
+                        <MaterialCommunityIcons name="plus-circle" size={24} color="white" />
+                        <Text style={styles.contactAdminText}>Yeni Mesaj</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -135,10 +155,10 @@ export default function MessagesScreen() {
                 <Text style={styles.headerTitle}>Mesajlar</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <TouchableOpacity
-                        onPress={handleContactAdmin}
+                        onPress={handleNewMessage}
                         style={styles.headerIconButton}
                     >
-                        <MaterialCommunityIcons name="account-tie" size={24} color="white" />
+                        <MaterialCommunityIcons name="plus-circle" size={24} color="white" />
                     </TouchableOpacity>
                     {unreadCount > 0 && (
                         <View style={styles.headerBadge}>
@@ -148,13 +168,51 @@ export default function MessagesScreen() {
                 </View>
             </LinearGradient>
 
+            {/* Admin Selector Modal */}
+            <Modal
+                visible={showAdminSelector}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowAdminSelector(false)}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowAdminSelector(false)}
+                >
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Kimle mesajlaşmak istersiniz?</Text>
+                        {admins.map((admin) => (
+                            <TouchableOpacity
+                                key={admin.id}
+                                style={styles.adminItem}
+                                onPress={() => handleSelectAdmin(admin.id)}
+                            >
+                                <MaterialCommunityIcons name="account-tie" size={24} color={Colors.primary} />
+                                <Text style={styles.adminName}>{admin.email}</Text>
+                            </TouchableOpacity>
+                        ))}
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={() => setShowAdminSelector(false)}
+                        >
+                            <Text style={styles.modalCancelText}>İptal</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
             <FlatList
-                data={conversations}
+                data={[...conversations].sort((a, b) =>
+                    new Date(b.lastMessage?.createdAt || 0).getTime() -
+                    new Date(a.lastMessage?.createdAt || 0).getTime()
+                )}
                 keyExtractor={(item) => item.user.id}
                 renderItem={({ item }) => (
                     <ConversationCard
                         conversation={item}
                         onPress={() => handleConversationPress(item.user.id)}
+                        onLongPress={() => handleDeleteConversation(item.user.id, item.user.email)}
                     />
                 )}
                 refreshControl={
@@ -258,5 +316,48 @@ const styles = StyleSheet.create({
     },
     listContent: {
         flexGrow: 1,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: Colors.white,
+        borderRadius: BorderRadius.xl,
+        padding: 24,
+        width: '100%',
+        maxWidth: 400,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: Colors.gray900,
+        marginBottom: 16,
+    },
+    adminItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        backgroundColor: Colors.gray100,
+        borderRadius: BorderRadius.lg,
+        marginBottom: 12,
+    },
+    adminName: {
+        fontSize: 16,
+        color: Colors.gray900,
+        marginLeft: 12,
+    },
+    modalCancelButton: {
+        marginTop: 8,
+        padding: 12,
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        fontSize: 14,
+        color: Colors.gray500,
+        fontWeight: '500',
     },
 });

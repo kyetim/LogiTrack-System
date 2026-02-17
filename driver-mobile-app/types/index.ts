@@ -283,4 +283,5 @@ export interface RootState {
     documents: DocumentsState; // NEW
     geofencing: GeofencingState; // NEW
     availability: AvailabilityState; // NEW
+    support: any; // Support state - imported from supportSlice
 }

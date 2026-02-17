@@ -7,9 +7,10 @@ import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../consta
 interface ConversationCardProps {
     conversation: Conversation;
     onPress: () => void;
+    onLongPress?: () => void;
 }
 
-export function ConversationCard({ conversation, onPress }: ConversationCardProps) {
+export function ConversationCard({ conversation, onPress, onLongPress }: ConversationCardProps) {
     const { user, lastMessage, unreadCount } = conversation;
     const hasUnread = unreadCount > 0;
 
@@ -17,6 +18,7 @@ export function ConversationCard({ conversation, onPress }: ConversationCardProp
         <TouchableOpacity
             style={styles.container}
             onPress={onPress}
+            onLongPress={onLongPress}
             activeOpacity={0.7}
         >
             <View style={styles.avatarContainer}>

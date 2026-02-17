@@ -76,8 +76,12 @@ Bu proje, ulusal çapta hizmet veren bir lojistik firması için geliştirilen, 
 * **Language:** TypeScript (Strict Mode)
 * **Database:** PostgreSQL (Ana Veri), PostGIS (Harita/Konum)
 * **Cache & Queue:** Redis, BullMQ
-* **Real-time:** Socket.io (NestJS Gateway) & MQTT (High Frequency Telemetry)
+* **Real-time:** Socket.io (NestJS Gateway) & MQTT (High Frequency Telemetry - Planlanmış)
 * **ORM:** Prisma ORM
+* **Route Optimization:** Google Maps Routing API (@googlemaps/routing)
+* **Push Notifications:** Expo Server SDK
+* **PDF Generation:** PDFKit (İrsaliye/Fatura)
+* **QR Code:** qrcode package
 
 #### 2. Mobil Uygulama (Driver App)
 * **Framework:** React Native (Expo) - *Mevcut altyapı*
@@ -90,14 +94,68 @@ Bu proje, ulusal çapta hizmet veren bir lojistik firması için geliştirilen, 
 * **Navigation:** Expo Router / React Navigation
 
 #### 3. Admin Paneli (Management Console)
-* **Framework:** Next.js / React
+* **Framework:** Next.js 16 (App Router)
 * **Language:** TypeScript
 * **Data Fetching:** SWR (Stale-While-Revalidate)
-* **UI Architecture:** TailwindCSS + Radix UI
+* **UI Architecture:** TailwindCSS v4 + Radix UI
 * **UI Components:** `shadcn/ui` (Premium kurumsal görünüm)
 * **Structure:** Bento Grid Layout
 * **Charts:** Recharts
-* **Tables:** `xlsx` (Excel export), TanStack Table (planlanan)
+* **Tables:** `xlsx` (Excel export), TanStack Table (Aktif)
+* **Maps:** React Leaflet (Aktif), Google Maps (Alternatif hazır)
+* **i18n:** next-intl (Türkçe/İngilizce çoklu dil desteği)
+* **Animations:** Framer Motion
+* **Real-time:** Socket.io-client
+
+---
+
+### 🎯 MEVCUT AKTİF ÖZELLİKLER (Production-Ready)
+
+#### Backend Modülleri (Tümü Çalışır Durumda)
+* **auth** - JWT tabanlı kimlik doğrulama (Access + Refresh Token)
+* **user** - Kullanıcı yönetimi (ADMIN, DISPATCHER, DRIVER rolleri)
+* **driver** - Şoför profilleri, durum yönetimi, belge yükleme
+* **vehicle** - Araç takibi, bakım kayıtları, kapasite yönetimi
+* **shipment** - Sevkiyat yönetimi, durum takibi, teslimat kanıtı
+* **location** - GPS konum takibi, LocationLog kayıtları
+* **geofencing** - Bölge tanımlama, giriş/çıkış takibi
+* **route-optimization** - Google Maps API ile akıllı rota planlama
+* **messaging** - İç mesajlaşma sistemi (Admin-Şoför)
+* **notification** - Bildirim yönetimi
+* **push-notification** - Expo push notifications entegrasyonu
+* **scoring** - Şoför performans puanlama sistemi
+* **document** - Belge yönetimi (Ehliyet, Ruhsat, Sigorta vb.)
+* **billing** - Faturalama ve invoice sistemi
+* **analytics** - Veri analitikleri ve raporlama
+* **company** - Multi-tenancy (Şirket yönetimi)
+* **websocket** - Real-time WebSocket Gateway
+
+#### Admin Dashboard Özellikleri
+* **Dashboard** - KPI kartları, canlı istatistikler, grafikler
+* **Şoför Yönetimi** - CRUD, belge yönetimi, performans takibi
+* **Araç Yönetimi** - CRUD, bakım geçmişi, kapasite izleme
+* **Sevkiyat Yönetimi** - Oluşturma, atama, durum güncellemeleri
+* **Canlı Harita** - Tüm şoförlerin real-time konumu (Leaflet/Google Maps)
+* **Rota Optimizasyonu** - Google Maps Routing API entegrasyonu
+* **Akıllı Eşleştirme** - Şoför-Gönderi proximity matching
+* **Analytics** - Kapasite analizi, lojistik raporları
+* **Mesajlaşma** - İç iletişim sistemi
+* **Faturalama** - Invoice oluşturma, ödeme takibi
+* **Excel Export** - xlsx ile veri dışa aktarma
+* **Çoklu Dil** - Türkçe/İngilizce (next-intl)
+* **Dark Mode** - Tam tema desteği
+* **Geofencing** - Bölge tanımlama ve ihlal izleme
+
+#### Mobil App Özellikleri
+* **Authentication** - JWT tabanlı güvenli giriş
+* **Offline-First** - AsyncStorage ile local cache
+* **Görevlerim** - Atanan sevkiyatlar, rota sırası
+* **Canlı Konum** - Arka plan GPS takibi
+* **Teslimat Kanıtı** - İmza Canvas + Fotoğraf yükleme
+* **Durum Yönetimi** - Mesaiye başla/bitir, görev durumları
+* **Mesajlaşma** - Merkez ile real-time iletişim
+* **Push Notifications** - Expo push servisi
+* **OTA Updates** - Expo EAS ile over-the-air güncellemeler
 
 ---
 
@@ -108,6 +166,8 @@ Bu proje, ulusal çapta hizmet veren bir lojistik firması için geliştirilen, 
 2. **Data Fetching Evolution:** Mobil tarafta `Redux Toolkit Query (RTK Query)` entegrasyonu.
 3. **Offline-First Mastery:** Büyük veri setleri için `WatermelonDB`.
 4. **Real-Time Sync:** Soket mimarisinin optimizasyonu.
+5. **Unit Testing:** Jest ile kritik servisler için test coverage.
+6. **API Documentation:** Swagger/OpenAPI entegrasyonu.
 
 ---
 

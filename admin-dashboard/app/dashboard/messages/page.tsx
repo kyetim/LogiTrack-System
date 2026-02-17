@@ -253,124 +253,185 @@ export default function MessagesPage() {
     if (authLoading) return <div className="p-8 text-center">{t('common.loading')}</div>;
 
     return (
-        <div className="flex h-[calc(100vh-64px)] bg-gray-50">
-            {/* Sidebar */}
-            <div className="w-80 bg-white border-r flex flex-col">
-                <div className="p-4 border-b space-y-4">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-xl font-bold">{t('messages.title')}</h2>
-                        <Button size="icon" variant="ghost" onClick={handleOpenNewChat} title={t('messages.newChat')}>
-                            <Plus className="h-5 w-5" />
-                        </Button>
-                    </div>
-                    <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                        <Input
-                            placeholder={t('messages.searchPlaceholder')}
-                            className="pl-8"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                    {filteredConversations.map((conv) => (
-                        <div
-                            key={conv.user.id}
-                            className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition-colors ${activeConversation?.user.id === conv.user.id ? 'bg-blue-50 border-blue-200' : ''
-                                }`}
-                            onClick={() => handleSelectConversation(conv)}
-                        >
-                            <div className="flex justify-between mb-1">
-                                <span className="font-semibold truncate">{conv.user.email}</span>
-                                <span className="text-xs text-gray-500">
-                                    {conv.lastMessage?.createdAt && new Date(conv.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <p className="text-sm text-gray-600 truncate max-w-[180px]">
-                                    {conv.lastMessage?.senderId === user?.id ? `${t('messages.me')}: ` : ''}
-                                    {conv.lastMessage?.content}
-                                </p>
-                                {conv.unreadCount > 0 && (
-                                    <Badge variant="destructive" className="rounded-full px-2">
-                                        {conv.unreadCount}
-                                    </Badge>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                    {filteredConversations.length === 0 && (
-                        <div className="p-8 text-center text-gray-500 text-sm">
-                            {t('messages.noConversation')}
-                        </div>
-                    )}
-                </div>
-            </div>
+        <div className="flex h-[calc(100vh-64px)] bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+            {/* Master Integrated Panel Container */}
+            <div className="flex w-full max-w-[1600px] mx-auto rounded-3xl overflow-hidden bg-white/90 backdrop-blur-sm border border-slate-200/60 shadow-2xl">
 
-            {/* Chat Area */}
-            <div className="flex-1 flex flex-col">
-                {activeConversation ? (
-                    <>
-                        {/* Header */}
-                        <div className="h-16 border-b bg-white flex items-center px-6 justify-between">
-                            <div className="flex items-center gap-3">
-                                <Avatar>
-                                    <AvatarFallback>{activeConversation.user.email.substring(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <div className="font-semibold">{activeConversation.user.email}</div>
-                                    <div className="text-xs text-green-500 flex items-center gap-1">
-                                        <Circle className="h-2 w-2 fill-green-500" />
-                                        {t('messages.online')}
+                {/* Sidebar - Integrated */}
+                <div className="w-[350px] border-r border-slate-200/60 flex flex-col bg-white/40">
+                    <div className="px-4 py-4 border-b border-slate-200/60 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-foreground">{t('messages.title')}</h2>
+                            <Button size="icon" variant="ghost" onClick={handleOpenNewChat} title={t('messages.newChat')}>
+                                <Plus className="h-5 w-5" />
+                            </Button>
+                        </div>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder={t('messages.searchPlaceholder')}
+                                className="pl-9 bg-slate-50/50 border-slate-200"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto">
+                        {filteredConversations.map((conv) => {
+                            const isActive = activeConversation?.user.id === conv.user.id;
+                            const initials = conv.user.email.substring(0, 2).toUpperCase();
+
+                            return (
+                                <div
+                                    key={conv.user.id}
+                                    className={`
+                                        relative flex items-start gap-3 p-3 cursor-pointer 
+                                        border-b border-slate-200/50 
+                                        transition-all duration-200
+                                        ${isActive
+                                            ? 'bg-blue-50/50 border-l-4 border-[#003366]'
+                                            : 'hover:bg-slate-50/50 border-l-4 border-l-transparent'
+                                        }
+                                    `}
+                                    onClick={() => handleSelectConversation(conv)}
+                                >
+                                    <div className="flex-shrink-0">
+                                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/80 to-primary/40 flex items-center justify-center shadow-sm">
+                                            <span className="text-sm font-semibold text-white">
+                                                {initials}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-2 mb-1">
+                                            <span className="font-bold text-foreground text-sm truncate">
+                                                {conv.user.email}
+                                            </span>
+                                            <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                                {conv.lastMessage?.createdAt &&
+                                                    new Date(conv.lastMessage.createdAt).toLocaleTimeString([], {
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })
+                                                }
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <p className="text-[11px] text-muted-foreground/70 truncate flex-1">
+                                                {conv.lastMessage?.senderId === user?.id && (
+                                                    <span className="font-medium">{t('messages.me')}: </span>
+                                                )}
+                                                {conv.lastMessage?.content || ''}
+                                            </p>
+                                            {conv.unreadCount > 0 && (
+                                                <div className="flex-shrink-0">
+                                                    <div className="h-5 min-w-[20px] px-1.5 rounded-full bg-primary flex items-center justify-center">
+                                                        <span className="text-[10px] font-bold text-white">
+                                                            {conv.unreadCount}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {filteredConversations.length === 0 && (
+                            <div className="p-8 text-center text-muted-foreground text-sm">
+                                {t('messages.noConversation')}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Chat Area - Integrated */}
+                <div className="flex-1 flex flex-col">
+                    {activeConversation ? (
+                        <>
+                            <div className="px-6 py-4 border-b border-slate-200/40 bg-white/30">
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-11 w-11 border-2 border-white/60 shadow-sm">
+                                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-primary/40 text-white font-semibold">
+                                            {activeConversation.user.email.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="font-bold text-foreground tracking-tight text-base">
+                                            {activeConversation.user.email}
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs">
+                                            <div className="flex items-center gap-1.5 text-green-600 font-medium">
+                                                <Circle className="h-2 w-2 fill-green-500 animate-pulse" />
+                                                {t('messages.online')}
+                                            </div>
+                                            <span className="text-gray-400 text-[10px]"> • </span>
+                                            <span className="text-gray-400 text-[10px]">34 ABC 123 | Scania R450</span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-                            {messages.map((msg) => {
-                                const isMe = msg.senderId === user?.id;
-                                return (
-                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        <div className={`max-w-[70%] rounded-lg p-3 ${isMe ? 'bg-blue-600 text-white' : 'bg-white border text-gray-800'
-                                            }`}>
-                                            <p>{msg.content}</p>
-                                            <div className={`text-[10px] mt-1 text-right ${isMe ? 'text-blue-200' : 'text-gray-400'}`}>
-                                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className="flex-1 overflow-y-auto px-20 py-6 space-y-6 bg-gradient-to-b from-slate-50/30 to-transparent">
+                                {messages.map((msg) => {
+                                    const isMe = msg.senderId === user?.id;
+                                    return (
+                                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                            <div
+                                                className={`
+                                                    max-w-[65%] rounded-2xl px-4 py-3 
+                                                    ${isMe
+                                                        ? 'bg-gradient-to-br from-[#003366] to-[#1E40AF] text-white shadow-lg shadow-primary/20'
+                                                        : 'bg-white/80 border border-slate-100 text-gray-800 shadow-sm'
+                                                    }
+                                                    transition-all duration-200 hover:shadow-xl
+                                                `}
+                                            >
+                                                <p className="text-sm leading-relaxed">{msg.content}</p>
+                                                <div className={`text-[10px] mt-1.5 text-right font-medium ${isMe ? 'text-blue-100' : 'text-gray-400'}`}>
+                                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                );
-                            })}
-                            <div ref={messagesEndRef} />
+                                    );
+                                })}
+                                <div ref={messagesEndRef} />
+                            </div>
+                            <div className="px-20 pb-6 pt-2">
+                                <form
+                                    onSubmit={handleSendMessage}
+                                    className="bg-white rounded-full shadow-lg border border-slate-200/60 flex items-center gap-2 px-4 py-2.5 hover:shadow-xl transition-all duration-200 focus-within:border-primary"
+                                >
+                                    <button type="button" className="flex-shrink-0 text-slate-400 hover:text-primary transition-colors">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                                        </svg>
+                                    </button>
+                                    <Input
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        placeholder={t('messages.typeMessage')}
+                                        className="flex-1 border-0 bg-slate-50 focus-visible:ring-0 focus-visible:ring-offset-0 px-3 rounded-full"
+                                    />
+                                    <Button
+                                        type="submit"
+                                        disabled={!newMessage.trim()}
+                                        size="sm"
+                                        className="rounded-full h-9 px-4 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-sm"
+                                    >
+                                        <Send className="h-4 w-4" />
+                                    </Button>
+                                </form>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex-1 flex items-center justify-center text-gray-400 flex-col gap-4">
+                            <div className="h-20 w-20 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center shadow-inner">
+                                <Send className="h-10 w-10 text-slate-300" />
+                            </div>
+                            <p className="text-muted-foreground font-medium">{t('messages.selectConversation')}</p>
                         </div>
-
-                        {/* Input */}
-                        <div className="p-4 bg-white border-t">
-                            <form onSubmit={handleSendMessage} className="flex gap-2">
-                                <Input
-                                    value={newMessage}
-                                    onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder={t('messages.typeMessage')}
-                                    className="flex-1"
-                                />
-                                <Button type="submit" disabled={!newMessage.trim()}>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    {t('messages.send')}
-                                </Button>
-                            </form>
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex-1 flex items-center justify-center text-gray-400 flex-col gap-4">
-                        <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center">
-                            <Send className="h-8 w-8 text-gray-300" />
-                        </div>
-                        <p>{t('messages.selectConversation')}</p>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
 
             {/* New Chat Modal */}
