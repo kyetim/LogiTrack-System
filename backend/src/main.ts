@@ -20,9 +20,18 @@ async function bootstrap() {
     }),
   );
 
-  // CORS configuration - Allow all origins for mobile app
+  // CORS configuration
   app.enableCors({
-    origin: true, // Allow all origins in development
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://localhost:8081',
+      'http://192.168.1.125:3000',
+      'http://192.168.1.125:3001',
+      'http://192.168.1.125:3002',
+      'http://192.168.1.125:8081',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

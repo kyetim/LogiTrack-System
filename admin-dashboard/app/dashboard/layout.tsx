@@ -2,6 +2,7 @@
 
 import { Sidebar } from "@/components/Sidebar";
 import { DashboardHeader } from "@/components/DashboardHeader";
+import { SocketProvider } from "@/contexts/SocketContext";
 import { useState } from "react";
 
 export default function DashboardLayout({
@@ -17,10 +18,12 @@ export default function DashboardLayout({
                 <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
             </div>
             <div className={`h-full bg-transparent overflow-x-hidden transition-all duration-300 ${sidebarCollapsed ? 'md:pl-20' : 'md:pl-72'}`}>
-                <DashboardHeader />
-                <main className="h-[calc(100vh-65px)] overflow-y-auto overflow-x-hidden">
-                    {children}
-                </main>
+                <SocketProvider>
+                    <DashboardHeader />
+                    <main className="h-[calc(100vh-65px)] overflow-y-auto overflow-x-hidden">
+                        {children}
+                    </main>
+                </SocketProvider>
             </div>
         </div>
     );

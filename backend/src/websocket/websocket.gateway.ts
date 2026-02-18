@@ -17,8 +17,10 @@ import { LocationService } from '../location/location.service';
     origin: [
       'http://localhost:3000',
       'http://localhost:3001',
+      'http://localhost:3002',
       'http://192.168.1.125:3000',
-      'http://192.168.1.125:3001'
+      'http://192.168.1.125:3001',
+      'http://192.168.1.125:3002'
     ],
     credentials: true,
   },

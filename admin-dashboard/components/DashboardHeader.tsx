@@ -1,5 +1,6 @@
 'use client';
 
+import { NotificationsPopover } from '@/components/NotificationsPopover';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslations } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
@@ -38,10 +39,7 @@ export function DashboardHeader() {
             <div className="flex items-center gap-3 ml-auto">
                 <LanguageSwitcher />
 
-                <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-gray-700">
-                    <Bell className="h-5 w-5" />
-                    <span className="absolute top-2 right-2 h-2 w-2 bg-red-500 rounded-full border-2 border-white"></span>
-                </Button>
+                <NotificationsPopover />
 
                 <div className="h-6 w-px bg-gray-200 mx-1"></div>
 
