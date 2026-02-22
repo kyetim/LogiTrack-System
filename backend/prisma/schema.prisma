@@ -57,6 +57,9 @@ model User {
   assignedTickets   SupportTicket[]     @relation("AssignedTickets")
   supportMessages   SupportMessage[]    @relation("SentSupportMessages")
   
+  // Audit Logs
+  auditLogs         AuditLog[]          @relation("UserAuditLogs")
+  
   @@map("users")
 }
 
@@ -223,8 +226,8 @@ model Shipment {
   destinationCoordinates Json            @map("destination_coordinates")
   
   // PostGIS geography columns for proximity searches
-  pickupLocationGeo      Unsupported("geography(Point,4326)")? @map("pickup_location")
-  deliveryLocationGeo    Unsupported("geography(Point,4326)")? @map("delivery_location")
+  pickupLocationGeo      Unsupported("geography(Point,4326)")? @map("pickup_location_geo")
+  deliveryLocationGeo    Unsupported("geography(Point,4326)")? @map("delivery_location_geo")
   
   estimatedArrival  DateTime?       @map("estimated_arrival")
   proofOfDelivery   Json?           @map("proof_of_delivery")
@@ -438,6 +441,11 @@ model SupportTicket {
   subject         String          @default("Support Request")
   status          TicketStatus    @default(OPEN)
   priority        TicketPriority  @default(NORMAL)
+  responseCount   Int             @default(0) @map("response_count")
+  assignedAt      DateTime?       @map("assigned_at")
+  firstResponseAt DateTime?       @map("first_response_at")
+  resolvedAt      DateTime?       @map("resolved_at")
+  closedAt        DateTime?       @map("closed_at")
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
@@ -460,11 +468,12 @@ model SupportMessage {
   content         String
   isInternal      Boolean   @default(false) @map("is_internal")
   isSystemMessage Boolean   @default(false) @map("is_system_message")
+  attachments     Json?
   createdAt       DateTime  @default(now()) @map("created_at")
 
   // Relations
   ticket          SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  sender          User          @relation("SupportMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  sender          User          @relation("SentSupportMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([ticketId])
   @@index([senderId])
@@ -551,85 +560,40 @@ model LocationLog {
 }
 
 // ============================================
-// SUPPORT TICKET SYSTEM
+// AUDIT & LOGGING (Enterprise Features)
 // ============================================
 
-enum TicketStatus {
-  OPEN          // Yeni açıldı, kimse bakmadı
-  ASSIGNED      // Bir admin üstlendi
-  WAITING_REPLY // Sürücü cevap bekliyor
-  IN_PROGRESS   // Admin çalışıyor
-  RESOLVED      // Çözüldü
-  CLOSED        // Kapatıldı
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
 }
 
-enum TicketPriority {
-  LOW
-  NORMAL
-  HIGH
-  URGENT
-}
+model AuditLog {
+  id          String      @id @default(uuid())
+  userId      String?     @map("user_id") // Nullable for system actions or failed logins
+  
+  action      AuditAction
+  entityType  String      @map("entity_type") // e.g., "SHIPMENT", "USER", "DRIVER"
+  entityId    String?     @map("entity_id")   // Target record ID, if applicable
+  
+  oldValues   Json?       @map("old_values")  // Previous state
+  newValues   Json?       @map("new_values")  // New state
+  
+  ipAddress   String?     @map("ip_address")
+  userAgent   String?     @map("user_agent")
+  
+  details     String?     // Optional human-readable summary
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
 
-model SupportTicket {
-  id            String          @id @default(uuid())
-  ticketNumber  String          @unique @map("ticket_number") // "TKT-001234"
-  
-  // Sürücü bilgisi
-  driverId      String          @map("driver_id")
-  driver        User            @relation("DriverTickets", fields: [driverId], references: [id], onDelete: Cascade)
-  
-  // Atama bilgisi
-  assignedToId  String?         @map("assigned_to_id")
-  assignedTo    User?           @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
-  assignedAt    DateTime?       @map("assigned_at")
-  
-  // Ticket bilgileri
-  subject       String          // İlk mesajın özeti
-  status        TicketStatus    @default(OPEN)
-  priority      TicketPriority  @default(NORMAL)
-  
-  // İstatistikler
-  firstResponseAt    DateTime?  @map("first_response_at")
-  resolvedAt         DateTime?  @map("resolved_at")
-  closedAt           DateTime?  @map("closed_at")
-  responseCount      Int        @default(0) @map("response_count")
-  
-  // Timestamps
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
-  
   // Relations
-  messages      SupportMessage[]
-  
-  @@index([driverId])
-  @@index([assignedToId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("support_tickets")
-}
+  user        User?       @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
 
-model SupportMessage {
-  id          String        @id @default(uuid())
-  ticketId    String        @map("ticket_id")
-  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  
-  // Gönderen bilgisi
-  senderId    String        @map("sender_id")
-  sender      User          @relation("SentSupportMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  
-  // Mesaj içeriği
-  content     String
-  isInternal  Boolean       @default(false) @map("is_internal") // Admin notları
-  
-  // Sistem mesajları ("Admin X üstlendi")
-  isSystemMessage Boolean   @default(false) @map("is_system_message")
-  
-  // Ekler
-  attachments Json?        // Dosya URL'leri
-  
-  createdAt   DateTime      @default(now()) @map("created_at")
-  
-  @@index([ticketId])
+  @@index([userId])
+  @@index([entityType, entityId])
   @@index([createdAt])
-  @@map("support_messages")
+  @@map("audit_logs")
 }

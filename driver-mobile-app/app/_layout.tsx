@@ -9,6 +9,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { store, RootState } from '../store';
 import { COLORS } from '../utils/constants';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
+import { useNetworkSync } from '../src/hooks/useNetworkSync';
 import { useEffect } from 'react';
 import { api } from '../services/api';
 import { websocketService } from '../services/websocket';
@@ -27,6 +28,8 @@ const theme = {
 function AppContent() {
     const { expoPushToken } = usePushNotifications();
     const { token } = useSelector((state: RootState) => state.auth);
+    // Offline-First: Ağ bağlantısı izleme ve otomatik sync
+    useNetworkSync();
 
     useEffect(() => {
         if (expoPushToken && token) {

@@ -17,7 +17,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Map as MapIcon,
-    LifeBuoy
+    LifeBuoy,
+    History
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,8 +32,11 @@ interface SidebarProps {
 
 export function Sidebar({ className, collapsed, setCollapsed }: SidebarProps) {
     const pathname = usePathname();
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const t = useTranslations();
+
+    // If user is not yet loaded, avoid rendering a broken sidebar, or just default to minimal
+    const userRole = user?.role || 'DRIVER';
 
     const routes = [
         {
@@ -40,62 +44,81 @@ export function Sidebar({ className, collapsed, setCollapsed }: SidebarProps) {
             icon: LayoutDashboard,
             href: '/dashboard',
             color: 'text-sky-500',
+            allowedRoles: ['ADMIN', 'DISPATCHER', 'COMPANY_OWNER', 'COMPANY_MANAGER'],
         },
         {
             label: t('dashboard.manageUsers') || 'Users',
             icon: Users,
             href: '/dashboard/users',
             color: 'text-violet-500',
+            allowedRoles: ['ADMIN'], // Only Admins can manage users
         },
         {
             label: t('dashboard.manageDrivers') || 'Drivers',
             icon: Truck,
             href: '/dashboard/drivers',
             color: 'text-emerald-500',
+            allowedRoles: ['ADMIN', 'DISPATCHER', 'COMPANY_OWNER', 'COMPANY_MANAGER'],
         },
         {
             label: t('dashboard.manageVehicles') || 'Vehicles',
             icon: MapPin,
             href: '/dashboard/vehicles',
             color: 'text-orange-500',
+            allowedRoles: ['ADMIN', 'DISPATCHER', 'COMPANY_OWNER', 'COMPANY_MANAGER'],
         },
         {
             label: t('dashboard.manageShipments') || 'Shipments',
             icon: Package,
             href: '/dashboard/shipments',
             color: 'text-pink-500',
+            allowedRoles: ['ADMIN', 'DISPATCHER', 'COMPANY_OWNER', 'COMPANY_MANAGER'],
         },
         {
             label: 'Canlı Takip',
             icon: MapPin,
             href: '/dashboard/tracking',
             color: 'text-blue-600',
+            allowedRoles: ['ADMIN', 'DISPATCHER', 'COMPANY_OWNER', 'COMPANY_MANAGER'],
         },
         {
             label: 'Harita',
             icon: MapIcon,
             href: '/dashboard/map',
             color: 'text-indigo-500',
+            allowedRoles: ['ADMIN', 'DISPATCHER', 'COMPANY_OWNER', 'COMPANY_MANAGER'],
         },
         {
             label: 'Analizler',
             icon: BarChart3,
             href: '/dashboard/analytics',
             color: 'text-purple-600',
+            allowedRoles: ['ADMIN', 'COMPANY_OWNER', 'COMPANY_MANAGER'], // Dispatcher hidden
         },
         {
             label: 'Destek',
             icon: LifeBuoy,
             href: '/dashboard/support',
             color: 'text-red-600',
+            allowedRoles: ['ADMIN', 'DISPATCHER'],
         },
         {
             label: t('messages.title') || 'Messages',
             icon: MessageSquare,
             href: '/dashboard/messages',
             color: 'text-green-600',
+            allowedRoles: ['ADMIN', 'DISPATCHER'],
+        },
+        {
+            label: 'İşlem Geçmişi',
+            icon: History,
+            href: '/dashboard/audit-logs',
+            color: 'text-amber-500',
+            allowedRoles: ['ADMIN'],
         },
     ];
+
+    const filteredRoutes = routes.filter(route => route.allowedRoles.includes(userRole));
 
     return (
         <div
@@ -134,7 +157,7 @@ export function Sidebar({ className, collapsed, setCollapsed }: SidebarProps) {
 
             {/* Navigation */}
             <div className={cn("flex-1 py-6 overflow-y-auto space-y-2 overflow-x-hidden", collapsed ? "px-1" : "px-4")}>
-                {routes.map((route) => (
+                {filteredRoutes.map((route) => (
                     <Link
                         key={route.href}
                         href={route.href}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     View,
     FlatList,
@@ -24,9 +24,14 @@ import {
     fetchMyTicket,
     sendSupportMessage,
     closeMyTicket,
+    addSupportMessage,
 } from '../../../store/slices/supportSlice';
 import { Colors, Typography, Spacing, BorderRadius } from '../../../constants/theme';
 import { api } from '../../../services/api';
+import { io } from 'socket.io-client';
+import { WS_URL } from '../../../utils/constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from '../../../utils/constants';
 
 export default function SupportScreen() {
     const dispatch = useAppDispatch();
@@ -42,18 +47,45 @@ export default function SupportScreen() {
     const [showHistory, setShowHistory] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [closedTickets, setClosedTickets] = useState<any[]>([]);
+    // viewMode controls what the user sees: 'selector' = priority chooser, 'chat' = active ticket chat
+    const [viewMode, setViewMode] = useState<'selector' | 'chat'>('selector');
 
     useEffect(() => {
         dispatch(fetchMyTicket());
+
+        // Connect to main WebSocket namespace to receive admin replies in real-time
+        let supportSocket: any = null;
+        const setupSupportSocket = async () => {
+            const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+            if (!token) return;
+
+            supportSocket = io(WS_URL, {
+                auth: { token },
+                transports: ['websocket'],
+            });
+
+            supportSocket.on('support:admin-reply', (data: any) => {
+                if (data?.message) {
+                    dispatch(addSupportMessage(data.message));
+                }
+            });
+        };
+
+        setupSupportSocket();
+
+        return () => {
+            if (supportSocket) supportSocket.disconnect();
+        };
     }, [dispatch]);
 
-    // Reset selectedPriority when tab is focused and no active ticket/messages
+    // Every time the user focuses this tab, reset to selector view
+    // so they always consciously choose what to do
     useFocusEffect(
         React.useCallback(() => {
-            if (!currentTicket || (currentTicket && messages.length === 0)) {
-                setSelectedPriority(null);
-            }
-        }, [currentTicket, messages])
+            setViewMode('selector');
+            setSelectedPriority(null);
+            setMessageText('');
+        }, [])
     );
 
     const fetchClosedTickets = async () => {
@@ -77,6 +109,7 @@ export default function SupportScreen() {
     const handleCancel = () => {
         setSelectedPriority(null);
         setMessageText('');
+        setViewMode('selector');
     };
 
     const handleSend = async () => {
@@ -365,10 +398,29 @@ export default function SupportScreen() {
                     </View>
                 </Modal>
 
-                {/* Priority Selector (if no active ticket or ticket is closed) */}
-                {(!currentTicket || currentTicket.status === 'CLOSED' || currentTicket.status === 'RESOLVED') && !selectedPriority ? (
+                {/* SELECTOR VIEW: shown when viewMode === 'selector' */}
+                {viewMode === 'selector' ? (
                     <View style={styles.prioritySelectorContainer}>
-                        <Text style={styles.priorityTitle}>Aciliyet Seviyesi Seçin:</Text>
+                        <Text style={styles.priorityTitle}>Destek Talebi</Text>
+
+                        {/* If there's an open/active ticket, show it as the first option */}
+                        {currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
+                            <TouchableOpacity
+                                style={styles.activeTicketCard}
+                                onPress={() => setViewMode('chat')}
+                            >
+                                <View style={styles.activeTicketIcon}>
+                                    <Ionicons name="chatbubbles" size={28} color={Colors.primary} />
+                                </View>
+                                <View style={styles.priorityInfo}>
+                                    <Text style={styles.activeTicketLabel}>Açık Destek Talebine Devam Et</Text>
+                                    <Text style={styles.activeTicketSub}>Ticket #{currentTicket.ticketNumber} • {
+                                        { OPEN: 'Açık', ASSIGNED: 'Atandı', WAITING_REPLY: 'Cevap Bekleniyor', IN_PROGRESS: 'Devam Ediyor' }[currentTicket.status as string] || currentTicket.status
+                                    }</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
+                            </TouchableOpacity>
+                        )}
 
                         {/* Geçmiş Talepler Button */}
                         {currentTicket && (currentTicket.status === 'CLOSED' || currentTicket.status === 'RESOLVED') && (
@@ -381,10 +433,14 @@ export default function SupportScreen() {
                             </TouchableOpacity>
                         )}
 
+                        <Text style={[styles.priorityTitle, { fontSize: 16, marginTop: 16, marginBottom: 12 }]}>
+                            Yeni Talep Oluştur:
+                        </Text>
+
                         {/* LOW */}
                         <TouchableOpacity
                             style={[styles.priorityCard, styles.priorityLow]}
-                            onPress={() => setSelectedPriority('LOW')}
+                            onPress={() => { setSelectedPriority('LOW'); setViewMode('chat'); }}
                         >
                             <View style={styles.priorityIcon}>
                                 <Text style={styles.priorityEmoji}>🟢</Text>
@@ -398,7 +454,7 @@ export default function SupportScreen() {
                         {/* NORMAL */}
                         <TouchableOpacity
                             style={[styles.priorityCard, styles.priorityNormal]}
-                            onPress={() => setSelectedPriority('NORMAL')}
+                            onPress={() => { setSelectedPriority('NORMAL'); setViewMode('chat'); }}
                         >
                             <View style={styles.priorityIcon}>
                                 <Text style={styles.priorityEmoji}>🟡</Text>
@@ -412,7 +468,7 @@ export default function SupportScreen() {
                         {/* HIGH */}
                         <TouchableOpacity
                             style={[styles.priorityCard, styles.priorityHigh]}
-                            onPress={() => setSelectedPriority('HIGH')}
+                            onPress={() => { setSelectedPriority('HIGH'); setViewMode('chat'); }}
                         >
                             <View style={styles.priorityIcon}>
                                 <Text style={styles.priorityEmoji}>🟠</Text>
@@ -436,6 +492,7 @@ export default function SupportScreen() {
                         </TouchableOpacity>
                     </View>
                 ) : (
+                    /* CHAT VIEW: shown when viewMode === 'chat' */
                     <FlatList
                         data={messages}
                         keyExtractor={(item) => item.id}
@@ -453,18 +510,16 @@ export default function SupportScreen() {
                     />
                 )}
 
-                {/* Input Area - show if priority selected or ticket exists */}
-                {(selectedPriority || currentTicket) && (
+                {/* Input Area - show only in chat view */}
+                {viewMode === 'chat' && (
                     <View style={styles.inputContainer}>
-                        {/* Vazgeç button - show only if priority selected but no ticket yet */}
-                        {selectedPriority && !currentTicket && (
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={handleCancel}
-                            >
-                                <Ionicons name="arrow-back" size={20} color={Colors.gray600} />
-                            </TouchableOpacity>
-                        )}
+                        {/* Geri dön button */}
+                        <TouchableOpacity
+                            style={styles.cancelButton}
+                            onPress={handleCancel}
+                        >
+                            <Ionicons name="arrow-back" size={20} color={Colors.gray600} />
+                        </TouchableOpacity>
                         <TextInput
                             style={styles.input}
                             placeholder="Mesajınızı yazın..."
@@ -492,8 +547,8 @@ export default function SupportScreen() {
                     </View>
                 )}
 
-                {/* Close Ticket Button */}
-                {currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
+                {/* Close Ticket Button - only in chat view */}
+                {viewMode === 'chat' && currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
                     <TouchableOpacity style={styles.closeTicketButton} onPress={handleClose}>
                         <Text style={styles.closeTicketButtonText}>Sorunum Çözüldü - Ticket'ı Kapat</Text>
                     </TouchableOpacity>
@@ -920,5 +975,28 @@ const styles = StyleSheet.create({
     historyDate: {
         fontSize: 12,
         color: Colors.gray500,
+    },
+    activeTicketCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        borderRadius: BorderRadius.lg,
+        marginBottom: 16,
+        borderWidth: 2,
+        borderColor: Colors.primary,
+        backgroundColor: '#EFF6FF',
+    },
+    activeTicketIcon: {
+        marginRight: 16,
+    },
+    activeTicketLabel: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: Colors.primary,
+        marginBottom: 2,
+    },
+    activeTicketSub: {
+        fontSize: 12,
+        color: Colors.gray600,
     },
 });

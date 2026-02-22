@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './audit/audit.interceptor';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
@@ -26,6 +28,7 @@ import { PushNotificationModule } from './push-notification/push-notification.mo
 import { EmailModule } from './email/email.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { SupportModule } from './support/support.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -78,8 +81,16 @@ import { SupportModule } from './support/support.module';
 
     // Support System
     SupportModule,
+
+    AuditModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
+  ],
 })
 export class AppModule { }

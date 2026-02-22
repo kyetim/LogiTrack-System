@@ -92,7 +92,10 @@ export class MessagingController {
     @ApiOperation({ summary: 'Get conversation with specific user' })
     @ApiResponse({ status: 200, description: 'Conversation retrieved successfully' })
     getConversation(@Param('userId') userId: string, @Request() req) {
-        return this.messagingService.getConversation(req.user.id, userId);
+        const result = this.messagingService.getConversation(req.user.id, userId);
+        // Notify that we read the conversation (since service marks it as read)
+        this.messagingGateway.notifyConversationRead(req.user.id, userId);
+        return result;
     }
 
     @Get('unread-count')
@@ -117,16 +120,20 @@ export class MessagingController {
     @ApiOperation({ summary: 'Mark message as read' })
     @ApiResponse({ status: 200, description: 'Message marked as read' })
     @ApiResponse({ status: 404, description: 'Message not found' })
-    markAsRead(@Param('id') id: string, @Request() req) {
-        return this.messagingService.markAsRead(id, req.user.id);
+    async markAsRead(@Param('id') id: string, @Request() req) {
+        const message = await this.messagingService.markAsRead(id, req.user.id);
+        this.messagingGateway.notifyRead(message);
+        return message;
     }
 
     @Patch('conversation/:userId/read')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     @ApiOperation({ summary: 'Mark all messages in conversation as read' })
     @ApiResponse({ status: 200, description: 'Conversation marked as read' })
-    markConversationAsRead(@Param('userId') userId: string, @Request() req) {
-        return this.messagingService.markConversationAsRead(req.user.id, userId);
+    async markConversationAsRead(@Param('userId') userId: string, @Request() req) {
+        const result = await this.messagingService.markConversationAsRead(req.user.id, userId);
+        this.messagingGateway.notifyConversationRead(req.user.id, userId);
+        return result;
     }
 
     @Delete(':id')

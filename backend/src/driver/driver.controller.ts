@@ -10,7 +10,10 @@ import {
     Request,
     Query,
     ForbiddenException,
+    StreamableFile,
+    Header,
 } from '@nestjs/common';
+import * as xlsx from 'xlsx';
 
 import { DriverService } from './driver.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
@@ -57,6 +60,40 @@ export class DriverController {
 
         // Clean response after debugging
         return drivers;
+    }
+
+    @Get('export')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    @Header('Content-Disposition', 'attachment; filename="drivers.xlsx"')
+    async exportDrivers(
+        @Query('isActive') isActive?: string,
+        @Query('status') status?: DriverStatus,
+        @Query('vehicleId') vehicleId?: string,
+    ) {
+        const filters: any = {};
+        if (isActive !== undefined) filters.isActive = isActive === 'true';
+        if (status) filters.status = status;
+        if (vehicleId) filters.vehicleId = vehicleId;
+
+        const drivers = await this.driverService.findAll(filters);
+
+        const exportData = drivers.map(d => ({
+            ID: d.id,
+            Email: d.user?.email || 'N/A',
+            License_Number: d.licenseNumber,
+            Status: d.status,
+            Is_Active: d.isActive ? 'Evet' : 'Hayır',
+            Vehicle_Plate: d.vehicle?.plateNumber || 'Atanmamış',
+            Created_At: d.createdAt
+        }));
+
+        const worksheet = xlsx.utils.json_to_sheet(exportData);
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Drivers');
+
+        const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        return new StreamableFile(buffer);
     }
 
     @Get('me')

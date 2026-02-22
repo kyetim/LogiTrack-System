@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { SupportService } from './support.service';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -24,16 +25,27 @@ import { AddInternalNoteDto } from './dto/add-internal-note.dto';
 @Controller('support')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SupportController {
-    constructor(private readonly supportService: SupportService) { }
+    constructor(
+        private readonly supportService: SupportService,
+        private readonly wsGateway: WebsocketGateway,
+    ) { }
 
     // ==================== DRIVER ENDPOINTS ====================
 
     @Get('my-ticket')
     @Roles(UserRole.DRIVER)
-    @ApiOperation({ summary: 'Get or create driver\'s active support ticket' })
-    @ApiResponse({ status: 200, description: 'Active ticket with messages' })
+    @ApiOperation({ summary: 'Get driver\'s active support ticket (null if none)' })
+    @ApiResponse({ status: 200, description: 'Active ticket with messages or null' })
     async getMyTicket(@Request() req) {
-        return this.supportService.getOrCreateDriverTicket(req.user.id);
+        return this.supportService.getDriverTicket(req.user.id);
+    }
+
+    @Get('my-ticket/history')
+    @Roles(UserRole.DRIVER)
+    @ApiOperation({ summary: 'Get driver\'s closed/resolved ticket history' })
+    @ApiResponse({ status: 200, description: 'List of past tickets' })
+    async getMyTicketHistory(@Request() req) {
+        return this.supportService.getDriverTicketHistory(req.user.id);
     }
 
     @Post('my-ticket/messages')
@@ -103,7 +115,13 @@ export class SupportController {
         @Request() req,
         @Body() sendMessageDto: SendMessageDto,
     ) {
-        return this.supportService.sendAdminReply(id, req.user.id, sendMessageDto);
+        const message = await this.supportService.sendAdminReply(id, req.user.id, sendMessageDto);
+        // Push real-time notification to the driver's app
+        this.wsGateway.server.to('drivers').emit('support:admin-reply', {
+            ticketId: id,
+            message,
+        });
+        return message;
     }
 
     @Post('tickets/:id/internal-note')

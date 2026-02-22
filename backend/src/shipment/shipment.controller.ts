@@ -14,7 +14,10 @@ import {
     Res,
     UseInterceptors,
     UploadedFile,
+    StreamableFile,
+    Header,
 } from '@nestjs/common';
+import * as xlsx from 'xlsx';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
 import { join } from 'path';
@@ -65,6 +68,43 @@ export class ShipmentController {
         }
 
         return this.shipmentService.findAll(filters);
+    }
+
+    @Get('export')
+    @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    @Header('Content-Disposition', 'attachment; filename="shipments.xlsx"')
+    async exportShipments(
+        @Query('status') status?: ShipmentStatus,
+        @Query('driverId') driverId?: string,
+        @Query('startDate') startDate?: string,
+        @Query('endDate') endDate?: string,
+    ) {
+        const filters: any = {};
+        if (status) filters.status = status;
+        if (driverId) filters.driverId = driverId;
+        if (startDate) filters.startDate = new Date(startDate);
+        if (endDate) filters.endDate = new Date(endDate);
+
+        const shipments = await this.shipmentService.findAll(filters);
+
+        const exportData = shipments.map(s => ({
+            ID: s.id,
+            Tracking_Number: s.trackingNumber,
+            Status: s.status,
+            Origin: s.origin,
+            Destination: s.destination,
+            Estimated_Arrival: s.estimatedArrival || 'N/A',
+            Driver: s.driver ? s.driver.email : 'Atanmamış',
+            Created_At: s.createdAt
+        }));
+
+        const worksheet = xlsx.utils.json_to_sheet(exportData);
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, worksheet, 'Shipments');
+
+        const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        return new StreamableFile(buffer);
     }
 
     @Get('my')

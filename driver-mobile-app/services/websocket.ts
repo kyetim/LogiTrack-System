@@ -21,14 +21,19 @@ class WebSocketService {
         const user = JSON.parse(userData);
         this.userId = user.id;
 
+        if (!this.userId) {
+            console.error('No userId available for WebSocket connection');
+            return;
+        }
+
         // Get auth token
         const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
         // Connect to messaging namespace
+        // IMPORTANT: userId must be in query so the Gateway can map the socket
         this.socket = io(`${WS_URL}/messaging`, {
-            auth: {
-                token,
-            },
+            query: { userId: this.userId },
+            auth: { token },
             transports: ['websocket'],
             reconnection: true,
             reconnectionDelay: 1000,
@@ -37,7 +42,7 @@ class WebSocketService {
 
         // Setup event listeners
         this.socket.on('connect', () => {
-            console.log('WebSocket connected');
+            console.log('WebSocket connected, userId:', this.userId);
         });
 
         this.socket.on('disconnect', () => {
@@ -162,6 +167,14 @@ class WebSocketService {
     removeAllListeners() {
         if (!this.socket) return;
         this.socket.removeAllListeners();
+    }
+
+    /**
+     * Remove a specific newMessage listener
+     */
+    offNewMessage(callback: (message: any) => void) {
+        if (!this.socket) return;
+        this.socket.off('newMessage', callback);
     }
 
     /**

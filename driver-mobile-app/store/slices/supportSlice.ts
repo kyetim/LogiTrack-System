@@ -117,8 +117,9 @@ const supportSlice = createSlice({
         });
         builder.addCase(fetchMyTicket.fulfilled, (state, action) => {
             state.isLoading = false;
-            state.currentTicket = action.payload;
-            state.messages = action.payload.messages || [];
+            // Backend returns null when the driver has no active ticket — handle gracefully
+            state.currentTicket = action.payload ?? null;
+            state.messages = action.payload?.messages ?? [];
         });
         builder.addCase(fetchMyTicket.rejected, (state, action) => {
             state.isLoading = false;

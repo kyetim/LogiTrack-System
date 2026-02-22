@@ -65,6 +65,23 @@ export default function UsersPage() {
         }
     };
 
+    const handleExport = async () => {
+        try {
+            const response = await api.get('/users/export', { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'users.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Excel dosyası başarıyla indirildi.');
+        } catch (error) {
+            console.error('Export failed:', error);
+            toast.error('Excel indirme başarısız oldu.');
+        }
+    };
+
     const handleCreate = () => {
         setSelectedUser(null);
         setModalOpen(true);
@@ -177,10 +194,16 @@ export default function UsersPage() {
                     <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t('users.title')}</h2>
                     <p className="text-gray-500">{t('users.subtitle')}</p>
                 </div>
-                <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('users.addUser')}
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExport} className="rounded-2xl shadow-sm border-primary/20 hover:bg-primary/5 text-primary">
+                        <Download className="h-4 w-4 mr-2" />
+                        Excel İndir
+                    </Button>
+                    <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('users.addUser')}
+                    </Button>
+                </div>
             </div>
 
             {/* Summary Cards */}

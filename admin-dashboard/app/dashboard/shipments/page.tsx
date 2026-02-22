@@ -11,7 +11,7 @@ import { WaybillUploadModal } from '@/components/WaybillUploadModal';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, Clock, Truck, CheckCircle, Plus, MoreHorizontal, Pencil, Trash2, Upload, MapPin } from 'lucide-react';
+import { Package, Clock, Truck, CheckCircle, Plus, MoreHorizontal, Pencil, Trash2, Upload, MapPin, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef } from '@tanstack/react-table';
@@ -120,6 +120,23 @@ export default function ShipmentsPage() {
             fetchShipments();
         } catch (error: any) {
             throw error;
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const response = await api.get('/shipments/export', { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'shipments.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Excel dosyası başarıyla indirildi.');
+        } catch (error) {
+            console.error('Export failed:', error);
+            toast.error('Excel indirme başarısız oldu.');
         }
     };
 
@@ -279,10 +296,16 @@ export default function ShipmentsPage() {
                     <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t('shipments.title')}</h2>
                     <p className="text-gray-500">{t('shipments.subtitle')}</p>
                 </div>
-                <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('shipments.addShipment')}
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExport} className="rounded-2xl shadow-sm border-primary/20 hover:bg-primary/5 text-primary">
+                        <Download className="h-4 w-4 mr-2" />
+                        Excel İndir
+                    </Button>
+                    <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('shipments.addShipment')}
+                    </Button>
+                </div>
             </div>
 
             {/* Summary Cards */}

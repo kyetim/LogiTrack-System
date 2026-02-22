@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAppDispatch, useAppSelector } from '../../../store';
-import { fetchConversations } from '../../../store/slices/messagesSlice';
+import { fetchConversations, fetchUnreadCount } from '../../../store/slices/messagesSlice';
 import { ConversationCard } from '../../../components/chat/ConversationCard';
 import { websocketService } from '../../../services/websocket';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../../constants/theme';
@@ -27,15 +27,10 @@ export default function MessagesScreen() {
     const [admins, setAdmins] = useState<any[]>([]);
 
     useEffect(() => {
-        // Load conversations
+        // Load conversations and unread count on mount
+        // Socket connection is managed globally in drawer layout
         dispatch(fetchConversations());
-
-        // Connect WebSocket
-        websocketService.connect();
-
-        return () => {
-            websocketService.disconnect();
-        };
+        dispatch(fetchUnreadCount());
     }, [dispatch]);
 
     const handleRefresh = async () => {

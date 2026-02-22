@@ -23,7 +23,7 @@ export class MessagingGateway
     server: Server;
 
     private logger = new Logger('MessagingGateway');
-    private userSockets = new Map<string, string>(); // userId -> socketId
+    private userSockets = new Map<string, Set<string>>(); // userId -> Set<socketId>
 
     constructor(private messagingService: MessagingService) { }
 
@@ -32,8 +32,16 @@ export class MessagingGateway
 
         // Get userId from handshake query
         const userId = client.handshake.query.userId as string;
+
+        if (!userId) {
+            this.logger.warn(`Client ${client.id} connected without userId`);
+        }
+
         if (userId) {
-            this.userSockets.set(userId, client.id);
+            if (!this.userSockets.has(userId)) {
+                this.userSockets.set(userId, new Set());
+            }
+            this.userSockets.get(userId).add(client.id);
             client['userId'] = userId;
             this.logger.log(`User ${userId} connected with socket ${client.id}`);
         }
@@ -42,8 +50,14 @@ export class MessagingGateway
     handleDisconnect(client: Socket) {
         const userId = client['userId'];
         if (userId) {
-            this.userSockets.delete(userId);
-            this.logger.log(`User ${userId} disconnected`);
+            const sockets = this.userSockets.get(userId);
+            if (sockets) {
+                sockets.delete(client.id);
+                if (sockets.size === 0) {
+                    this.userSockets.delete(userId);
+                    this.logger.log(`User ${userId} disconnected (all sockets closed)`);
+                }
+            }
         }
         this.logger.log(`Client disconnected: ${client.id}`);
     }
@@ -71,12 +85,9 @@ export class MessagingGateway
             });
 
             // Send to recipient if online
-            const recipientSocketId = this.userSockets.get(data.recipientId);
-            if (recipientSocketId) {
-                this.server.to(recipientSocketId).emit('newMessage', message);
-            }
+            this.emitToUser(data.recipientId, 'newMessage', message);
 
-            // Confirm to sender
+            // Confirm to sender (optional, usually handled by return or Ack)
             return { success: true, message };
         } catch (error) {
             this.logger.error(`Error sending message: ${error.message}`);
@@ -101,14 +112,17 @@ export class MessagingGateway
 
             const message = await this.messagingService.markAsRead(data.messageId, userId);
 
-            // Notify sender
-            const senderSocketId = this.userSockets.get(message.senderId);
-            if (senderSocketId) {
-                this.server.to(senderSocketId).emit('messageRead', {
-                    messageId: message.id,
-                    readAt: message.readAt,
-                });
-            }
+            // Notify sender that their message was read
+            this.emitToUser(message.senderId, 'messageRead', {
+                messageId: message.id,
+                readAt: message.readAt,
+            });
+
+            // Also notify the reader (myself) on other devices/tabs
+            this.emitToUser(userId, 'messageReadByMe', {
+                messageId: message.id,
+                readAt: message.readAt
+            });
 
             return { success: true };
         } catch (error) {
@@ -126,11 +140,7 @@ export class MessagingGateway
         @MessageBody() data: { recipientId: string },
     ) {
         const userId = client['userId'];
-        const recipientSocketId = this.userSockets.get(data.recipientId);
-
-        if (recipientSocketId) {
-            this.server.to(recipientSocketId).emit('userTyping', { userId });
-        }
+        this.emitToUser(data.recipientId, 'userTyping', { userId });
     }
 
     /**
@@ -142,11 +152,7 @@ export class MessagingGateway
         @MessageBody() data: { recipientId: string },
     ) {
         const userId = client['userId'];
-        const recipientSocketId = this.userSockets.get(data.recipientId);
-
-        if (recipientSocketId) {
-            this.server.to(recipientSocketId).emit('userStoppedTyping', { userId });
-        }
+        this.emitToUser(data.recipientId, 'userStoppedTyping', { userId });
     }
 
     handleGetOnlineStatus(
@@ -164,21 +170,48 @@ export class MessagingGateway
      * Notify recipient of new message (called from Controller)
      */
     notifyRecipient(message: any) {
-        const recipientSocketId = this.userSockets.get(message.recipientId);
-        if (recipientSocketId) {
-            this.server.to(recipientSocketId).emit('newMessage', message);
-        }
+        this.emitToUser(message.recipientId, 'newMessage', message);
     }
 
     /**
      * Notify sender that message was read (called from Controller)
      */
     notifyRead(message: any) {
-        const senderSocketId = this.userSockets.get(message.senderId);
-        if (senderSocketId) {
-            this.server.to(senderSocketId).emit('messageRead', {
-                messageId: message.id,
-                readAt: message.readAt,
+        // Notify sender
+        this.emitToUser(message.senderId, 'messageRead', {
+            messageId: message.id,
+            readAt: message.readAt,
+        });
+
+        // Notify recipient (myself) to update other devices/tabs/header
+        this.emitToUser(message.recipientId, 'messageReadByMe', {
+            messageId: message.id,
+            readAt: message.readAt
+        });
+    }
+
+    /**
+     * Notify that a conversation was read (called from Controller)
+     */
+    notifyConversationRead(userId: string, otherUserId: string) {
+        // Notify myself to update counts
+        this.emitToUser(userId, 'messageReadByMe', {
+            conversationId: otherUserId
+        });
+
+        // Optionally notify the other user that I read their messages?
+        // This is harder without individual message IDs, but we can skip for now or send a generic event.
+        // For header sync, updating myself is what matters.
+    }
+
+    /**
+     * Helper to emit event to all sockets of a user
+     */
+    private emitToUser(userId: string, event: string, data: any) {
+        const sockets = this.userSockets.get(userId);
+        if (sockets) {
+            sockets.forEach(socketId => {
+                this.server.to(socketId).emit(event, data);
             });
         }
     }

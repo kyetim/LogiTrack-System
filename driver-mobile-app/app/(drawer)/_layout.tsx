@@ -2,8 +2,34 @@ import { Drawer } from 'expo-router/drawer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CustomDrawerContent from '../../components/CustomDrawerContent';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useEffect } from 'react';
+import { useAppDispatch } from '../../store';
+import { fetchConversations, fetchUnreadCount } from '../../store/slices/messagesSlice';
+import { websocketService } from '../../services/websocket';
 
 export default function DrawerLayout() {
+    const dispatch = useAppDispatch();
+
+    useEffect(() => {
+        // Start global WebSocket connection here so it's alive regardless of which tab is active
+        const setup = async () => {
+            await websocketService.connect();
+
+            // Listen for new messages globally — updates badge everywhere
+            websocketService.onNewMessage((_message: any) => {
+                dispatch(fetchConversations());
+                dispatch(fetchUnreadCount());
+            });
+        };
+
+        setup();
+
+        return () => {
+            websocketService.removeAllListeners();
+            websocketService.disconnect();
+        };
+    }, [dispatch]);
+
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <Drawer

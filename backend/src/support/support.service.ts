@@ -10,12 +10,10 @@ export class SupportService {
     constructor(private readonly prisma: PrismaService) { }
 
     /**
-     * Get or create driver's active ticket
-     * Drivers can only have one active ticket at a time
+     * Get driver's active ticket (returns null if none exists — does NOT auto-create)
      */
-    async getOrCreateDriverTicket(driverId: string) {
-        // Check for existing active ticket
-        let ticket = await this.prisma.supportTicket.findFirst({
+    async getDriverTicket(driverId: string) {
+        const ticket = await this.prisma.supportTicket.findFirst({
             where: {
                 driverId,
                 status: {
@@ -24,7 +22,7 @@ export class SupportService {
             },
             include: {
                 messages: {
-                    where: { isInternal: false }, // Hide internal notes from driver
+                    where: { isInternal: false },
                     orderBy: { createdAt: 'asc' },
                     include: {
                         sender: {
@@ -38,40 +36,65 @@ export class SupportService {
             },
         });
 
-        // Create new ticket if none exists
-        if (!ticket) {
-            const ticketNumber = await this.generateTicketNumber();
-            ticket = await this.prisma.supportTicket.create({
-                data: {
-                    ticketNumber,
-                    driverId,
-                    subject: 'Yeni Destek Talebi',
-                    status: TicketStatus.OPEN,
-                    priority: TicketPriority.NORMAL,
-                },
-                include: {
-                    messages: {
-                        include: {
-                            sender: {
-                                select: { id: true, email: true, role: true },
-                            },
-                        },
-                    },
-                    assignedTo: {
-                        select: { id: true, email: true, role: true },
-                    },
-                },
-            });
-        }
-
-        return ticket;
+        return ticket; // null if no active ticket — mobile handles this gracefully
     }
 
     /**
-     * Driver sends a message to their ticket
+     * Internal: create a new ticket for driver (called when sending first message)
+     */
+    private async createDriverTicket(driverId: string, priority: TicketPriority = TicketPriority.NORMAL) {
+        const ticketNumber = await this.generateTicketNumber();
+        return this.prisma.supportTicket.create({
+            data: {
+                ticketNumber,
+                driverId,
+                subject: 'Yeni Destek Talebi',
+                status: TicketStatus.OPEN,
+                priority,
+            },
+            include: {
+                messages: {
+                    include: {
+                        sender: { select: { id: true, email: true, role: true } },
+                    },
+                },
+                assignedTo: { select: { id: true, email: true, role: true } },
+            },
+        });
+    }
+
+    /**
+     * Get driver's closed/resolved ticket history
+     */
+    async getDriverTicketHistory(driverId: string) {
+        return this.prisma.supportTicket.findMany({
+            where: {
+                driverId,
+                status: { in: [TicketStatus.CLOSED, TicketStatus.RESOLVED] },
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 20,
+            select: {
+                id: true,
+                ticketNumber: true,
+                subject: true,
+                status: true,
+                priority: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
+    }
+
+    /**
+     * Driver sends a message to their ticket (creates ticket if none exists)
      */
     async sendDriverMessage(driverId: string, sendMessageDto: SendMessageDto) {
-        const ticket = await this.getOrCreateDriverTicket(driverId);
+        // Get existing active ticket OR create one if none exists
+        let ticket = await this.getDriverTicket(driverId);
+        if (!ticket) {
+            ticket = await this.createDriverTicket(driverId);
+        }
 
         const message = await this.prisma.supportMessage.create({
             data: {

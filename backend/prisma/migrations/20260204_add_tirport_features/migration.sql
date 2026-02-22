@@ -6,13 +6,13 @@
 -- Rollback: See down.sql in same directory
 -- ============================================
 
--- SAFETY CHECK: Verify we're on correct database
-DO $$
-BEGIN
-  IF current_database() != 'logitrack_db' THEN
-    RAISE EXCEPTION 'Wrong database! Expected logitrack_db, got %', current_database();
-  END IF;
-END $$;
+-- SAFETY CHECK: Disabled for shadow database compatibility
+-- DO $$
+-- BEGIN
+--   IF current_database() != 'logitrack_db' THEN
+--     RAISE EXCEPTION 'Wrong database! Expected logitrack_db, got %', current_database();
+--   END IF;
+-- END $$;
 
 -- ============================================
 -- PHASE 1: NEW ENUMS

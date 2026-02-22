@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/lib/i18n';
 import api from '@/lib/api';
@@ -45,9 +46,10 @@ interface Conversation {
 
 export default function MessagesPage() {
     const { user, isLoading: authLoading } = useAuth();
+    const { messageSocket } = useSocket(); // Use shared socket
     const router = useRouter();
     const t = useTranslations();
-    const [socket, setSocket] = useState<Socket | null>(null);
+    // const [socket, setSocket] = useState<Socket | null>(null); // Removed local socket state
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -71,35 +73,36 @@ export default function MessagesPage() {
     useEffect(() => {
         if (user) {
             fetchConversations();
-            connectSocket();
+            // connectSocket(); // Removed local connect
         }
-        return () => {
-            if (socket) socket.disconnect();
-        };
+        // Socket cleanup handled by Context
     }, [user]);
 
-    // Socket Connection
-    const connectSocket = () => {
-        const socketUrl = (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3000') + '/messaging';
-        const newSocket = io(socketUrl, {
-            query: { userId: user?.id },
-            transports: ['websocket'],
-        });
+    // Socket Event Handling
+    useEffect(() => {
+        if (!messageSocket) return;
 
-        newSocket.on('connect', () => {
-            console.log('Socket connected');
-        });
-
-        newSocket.on('newMessage', (message: Message) => {
+        // Attach listeners to shared socket
+        const onNewMessage = (message: Message) => {
             handleNewMessage(message);
-        });
+        };
 
-        newSocket.on('messageRead', (data: { messageId: string; readAt: string }) => {
+        const onMessageRead = (data: { messageId: string; readAt: string }) => {
             handleMessageRead(data.messageId);
-        });
+        };
 
-        setSocket(newSocket);
-    };
+        messageSocket.on('newMessage', onNewMessage);
+        messageSocket.on('messageRead', onMessageRead);
+
+        return () => {
+            // Remove listeners on cleanup to avoid duplicates when re-mounting
+            messageSocket.off('newMessage', onNewMessage);
+            messageSocket.off('messageRead', onMessageRead);
+        };
+    }, [messageSocket, activeConversation]); // Re-attach if activeConversation changes (for handleNewMessage closure)
+
+
+    /* Removed connectSocket function */
 
     const handleNewMessage = (message: Message) => {
         // If message belongs to active conversation, add it

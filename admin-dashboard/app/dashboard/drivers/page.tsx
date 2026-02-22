@@ -8,7 +8,7 @@ import { DriverFormModal, DriverFormData } from '@/components/DriverFormModal';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, FileText, Truck, UserCheck, Clock, MoreHorizontal } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, Truck, UserCheck, Clock, MoreHorizontal, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { DriverDocumentsModal } from '@/components/DriverDocumentsModal';
 import { DataTable } from '@/components/ui/data-table';
@@ -113,6 +113,23 @@ export default function DriversPage() {
             setUsers(users);
         } catch (error) {
             console.error('Failed to fetch users:', error);
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            const response = await api.get('/drivers/export', { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'drivers.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            toast.success('Excel dosyası başarıyla indirildi.');
+        } catch (error) {
+            console.error('Export failed:', error);
+            toast.error('Excel indirme başarısız oldu.');
         }
     };
 
@@ -250,10 +267,16 @@ export default function DriversPage() {
                     <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t('drivers.title')}</h2>
                     <p className="text-gray-500">{t('drivers.subtitle')}</p>
                 </div>
-                <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
-                    <Plus className="h-4 w-4 mr-2" />
-                    {t('drivers.addDriver')}
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleExport} className="rounded-2xl shadow-sm border-primary/20 hover:bg-primary/5 text-primary">
+                        <Download className="h-4 w-4 mr-2" />
+                        Excel İndir
+                    </Button>
+                    <Button onClick={handleCreate} className="rounded-2xl shadow-lg shadow-primary/20">
+                        <Plus className="h-4 w-4 mr-2" />
+                        {t('drivers.addDriver')}
+                    </Button>
+                </div>
             </div>
 
             {/* Summary Cards */}

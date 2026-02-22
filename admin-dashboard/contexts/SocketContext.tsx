@@ -74,7 +74,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
 
     // Main Support Socket
     useEffect(() => {
-        if (!user) {
+        if (!user?.id) {
             if (socket) {
                 socket.disconnect();
                 setSocket(null);
@@ -147,11 +147,11 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         return () => {
             socketInstance.disconnect();
         };
-    }, [user]);
+    }, [user?.id]);
 
     // Legacy Messaging Socket
     useEffect(() => {
-        if (!user) {
+        if (!user?.id) {
             if (messageSocket) {
                 messageSocket.disconnect();
                 setMessageSocket(null);
@@ -159,10 +159,15 @@ export function SocketProvider({ children }: { children: ReactNode }) {
             return;
         }
 
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) return;
+
         const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-        // Connect to /messaging namespace
+
+        // Connect to /messaging namespace — userId in query so backend can map sockets
         const msgSocketInstance = io(`${baseUrl}/messaging`, {
             query: { userId: user.id },
+            auth: { token },
             transports: ['websocket'],
         });
 
@@ -184,7 +189,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
                 read: false,
                 timestamp: new Date(),
             });
-            toast.info('Yeni mesaj alındı');
+            toast.info('Yeni mesaj alındı', { duration: 6000 });
+            // Also refresh the total unread count notification
+            refreshLegacyUnreadCount();
+        });
+
+        msgSocketInstance.on('messageReadByMe', (data: any) => {
+            // Remove specific notification if messageId is provided
+            if (data?.messageId) {
+                setNotifications(prev => prev.filter(n => n.id !== `msg-${data.messageId}`));
+            }
+            // Remove all notifications from conversation if conversationId is provided
+            if (data?.conversationId) {
+                setNotifications(prev => prev.filter(n => n.conversationId !== data.conversationId));
+            }
+
+            // Refresh the total unread count / summary notification
+            refreshLegacyUnreadCount();
         });
 
         setMessageSocket(msgSocketInstance);
@@ -192,7 +213,41 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         return () => {
             msgSocketInstance.disconnect();
         };
-    }, [user]);
+    }, [user?.id]);
+
+    const refreshLegacyUnreadCount = async () => {
+        try {
+            const unreadMsgRes = await api.get('/messages/unread-count');
+            const unreadMsgCount = unreadMsgRes.data.unreadCount || 0;
+
+            setNotifications(prev => {
+                // 1. Remove the old summary notification
+                let nextNotifications = prev.filter(n => n.id !== 'initial-legacy-msgs');
+
+                // 2. If we have specific message alerts, we might NOT want to show the summary 
+                // OR we show the summary as a catch-all for older messages?
+                // Logic: If we have unread count, show the summary item. 
+                // However, avoid double counting if possible. 
+                // For now, let's keep the existing logic: always show summary if count > 0.
+
+                if (unreadMsgCount > 0) {
+                    // Check if we already have individual notifications that make up this count
+                    // But simplest is to just update the summary line.
+                    return [{
+                        id: 'initial-legacy-msgs',
+                        title: 'Okunmamış Mesajlar',
+                        message: `${unreadMsgCount} adet okunmamış mesajınız var.`,
+                        type: 'legacy_message',
+                        read: false,
+                        timestamp: new Date(),
+                    }, ...nextNotifications];
+                }
+                return nextNotifications;
+            });
+        } catch (error) {
+            console.error('Failed to refresh unread count', error);
+        }
+    };
 
     const addNotification = (notification: Notification) => {
         setNotifications(prev => {

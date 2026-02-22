@@ -18,6 +18,7 @@ import {
     fetchMessages,
     sendMessage,
     markConversationAsRead,
+    fetchUnreadCount,
 } from '../../store/slices/messagesSlice';
 import { ChatBubble } from '../../components/chat/ChatBubble';
 import { ChatInput } from '../../components/chat/ChatInput';
@@ -57,19 +58,25 @@ export default function ConversationScreen() {
     useEffect(() => {
         if (userId) {
             dispatch(fetchMessages(userId as string));
-            dispatch(markConversationAsRead(userId as string));
+            dispatch(markConversationAsRead(userId as string)).then(() => {
+                dispatch(fetchUnreadCount());
+            });
 
-            // Listen for new messages
             const handleNewMessage = (message: any) => {
                 if (message.senderId === userId || message.recipientId === userId) {
                     dispatch(fetchMessages(userId as string));
+                    dispatch(markConversationAsRead(userId as string)).then(() => {
+                        dispatch(fetchUnreadCount());
+                    });
                 }
             };
 
             websocketService.onNewMessage(handleNewMessage);
 
             return () => {
-                websocketService.removeAllListeners();
+                // Only remove this specific listener, NOT removeAllListeners()
+                // which would destroy the global notification listener in _layout.tsx
+                websocketService.offNewMessage(handleNewMessage);
             };
         }
     }, [userId, dispatch]);

@@ -27,10 +27,14 @@ async function bootstrap() {
       'http://localhost:3001',
       'http://localhost:3002',
       'http://localhost:8081',
-      'http://192.168.1.125:3000',
-      'http://192.168.1.125:3001',
-      'http://192.168.1.125:3002',
-      'http://192.168.1.125:8081',
+      'http://172.20.10.3:3000',
+      'http://172.20.10.3:3001',
+      'http://172.20.10.3:3002',
+      'http://172.20.10.3:8081',
+      'http://172.18.64.125:3000',
+      'http://172.18.64.125:3001',
+      'http://172.18.64.125:3002',
+      'http://172.18.64.125:8081',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -70,7 +74,7 @@ async function bootstrap() {
   console.log(`🚀 LogiTrack Backend running on: http://localhost:${port}`);
   console.log(`📚 Swagger API docs available at: http://localhost:${port}/docs`);
   console.log(`🔗 API endpoints available at: http://localhost:${port}/api/*`);
-  console.log(`🌐 Network access: http://192.168.1.125:${port}/api/* (Update manually if IP changes)`);
+  console.log(`🌐 Network access: http://172.20.10.3:${port}/api/* (Update manually if IP changes)`);
 }
 
 bootstrap();

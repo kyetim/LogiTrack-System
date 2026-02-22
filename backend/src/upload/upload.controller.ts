@@ -30,7 +30,7 @@ export class UploadController {
         return {
             filename: file.filename,
             path: `/uploads/photos/${file.filename}`,
-            url: `http://192.168.1.125:4000/uploads/photos/${file.filename}`,
+            url: `http://172.20.10.3:4000/uploads/photos/${file.filename}`,
         };
     }
 
@@ -52,7 +52,7 @@ export class UploadController {
         return {
             filename: file.filename,
             path: `/uploads/signatures/${file.filename}`,
-            url: `http://192.168.1.125:4000/uploads/signatures/${file.filename}`,
+            url: `http://172.20.10.3:4000/uploads/signatures/${file.filename}`,
         };
     }
 
@@ -68,7 +68,7 @@ export class UploadController {
         return {
             filename: filename,
             path: `/uploads/signatures/${filename}`,
-            url: `http://192.168.1.125:4000/uploads/signatures/${filename}`,
+            url: `http://172.20.10.3:4000/uploads/signatures/${filename}`,
         };
     }
 }

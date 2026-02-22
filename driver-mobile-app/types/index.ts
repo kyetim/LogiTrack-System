@@ -176,6 +176,23 @@ export interface AvailabilitySummary {
     currentLoad?: number;
 }
 
+// ==================== OFFLINE-FIRST TYPES ====================
+
+/** Offline kuyruğuna alınan bir şoför eyleminin tip-güvenli tanımı */
+export type PendingActionType =
+    | 'UPDATE_SHIPMENT_STATUS'
+    | 'COMPLETE_DELIVERY';
+
+export interface PendingAction {
+    /** Kuyruktaki eylemin benzersiz ID'si (UUID) */
+    id: string;
+    type: PendingActionType;
+    /** Eyleme özgü veri (shipmentId, status vb.) */
+    payload: Record<string, unknown>;
+    createdAt: string; // ISO string
+    retryCount: number;
+}
+
 // ==================== END NEW TYPES ====================
 
 //API Response Types
@@ -204,6 +221,10 @@ export interface ShipmentsState {
     isLoading: boolean;
     error: string | null;
     lastSync: Date | null;
+    /** Çevrimdışıyken kuyruğa alınan eylemler */
+    pendingActions: PendingAction[];
+    /** Ağ bağlantısı durumu */
+    isOffline: boolean;
 }
 
 export interface LocationState {
@@ -270,6 +291,14 @@ export interface AvailabilityState {
     error: string | null;
 }
 
+export interface SupportState {
+    currentTicket: any | null;
+    messages: any[];
+    isLoading: boolean;
+    isSending: boolean;
+    error: string | null;
+}
+
 // ==================== END NEW STATE TYPES ====================
 
 export interface RootState {
@@ -282,6 +311,6 @@ export interface RootState {
     scoring: ScoringState; // NEW
     documents: DocumentsState; // NEW
     geofencing: GeofencingState; // NEW
-    availability: AvailabilityState; // NEW
-    support: any; // Support state - imported from supportSlice
+    availability: AvailabilityState;
+    support: SupportState;
 }
