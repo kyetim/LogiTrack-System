@@ -3,9 +3,10 @@ import { SupportController } from './support.controller';
 import { SupportService } from './support.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebsocketModule } from '../websocket/websocket.module';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
-    imports: [PrismaModule, WebsocketModule],
+    imports: [PrismaModule, WebsocketModule, NotificationModule],
     controllers: [SupportController],
     providers: [SupportService],
     exports: [SupportService],

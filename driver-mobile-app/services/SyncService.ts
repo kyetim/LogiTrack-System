@@ -90,17 +90,43 @@ class SyncService {
             }
 
             case 'COMPLETE_DELIVERY': {
-                // Teslimat kanıtı offline senkronizasyonu (fotoğraf/imza sonrası)
-                // Fotoğraflar offline dönemde zaten local'de saklandı; burada sadece
-                // status=DELIVERED ve recipientName backend'e iletilir.
-                const { shipmentId, status } = action.payload as {
+                // Müşteriye teslimat (imza/fotoğraflı durum) offline'da kuyruğa atıldıysa burada backend'e iletim sağlanır.
+                const { shipmentId, status, photoUrl, signatureUrl, recipientName, notes } = action.payload as {
                     shipmentId: string;
                     status: string;
+                    photoUrl?: string; // Lokal URI (Permanent)
+                    signatureUrl?: string; // Lokal URI (Permanent)
+                    recipientName?: string;
+                    notes?: string;
                 };
+
                 if (!shipmentId) {
                     throw new Error(`COMPLETE_DELIVERY için shipmentId eksik`);
                 }
-                await api.updateShipmentStatus(shipmentId, (status as any) ?? 'DELIVERED');
+
+                // 1. Resimleri ve imzayı API'ye yükle (CDN/Cloud url'leri al)
+                let finalPhotoUrl: string | undefined;
+                let finalSignatureUrl: string | undefined;
+
+                if (photoUrl) {
+                    finalPhotoUrl = await api.uploadPhotoMultipart(photoUrl);
+                }
+
+                if (signatureUrl) {
+                    // signatureUrl is a local 'file://' uri, backend expects pure Base64 for '/upload/signature-base64'
+                    const base64Syntax = await import('expo-file-system/legacy').then(fs =>
+                        fs.readAsStringAsync(signatureUrl, { encoding: fs.EncodingType.Base64 })
+                    );
+                    finalSignatureUrl = await api.uploadSignatureBase64(`data:image/png;base64,${base64Syntax}`);
+                }
+
+                // 2. Nihai Teslimat Kanıtı isteğini at
+                await api.submitDeliveryProof(shipmentId, {
+                    photoUrl: finalPhotoUrl,
+                    signatureUrl: finalSignatureUrl,
+                    recipientName,
+                    notes,
+                });
                 break;
             }
 

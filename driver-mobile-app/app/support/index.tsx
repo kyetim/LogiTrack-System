@@ -71,7 +71,7 @@ export default function SupportScreen() {
         );
     };
 
-    const renderMessage = ({ item }) => {
+    const renderMessage = ({ item }: { item: any }) => {
         const isMe = item.senderId === currentUser?.id;
         const isSystem = item.isSystemMessage;
 
@@ -107,7 +107,7 @@ export default function SupportScreen() {
     const getStatusBadge = () => {
         if (!currentTicket) return null;
 
-        const statusColors = {
+        const statusColors: Record<string, string> = {
             OPEN: Colors.warning,
             ASSIGNED: Colors.primary,
             WAITING_REPLY: Colors.warning,
@@ -116,7 +116,7 @@ export default function SupportScreen() {
             CLOSED: Colors.gray500,
         };
 
-        const statusLabels = {
+        const statusLabels: Record<string, string> = {
             OPEN: 'Açık',
             ASSIGNED: 'Atandı',
             WAITING_REPLY: 'Cevap Bekleniyor',
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        backgroundColor: Colors.gray50,
+        backgroundColor: '#f8fafc', // Colors.gray50 equivalent
         borderRadius: BorderRadius.lg,
         paddingHorizontal: 16,
         paddingVertical: 12,

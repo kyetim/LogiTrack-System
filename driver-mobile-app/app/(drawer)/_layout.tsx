@@ -6,9 +6,22 @@ import { useEffect } from 'react';
 import { useAppDispatch } from '../../store';
 import { fetchConversations, fetchUnreadCount } from '../../store/slices/messagesSlice';
 import { websocketService } from '../../services/websocket';
+import { useNetworkSync } from '../../src/hooks/useNetworkSync';
+import { usePushNotifications } from '../../src/hooks/usePushNotifications';
+import { api } from '../../services/api';
 
 export default function DrawerLayout() {
     const dispatch = useAppDispatch();
+    useNetworkSync(); // Global network listener
+    const { expoPushToken } = usePushNotifications(); // Request permissions and get token
+
+    useEffect(() => {
+        if (expoPushToken) {
+            api.registerPushToken(expoPushToken).catch(err => {
+                console.error('Failed to register push token:', err);
+            });
+        }
+    }, [expoPushToken]);
 
     useEffect(() => {
         // Start global WebSocket connection here so it's alive regardless of which tab is active

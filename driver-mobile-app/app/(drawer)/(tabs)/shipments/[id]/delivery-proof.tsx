@@ -2,15 +2,22 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, Image, Alert, ActivityIndicator, ScrollView } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, API_URL, STORAGE_KEYS } from '../../../../../utils/constants';
 import SignaturePad from '../../../../../components/SignaturePad';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
+import * as FileSystem from 'expo-file-system/legacy';
+import { useAppDispatch } from '../../../../../store';
+import { updateShipmentStatus } from '../../../../../store/slices/shipmentsSlice';
+import { offlineStorage } from '../../../../../services/OfflineStorage';
 
 export default function DeliveryProofScreen() {
     const { id } = useLocalSearchParams();
+    const router = useRouter();
+    const dispatch = useAppDispatch();
     const [photoUri, setPhotoUri] = useState<string | null>(null);
     const [signatureUri, setSignatureUri] = useState<string | null>(null);
     const [showSignaturePad, setShowSignaturePad] = useState(false);
@@ -109,54 +116,90 @@ export default function DeliveryProofScreen() {
         }
     };
 
+    const copyToPermanentStorage = async (uri: string, prefix: string): Promise<string> => {
+        const filename = `${prefix}_${Date.now()}.jpg`;
+        const destUri = `${FileSystem.documentDirectory}${filename}`;
+        await FileSystem.copyAsync({ from: uri, to: destUri });
+        return destUri;
+    };
+
     const handleSubmit = async () => {
         if (!photoUri && !signatureUri) {
-            Alert.alert('Required', 'Please capture at least a photo or signature');
+            Alert.alert('Eksik Bilgi', 'Lütfen fotoğraf çekin veya imza alın.');
             return;
         }
 
         setIsSubmitting(true);
 
         try {
-            const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+            const netState = await NetInfo.fetch();
+            const isConnected = netState.isConnected === true && netState.isInternetReachable !== false;
 
-            let photoUrl: string | undefined;
-            let signatureUrl: string | undefined;
+            // Permanent storage if offline or queueing
+            const permanentPhotoUrl = photoUri ? await copyToPermanentStorage(photoUri, 'photo') : undefined;
+            const permanentSignatureUrl = signatureUri ? await copyToPermanentStorage(signatureUri, 'signature') : undefined;
 
-            if (photoUri) {
-                photoUrl = await uploadFile(photoUri, 'photo');
-            }
+            if (isConnected) {
+                // ONLINE: Upload immediately
+                const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                let finalPhotoUrl: string | undefined;
+                let finalSignatureUrl: string | undefined;
 
-            if (signatureUri) {
-                signatureUrl = await uploadFile(signatureUri, 'signature');
-            }
+                if (permanentPhotoUrl) finalPhotoUrl = await uploadFile(permanentPhotoUrl, 'photo');
+                if (permanentSignatureUrl) finalSignatureUrl = await uploadFile(permanentSignatureUrl, 'signature');
 
-            const response = await fetch(`${API_URL}/shipments/${id}/delivery-proof`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    photoUrl,
-                    signatureUrl,
+                const response = await fetch(`${API_URL}/shipments/${id}/delivery-proof`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        photoUrl: finalPhotoUrl,
+                        signatureUrl: finalSignatureUrl,
+                        recipientName: recipientName || undefined,
+                        notes: notes || undefined,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Delivery proof error:', response.status, errorData);
+                    throw new Error(errorData.message || 'Teslimat kanıtı eklenemedi.');
+                }
+
+                // Set status to DELIVERED in Redux since we did it manually via API
+                await dispatch(updateShipmentStatus({ id: id as string, status: 'DELIVERED' })).unwrap();
+
+            } else {
+                // OFFLINE: Queue action and dispatch optimistic update
+                console.log('📶 Şoför çevrimdışı, Teslimat kanıtı kuyruğa alınıyor...');
+
+                await offlineStorage.savePendingAction('COMPLETE_DELIVERY', {
+                    shipmentId: id,
+                    status: 'DELIVERED',
+                    photoUrl: permanentPhotoUrl,
+                    signatureUrl: permanentSignatureUrl,
                     recipientName: recipientName || undefined,
                     notes: notes || undefined,
-                }),
-            });
+                });
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('Delivery proof error:', response.status, errorData);
-                throw new Error(errorData.message || 'Failed to create delivery proof');
+                // Optimistic Update
+                dispatch(updateShipmentStatus({ id: id as string, status: 'DELIVERED' }));
+                Alert.alert(
+                    'Çevrimdışı',
+                    'İnternet bağlantınız yok. Teslimat başarıyla yerel olarak kaydedildi, bağlantı geldiğinde sunucuya aktarılacak.',
+                    [{ text: 'Tamam', onPress: () => router.back() }]
+                );
+                return;
             }
 
-            Alert.alert('Success', 'Delivery proof submitted successfully', [
-                { text: 'OK', onPress: () => router.back() }
+            Alert.alert('Başarılı', 'Teslimat kanıtı başarıyla kaydedildi.', [
+                { text: 'Tamam', onPress: () => router.back() }
             ]);
         } catch (error: any) {
             console.error('Submit error:', error);
-            Alert.alert('Error', error.message || 'Failed to submit delivery proof');
+            Alert.alert('Hata', error.message || 'Teslimat kanıtı gönderilirken bir hata oluştu.');
         } finally {
             setIsSubmitting(false);
         }

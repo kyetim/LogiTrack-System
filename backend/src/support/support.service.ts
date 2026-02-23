@@ -4,10 +4,14 @@ import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { AddInternalNoteDto } from './dto/add-internal-note.dto';
 import { TicketStatus, TicketPriority, UserRole } from '@prisma/client';
+import { NotificationService } from '../notification/notification.service';
 
 @Injectable()
 export class SupportService {
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly notificationService: NotificationService
+    ) { }
 
     /**
      * Get driver's active ticket (returns null if none exists — does NOT auto-create)
@@ -273,6 +277,16 @@ export class SupportService {
             },
         });
 
+        // Trigger push notification to the driver
+        if (ticket.driverId) {
+            await this.notificationService.sendPushNotification(
+                ticket.driverId,
+                'Destek Mesajı',
+                'Destek talebinize yeni bir cevap geldi.',
+                { type: 'support_message', ticketId }
+            );
+        }
+
         return message;
     }
 
@@ -338,6 +352,24 @@ export class SupportService {
         // Add system message if note provided
         if (updateStatusDto.note) {
             await this.addSystemMessage(ticketId, updateStatusDto.note);
+        }
+
+        // Trigger push notification to the driver
+        if (ticket.driverId && updateData.status) {
+            const statusLabels: Record<string, string> = {
+                OPEN: 'Açık',
+                ASSIGNED: 'Atandı',
+                WAITING_REPLY: 'Cevap Bekleniyor',
+                IN_PROGRESS: 'Devam Ediyor',
+                RESOLVED: 'Çözüldü',
+                CLOSED: 'Kapalı'
+            };
+            await this.notificationService.sendPushNotification(
+                ticket.driverId,
+                'Destek Talebi Güncellendi',
+                `Destek talebinizin durumu "${statusLabels[updateData.status]}" olarak değiştirildi.`,
+                { type: 'support_status_update', ticketId }
+            );
         }
 
         return updatedTicket;

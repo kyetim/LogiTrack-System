@@ -62,6 +62,10 @@ class ApiClient {
         return data;
     }
 
+    async registerPushToken(token: string): Promise<void> {
+        await this.client.post('/notifications/token', { token });
+    }
+
     async getAdmins(): Promise<AuthResponse['user'][]> {
         const { data } = await this.client.get<AuthResponse['user'][]>('/users/admins');
         return data;
@@ -95,6 +99,40 @@ class ApiClient {
                 'Content-Type': 'multipart/form-data',
             },
         });
+    }
+
+    async uploadPhotoMultipart(uri: string): Promise<string> {
+        const formData = new FormData();
+        const filename = uri.split('/').pop() || 'photo.jpg';
+        const match = /\.(\w+)$/.exec(filename);
+        const fileType = match ? `image/${match[1]}` : 'image/jpeg';
+
+        formData.append('file', {
+            uri,
+            name: filename,
+            type: fileType,
+        } as any);
+
+        const { data } = await this.client.post<{ url: string }>('/upload/photo', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return data.url;
+    }
+
+    async uploadSignatureBase64(uri: string): Promise<string> {
+        const { data } = await this.client.post<{ url: string }>('/upload/signature-base64', {
+            image: uri, // Usually Base64 but we have a URI, so Backend needs to handle this or App needs to readAsString
+        });
+        return data.url;
+    }
+
+    async submitDeliveryProof(id: string, payload: {
+        photoUrl?: string;
+        signatureUrl?: string;
+        recipientName?: string;
+        notes?: string;
+    }): Promise<void> {
+        await this.client.post(`/shipments/${id}/delivery-proof`, payload);
     }
 
     // Location
