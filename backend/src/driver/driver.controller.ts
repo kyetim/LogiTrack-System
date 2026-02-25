@@ -13,6 +13,7 @@ import {
     StreamableFile,
     Header,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
 import * as xlsx from 'xlsx';
 
 import { DriverService } from './driver.service';
@@ -23,6 +24,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, DriverStatus } from '@prisma/client';
 
+@ApiTags('drivers')
+@ApiBearerAuth()
 @Controller('drivers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DriverController {
@@ -30,6 +33,11 @@ export class DriverController {
 
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Tüm sörücüleri listele (filtreli)' })
+    @ApiQuery({ name: 'isActive', required: false, type: Boolean })
+    @ApiQuery({ name: 'status', required: false, enum: DriverStatus })
+    @ApiQuery({ name: 'vehicleId', required: false, type: String })
+    @ApiResponse({ status: 200, description: 'Sörücü listesi döner.' })
     findAll(
         @Query('isActive') isActive?: string,
         @Query('status') status?: DriverStatus,
@@ -54,6 +62,8 @@ export class DriverController {
 
     @Get('active')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Aktif (mesaili) sörücüleri ve konumlarını getir' })
+    @ApiResponse({ status: 200, description: 'Aktif sörücü listesi + GPS koordinatı.' })
     async getActiveDrivers() {
         const drivers = await this.driverService.getActiveDrivers();
         console.log('📍 Active drivers with location:', JSON.stringify(drivers, null, 2));
@@ -64,6 +74,8 @@ export class DriverController {
 
     @Get('export')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Sörücü verilerini Excel olarak dışa aktar' })
+    @ApiResponse({ status: 200, description: 'Excel dosyası indir.' })
     @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     @Header('Content-Disposition', 'attachment; filename="drivers.xlsx"')
     async exportDrivers(

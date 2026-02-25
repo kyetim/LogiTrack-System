@@ -10,6 +10,7 @@ import {
     Request,
     ForbiddenException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { LocationService } from './location.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -17,6 +18,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
+@ApiTags('locations')
+@ApiBearerAuth()
 @Controller('locations')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class LocationController {
@@ -24,12 +27,19 @@ export class LocationController {
 
     @Get('latest')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Tüm sörücülerin en son konumlarını getir' })
+    @ApiResponse({ status: 200, description: 'Son konum listesi döner.' })
     async getLatestLocations() {
         return this.locationService.getLatestLocations();
     }
 
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Konum geçmişini listele' })
+    @ApiQuery({ name: 'driverId', required: false, type: String })
+    @ApiQuery({ name: 'startDate', required: false, type: String })
+    @ApiQuery({ name: 'endDate', required: false, type: String })
+    @ApiResponse({ status: 200, description: 'GPS log listesi döner.' })
     findAll(
         @Query('driverId') driverId?: string,
         @Query('startDate') startDate?: string,
@@ -92,7 +102,9 @@ export class LocationController {
 
     @Post()
     @Roles(UserRole.DRIVER, UserRole.ADMIN)
-    async create(@Body() createLocationDto: CreateLocationDto, @Request() req) {
+    @ApiOperation({ summary: 'Sürücü konum güncelle (GPS update)' })
+    @ApiResponse({ status: 201, description: 'Konum kaydedildi.' })
+    async create(@Body() createLocationDto: CreateLocationDto, @Request() req: any) {
         // Drivers can only create their own locations
         if (req.user.role === UserRole.DRIVER) {
             const userDriver = await this.locationService['prisma'].driverProfile.findUnique({

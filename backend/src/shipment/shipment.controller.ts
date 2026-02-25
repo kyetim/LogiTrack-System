@@ -17,6 +17,7 @@ import {
     StreamableFile,
     Header,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
 import * as xlsx from 'xlsx';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -33,6 +34,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, ShipmentStatus } from '@prisma/client';
 
+@ApiTags('shipments')
+@ApiBearerAuth()
 @Controller('shipments')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ShipmentController {
@@ -43,6 +46,12 @@ export class ShipmentController {
 
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Tüm sevkiyatları listele (filtreli)' })
+    @ApiQuery({ name: 'status', required: false, enum: ShipmentStatus })
+    @ApiQuery({ name: 'driverId', required: false, type: String })
+    @ApiQuery({ name: 'startDate', required: false, type: String })
+    @ApiQuery({ name: 'endDate', required: false, type: String })
+    @ApiResponse({ status: 200, description: 'Sevkiyat listesi döner.' })
     findAll(
         @Query('status') status?: ShipmentStatus,
         @Query('driverId') driverId?: string,
@@ -109,7 +118,9 @@ export class ShipmentController {
 
     @Get('my')
     @Roles(UserRole.DRIVER)
-    async getMyShipments(@Request() req) {
+    @ApiOperation({ summary: 'Sürucün kendi sevkiyatlarını getir' })
+    @ApiResponse({ status: 200, description: 'Atanmış sevkiyatlar döner.' })
+    async getMyShipments(@Request() req: any) {
         // Get driver profile for the authenticated user
         const driverProfile = await this.shipmentService['prisma'].driverProfile.findUnique({
             where: { userId: req.user.id },
@@ -143,7 +154,11 @@ export class ShipmentController {
 
     @Get(':id')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
-    async findOne(@Param('id') id: string, @Request() req) {
+    @ApiOperation({ summary: 'Tekil sevkiyatı getir' })
+    @ApiParam({ name: 'id', type: String })
+    @ApiResponse({ status: 200, description: 'Sevkiyat detayı döner.' })
+    @ApiResponse({ status: 403, description: 'Sürucü kendi sevkiyatına erişebilir.' })
+    async findOne(@Param('id') id: string, @Request() req: any) {
         const shipment = await this.shipmentService.findOne(id);
 
         // Drivers can only see their own shipments
@@ -156,6 +171,8 @@ export class ShipmentController {
 
     @Post()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Yeni sevkiyat oluştur' })
+    @ApiResponse({ status: 201, description: 'Sevkiyat başarıyla oluşturuldu.' })
     create(@Body() createShipmentDto: CreateShipmentDto) {
         return this.shipmentService.create(createShipmentDto);
     }
@@ -168,6 +185,9 @@ export class ShipmentController {
 
     @Patch(':id/assign')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Sevkiyata sürücü ata' })
+    @ApiParam({ name: 'id', type: String })
+    @ApiResponse({ status: 200, description: 'Sürücü atandı.' })
     assignDriver(@Param('id') id: string, @Body() assignDriverDto: AssignDriverDto) {
         return this.shipmentService.assignDriver(id, assignDriverDto.driverId);
     }
@@ -203,10 +223,13 @@ export class ShipmentController {
     // Delivery Proof Endpoints
     @Post(':id/delivery-proof')
     @Roles(UserRole.DRIVER)
+    @ApiOperation({ summary: 'Teslimat kanıtı oluştur (fotoğraf + imza)' })
+    @ApiParam({ name: 'id', type: String })
+    @ApiResponse({ status: 201, description: 'Teslimat kanıtı kaydedildi.' })
     async createDeliveryProof(
         @Param('id') id: string,
         @Body() data: { photoUrl?: string; signatureUrl?: string; recipientName?: string; notes?: string },
-        @Request() req,
+        @Request() req: any,
     ) {
         // Verify driver owns this shipment
         const shipment = await this.shipmentService.findOne(id);

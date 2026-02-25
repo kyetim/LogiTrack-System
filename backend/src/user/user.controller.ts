@@ -13,6 +13,7 @@ import {
     StreamableFile,
     Header,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
 import * as xlsx from 'xlsx';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -22,6 +23,8 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
+@ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class UserController {
@@ -29,6 +32,10 @@ export class UserController {
 
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Tüm kullanıcıları listele (sayfalanmış)' })
+    @ApiQuery({ name: 'page', required: false, type: Number })
+    @ApiQuery({ name: 'limit', required: false, type: Number })
+    @ApiResponse({ status: 200, description: 'Kullanıcı listesi döner.' })
     findAll(@Query('page') page: string, @Query('limit') limit: string) {
         return this.userService.findAll(
             page ? parseInt(page) : 1,
