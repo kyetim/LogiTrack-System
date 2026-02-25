@@ -1,4 +1,5 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Body } from '@nestjs/common';
+import { Controller, Post, Req, UseInterceptors, UploadedFile, BadRequestException, Body } from '@nestjs/common';
+import { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 
@@ -20,17 +21,18 @@ export class UploadController {
             },
         }),
     )
-    async uploadPhoto(@UploadedFile() file: Express.Multer.File) {
+    async uploadPhoto(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
         if (!file) {
             throw new BadRequestException('No file uploaded');
         }
 
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
         console.log('📸 Photo uploaded:', file.filename);
 
         return {
             filename: file.filename,
             path: `/uploads/photos/${file.filename}`,
-            url: `http://172.20.10.3:4000/uploads/photos/${file.filename}`,
+            url: `${baseUrl}/uploads/photos/${file.filename}`,
         };
     }
 
@@ -42,33 +44,35 @@ export class UploadController {
             },
         }),
     )
-    async uploadSignature(@UploadedFile() file: Express.Multer.File) {
+    async uploadSignature(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
         if (!file) {
             throw new BadRequestException('No file uploaded');
         }
 
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
         console.log('✍️ Signature uploaded:', file.filename);
 
         return {
             filename: file.filename,
             path: `/uploads/signatures/${file.filename}`,
-            url: `http://172.20.10.3:4000/uploads/signatures/${file.filename}`,
+            url: `${baseUrl}/uploads/signatures/${file.filename}`,
         };
     }
 
     @Post('signature-base64')
-    async uploadSignatureBase64(@Body() body: { image: string }) {
+    async uploadSignatureBase64(@Body() body: { image: string }, @Req() req: Request) {
         if (!body.image) {
             throw new BadRequestException('No image data provided');
         }
 
         const filename = await this.uploadService.saveBase64Image(body.image, 'signature');
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
         console.log('✍️ Signature (Base64) uploaded:', filename);
 
         return {
             filename: filename,
             path: `/uploads/signatures/${filename}`,
-            url: `http://172.20.10.3:4000/uploads/signatures/${filename}`,
+            url: `${baseUrl}/uploads/signatures/${filename}`,
         };
     }
 }

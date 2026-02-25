@@ -1,7 +1,7 @@
 // API Base URL - Update for production
-// IMPORTANT: If login fails, check your network IP with 'ipconfig' and update below
-export const API_URL = 'http://172.20.10.3:3000/api';
-export const WS_URL = 'http://172.20.10.3:3000';
+// IMPORTANT: This is now automatically updated by update-ip.js script before expo starts
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://172.20.10.3:3000/api';
+export const WS_URL = process.env.EXPO_PUBLIC_WS_URL || 'ws://172.20.10.3:3001';
 
 // GPS Tracking
 export const GPS_UPDATE_INTERVAL = 30000; // 30 seconds

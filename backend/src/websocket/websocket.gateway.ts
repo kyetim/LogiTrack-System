@@ -14,14 +14,7 @@ import { LocationService } from '../location/location.service';
 
 @WebSocketGateway({
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://172.20.10.3:3000',
-      'http://172.20.10.3:3001',
-      'http://172.20.10.3:3002'
-    ],
+    origin: true, // Allow all origins — LAN dev + prod can be restricted via env
     credentials: true,
   },
 })
@@ -54,10 +47,13 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       // Join role-based rooms
       if (payload.role === 'DRIVER') {
         client.join('drivers');
+        client.join(`driver:${payload.sub}`); // Personal room for targeted notifications
       } else if (payload.role === 'DISPATCHER') {
         client.join('dispatchers');
+        client.join(`user:${payload.sub}`);
       } else if (payload.role === 'ADMIN') {
         client.join('dispatchers'); // Admins also get dispatcher updates
+        client.join(`user:${payload.sub}`);
       }
 
     } catch (error) {

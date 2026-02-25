@@ -2,8 +2,8 @@ import { Drawer } from 'expo-router/drawer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import CustomDrawerContent from '../../components/CustomDrawerContent';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useEffect } from 'react';
-import { useAppDispatch } from '../../store';
+import { useEffect, useRef } from 'react';
+import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchConversations, fetchUnreadCount } from '../../store/slices/messagesSlice';
 import { websocketService } from '../../services/websocket';
 import { useNetworkSync } from '../../src/hooks/useNetworkSync';
@@ -12,21 +12,39 @@ import { api } from '../../services/api';
 
 export default function DrawerLayout() {
     const dispatch = useAppDispatch();
+    const { token } = useAppSelector((state) => state.auth); // Watch Redux auth state
+    const wsConnectedRef = useRef(false);
+
     useNetworkSync(); // Global network listener
     const { expoPushToken } = usePushNotifications(); // Request permissions and get token
 
+    // Register push token with backend once it's obtained
     useEffect(() => {
         if (expoPushToken) {
             api.registerPushToken(expoPushToken).catch(err => {
-                console.error('Failed to register push token:', err);
+                console.error('[PushNotif] Failed to register push token:', err);
             });
         }
     }, [expoPushToken]);
 
+    // WebSocket lifecycle tied to auth token — prevents race condition
     useEffect(() => {
-        // Start global WebSocket connection here so it's alive regardless of which tab is active
+        if (!token) {
+            // Token cleared (logged out) → disconnect
+            if (wsConnectedRef.current) {
+                websocketService.removeAllListeners();
+                websocketService.disconnect();
+                wsConnectedRef.current = false;
+            }
+            return;
+        }
+
+        // Token available → connect (only once per session)
+        if (wsConnectedRef.current) return;
+
         const setup = async () => {
             await websocketService.connect();
+            wsConnectedRef.current = true;
 
             // Listen for new messages globally — updates badge everywhere
             websocketService.onNewMessage((_message: any) => {
@@ -40,8 +58,9 @@ export default function DrawerLayout() {
         return () => {
             websocketService.removeAllListeners();
             websocketService.disconnect();
+            wsConnectedRef.current = false;
         };
-    }, [dispatch]);
+    }, [token, dispatch]);
 
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>

@@ -144,10 +144,6 @@ class ApiClient {
         await this.client.post('/locations/batch', { locations });
     }
 
-    // Notifications
-    async registerPushToken(token: string): Promise<void> {
-        await this.client.post('/notifications/token', { token });
-    }
 
     // ==================== NEW ENDPOINTS ====================
 
