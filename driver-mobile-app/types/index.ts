@@ -299,6 +299,29 @@ export interface SupportState {
     error: string | null;
 }
 
+// ==================== Support Ticket Types ====================
+
+export interface SupportMessage {
+    id: string;
+    ticketId: string;
+    senderId: string;
+    senderRole: 'DRIVER' | 'ADMIN' | 'DISPATCHER';
+    content: string;
+    isInternal: boolean;
+    createdAt: string;
+}
+
+export interface SupportTicket {
+    id: string;
+    driverId: string;
+    subject: string;
+    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    messages: SupportMessage[];
+    createdAt: string;
+    updatedAt: string;
+}
+
 // ==================== END NEW STATE TYPES ====================
 
 export interface RootState {

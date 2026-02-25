@@ -11,6 +11,7 @@ import documentsReducer from './slices/documentsSlice';
 import geofencingReducer from './slices/geofencingSlice';
 import availabilityReducer from './slices/availabilitySlice';
 import supportReducer from './slices/supportSlice';
+import { logitrackApi } from './api/logitrackApi';
 import { RootState } from '../types';
 export { RootState };
 
@@ -27,6 +28,8 @@ export const store = configureStore({
         geofencing: geofencingReducer,
         availability: availabilityReducer,
         support: supportReducer,
+        // RTK Query API — handles own caching & lifecycle
+        [logitrackApi.reducerPath]: logitrackApi.reducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({
@@ -35,7 +38,7 @@ export const store = configureStore({
                 ignoredActionPaths: ['payload.lastSync', 'payload.pendingAction.createdAt'],
                 ignoredPaths: ['shipments.lastSync'],
             },
-        }),
+        }).concat(logitrackApi.middleware),
 });
 
 export type AppDispatch = typeof store.dispatch;
