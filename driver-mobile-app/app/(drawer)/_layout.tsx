@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchConversations, fetchUnreadCount } from '../../store/slices/messagesSlice';
+import { adminReplied } from '../../store/slices/supportSlice';
 import { websocketService } from '../../services/websocket';
 import { useNetworkSync } from '../../src/hooks/useNetworkSync';
 import { usePushNotifications } from '../../src/hooks/usePushNotifications';
@@ -30,7 +31,7 @@ export default function DrawerLayout() {
     // WebSocket lifecycle tied to auth token — prevents race condition
     useEffect(() => {
         if (!token) {
-            // Token cleared (logged out) → disconnect
+            // Token cleared (logged out) → disconnect both sockets
             if (wsConnectedRef.current) {
                 websocketService.removeAllListeners();
                 websocketService.disconnect();
@@ -43,7 +44,12 @@ export default function DrawerLayout() {
         if (wsConnectedRef.current) return;
 
         const setup = async () => {
+            // Connect messaging socket (/messaging namespace)
             await websocketService.connect();
+
+            // Connect support socket (main namespace) for admin reply notifications
+            await websocketService.connectSupportSocket();
+
             wsConnectedRef.current = true;
 
             // Listen for new messages globally — updates badge everywhere
@@ -51,13 +57,20 @@ export default function DrawerLayout() {
                 dispatch(fetchConversations());
                 dispatch(fetchUnreadCount());
             });
+
+            // Listen for admin replies — pushes message into support Redux slice globally
+            websocketService.onAdminReply((data: any) => {
+                if (data?.message) {
+                    dispatch(adminReplied(data.message));
+                }
+            });
         };
 
         setup();
 
         return () => {
             websocketService.removeAllListeners();
-            websocketService.disconnect();
+            websocketService.disconnect(); // also disconnects supportSocket
             wsConnectedRef.current = false;
         };
     }, [token, dispatch]);

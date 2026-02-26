@@ -5,12 +5,14 @@ import { UpdateTicketStatusDto } from './dto/update-ticket-status.dto';
 import { AddInternalNoteDto } from './dto/add-internal-note.dto';
 import { TicketStatus, TicketPriority, UserRole } from '@prisma/client';
 import { NotificationService } from '../notification/notification.service';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 
 @Injectable()
 export class SupportService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly notificationService: NotificationService
+        private readonly notificationService: NotificationService,
+        private readonly wsGateway: WebsocketGateway,
     ) { }
 
     /**
@@ -96,6 +98,7 @@ export class SupportService {
     async sendDriverMessage(driverId: string, sendMessageDto: SendMessageDto) {
         // Get existing active ticket OR create one if none exists
         let ticket = await this.getDriverTicket(driverId);
+        const isNewTicket = !ticket;
         if (!ticket) {
             ticket = await this.createDriverTicket(driverId);
         }
@@ -122,6 +125,25 @@ export class SupportService {
                 updatedAt: new Date(),
             },
         });
+
+        // ✨ Real-time: notify admin/dispatcher panel
+        if (isNewTicket) {
+            // Brand new ticket — dispatchers need to see it immediately
+            this.wsGateway.server.to('dispatchers').emit('support:new-ticket', {
+                ticketId: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                driverId,
+                priority: ticket.priority,
+                createdAt: ticket.createdAt,
+            });
+        } else {
+            // Existing ticket — driver replied
+            this.wsGateway.server.to('dispatchers').emit('support:new-message', {
+                ticketId: ticket.id,
+                ticketNumber: ticket.ticketNumber,
+                message,
+            });
+        }
 
         return message;
     }

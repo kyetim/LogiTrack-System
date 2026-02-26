@@ -28,10 +28,6 @@ import {
 } from '../../../store/slices/supportSlice';
 import { Colors, Typography, Spacing, BorderRadius } from '../../../constants/theme';
 import { api } from '../../../services/api';
-import { io } from 'socket.io-client';
-import { WS_URL } from '../../../utils/constants';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '../../../utils/constants';
 
 export default function SupportScreen() {
     const dispatch = useAppDispatch();
@@ -52,30 +48,8 @@ export default function SupportScreen() {
 
     useEffect(() => {
         dispatch(fetchMyTicket());
-
-        // Connect to main WebSocket namespace to receive admin replies in real-time
-        let supportSocket: any = null;
-        const setupSupportSocket = async () => {
-            const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-            if (!token) return;
-
-            supportSocket = io(WS_URL, {
-                auth: { token },
-                transports: ['websocket'],
-            });
-
-            supportSocket.on('support:admin-reply', (data: any) => {
-                if (data?.message) {
-                    dispatch(addSupportMessage(data.message));
-                }
-            });
-        };
-
-        setupSupportSocket();
-
-        return () => {
-            if (supportSocket) supportSocket.disconnect();
-        };
+        // Admin replies are now handled globally in _layout.tsx via websocketService.onAdminReply()
+        // No need for a per-screen socket connection here
     }, [dispatch]);
 
     // Every time the user focuses this tab, reset to selector view

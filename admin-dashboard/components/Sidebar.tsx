@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSocket } from '@/contexts/SocketContext';
 import { useTranslations } from '@/lib/i18n';
 
 interface SidebarProps {
@@ -33,10 +34,15 @@ interface SidebarProps {
 export function Sidebar({ className, collapsed, setCollapsed }: SidebarProps) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
+    const { notifications } = useSocket();
     const t = useTranslations();
 
     // If user is not yet loaded, avoid rendering a broken sidebar, or just default to minimal
     const userRole = user?.role || 'DRIVER';
+
+    // Count unread notifications by type for sidebar badges
+    const unreadSupportCount = notifications.filter(n => !n.read && (n.type === 'new_ticket' || n.type === 'new_message' || n.type === 'emergency')).length;
+    const unreadMessageCount = notifications.filter(n => !n.read && n.type === 'legacy_message').length;
 
     const routes = [
         {
@@ -170,9 +176,26 @@ export function Sidebar({ className, collapsed, setCollapsed }: SidebarProps) {
                             collapsed && 'justify-center w-12 h-12 p-0 mx-auto rounded-xl' // Make it square and centered when collapsed
                         )}
                     >
-                        <div className={cn("flex items-center", !collapsed && "flex-1")}>
-                            {/* Use route color for icon if needed, or override for consistency */}
+                        <div className={cn("relative flex items-center", !collapsed && "flex-1")}>
                             <route.icon className={cn('h-5 w-5 mr-3 transition-colors', pathname === route.href ? 'text-sidebar-primary-foreground' : 'text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground', collapsed && 'mr-0')} />
+                            {/* Notification badge for Support */}
+                            {route.href === '/dashboard/support' && unreadSupportCount > 0 && (
+                                <span className={cn(
+                                    'absolute flex items-center justify-center rounded-full bg-red-500 text-white font-bold text-[10px] leading-none border-2 border-sidebar',
+                                    collapsed ? '-top-1 -right-1 h-5 w-5' : '-top-1 left-3 h-4 w-4'
+                                )}>
+                                    {unreadSupportCount > 9 ? '9+' : unreadSupportCount}
+                                </span>
+                            )}
+                            {/* Notification badge for Messages */}
+                            {route.href === '/dashboard/messages' && unreadMessageCount > 0 && (
+                                <span className={cn(
+                                    'absolute flex items-center justify-center rounded-full bg-red-500 text-white font-bold text-[10px] leading-none border-2 border-sidebar',
+                                    collapsed ? '-top-1 -right-1 h-5 w-5' : '-top-1 left-3 h-4 w-4'
+                                )}>
+                                    {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                                </span>
+                            )}
                             {!collapsed && (
                                 <span className="truncate">
                                     {route.label}

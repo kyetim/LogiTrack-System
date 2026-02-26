@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { useSocket } from '@/contexts/SocketContext';
 
 interface SupportTicket {
     id: string;
@@ -28,25 +29,22 @@ interface SupportTicket {
 
 export default function SupportPage() {
     const router = useRouter();
+    const { socket } = useSocket();
     const [tickets, setTickets] = useState<SupportTicket[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'pending' | 'urgent'>('pending');
 
-    useEffect(() => {
-        fetchTickets();
-    }, [filter]);
-
-    const fetchTickets = async () => {
+    const fetchTickets = useCallback(async () => {
         try {
-            setLoading(true);
             setLoading(true);
             const response = await api.get('/support/tickets');
 
             let filteredTickets = response.data;
 
             if (filter === 'pending') {
+                // WAITING_REPLY = sürücü mesaj gönderdi, admin cevap bekliyor
                 filteredTickets = filteredTickets.filter(
-                    (t: SupportTicket) => t.status === 'OPEN' || t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS'
+                    (t: SupportTicket) => t.status === 'OPEN' || t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'WAITING_REPLY'
                 );
             } else if (filter === 'urgent') {
                 filteredTickets = filteredTickets.filter(
@@ -60,7 +58,25 @@ export default function SupportPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter]);
+
+    useEffect(() => {
+        fetchTickets();
+    }, [fetchTickets]);
+
+    // Real-time: refetch when a new ticket or message arrives
+    useEffect(() => {
+        if (!socket) return;
+        const handleNewTicket = () => fetchTickets();
+        const handleNewMessage = () => fetchTickets();
+        socket.on('support:new-ticket', handleNewTicket);
+        socket.on('support:new-message', handleNewMessage);
+        return () => {
+            socket.off('support:new-ticket', handleNewTicket);
+            socket.off('support:new-message', handleNewMessage);
+        };
+    }, [socket, fetchTickets]);
+
 
     const getPriorityBadge = (priority: string) => {
         const styles = {

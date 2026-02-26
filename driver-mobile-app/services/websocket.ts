@@ -4,7 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS } from '../utils/constants';
 
 class WebSocketService {
-    private socket: Socket | null = null;
+    private socket: Socket | null = null;      // /messaging namespace
+    private supportSocket: Socket | null = null; // main namespace (for support events)
     private userId: string | null = null;
 
     /**
@@ -63,6 +64,44 @@ class WebSocketService {
         if (this.socket) {
             this.socket.disconnect();
             this.socket = null;
+        }
+        this.disconnectSupportSocket();
+    }
+
+    /**
+     * Connect to the MAIN WebSocket namespace to receive support events (admin replies etc.)
+     */
+    async connectSupportSocket() {
+        if (this.supportSocket?.connected) return; // already connected
+
+        const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        if (!token) return;
+
+        this.supportSocket = io(WS_URL, {
+            auth: { token },
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionAttempts: 5,
+        });
+
+        this.supportSocket.on('connect', () => {
+            console.log('[WS] Support socket connected (main namespace)');
+        });
+
+        this.supportSocket.on('disconnect', () => {
+            console.log('[WS] Support socket disconnected');
+        });
+    }
+
+    /**
+     * Disconnect support socket
+     */
+    disconnectSupportSocket() {
+        if (this.supportSocket) {
+            this.supportSocket.removeAllListeners();
+            this.supportSocket.disconnect();
+            this.supportSocket = null;
         }
     }
 
@@ -165,8 +204,21 @@ class WebSocketService {
      * Remove all listeners
      */
     removeAllListeners() {
-        if (!this.socket) return;
-        this.socket.removeAllListeners();
+        if (this.socket) this.socket.removeAllListeners();
+        if (this.supportSocket) this.supportSocket.removeAllListeners();
+    }
+
+    /**
+     * Listen for admin replies on support tickets (main namespace)
+     */
+    onAdminReply(callback: (data: any) => void) {
+        if (!this.supportSocket) return;
+        this.supportSocket.on('support:admin-reply', callback);
+    }
+
+    offAdminReply(callback: (data: any) => void) {
+        if (!this.supportSocket) return;
+        this.supportSocket.off('support:admin-reply', callback);
     }
 
     /**
