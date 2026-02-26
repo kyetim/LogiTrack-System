@@ -712,7 +712,6 @@ const styles = StyleSheet.create({
     prioritySelectorContainer: {
         flex: 1,
         padding: 20,
-        justifyContent: 'center',
     },
     priorityTitle: {
         fontSize: 20,
