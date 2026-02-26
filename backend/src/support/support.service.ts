@@ -100,7 +100,9 @@ export class SupportService {
         let ticket = await this.getDriverTicket(driverId);
         const isNewTicket = !ticket;
         if (!ticket) {
-            ticket = await this.createDriverTicket(driverId);
+            // Use priority from DTO if provided, otherwise default to NORMAL
+            const priority = sendMessageDto.priority || TicketPriority.NORMAL;
+            ticket = await this.createDriverTicket(driverId, priority);
         }
 
         const message = await this.prisma.supportMessage.create({

@@ -40,7 +40,7 @@ export default function SupportScreen() {
         if (!messageText.trim()) return;
 
         try {
-            await dispatch(sendSupportMessage(messageText.trim())).unwrap();
+            await dispatch(sendSupportMessage({ content: messageText.trim() })).unwrap();
             setMessageText('');
         } catch (error) {
             console.error('Failed to send message:', error);

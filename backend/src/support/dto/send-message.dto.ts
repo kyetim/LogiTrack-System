@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { TicketPriority } from '@prisma/client';
 
 export class SendMessageDto {
     @ApiProperty({
@@ -18,4 +19,13 @@ export class SendMessageDto {
     @IsArray()
     @IsString({ each: true })
     attachments?: string[];
+
+    @ApiPropertyOptional({
+        description: 'Ticket priority (only used when creating new ticket)',
+        enum: TicketPriority,
+        example: 'HIGH',
+    })
+    @IsOptional()
+    @IsEnum(TicketPriority)
+    priority?: TicketPriority;
 }

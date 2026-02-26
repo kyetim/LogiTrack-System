@@ -63,8 +63,17 @@ export const fetchMyTicket = createAsyncThunk(
 
 export const sendSupportMessage = createAsyncThunk(
     'support/sendMessage',
-    async (content: string) => {
-        const response = await api.sendSupportMessage(content);
+    async ({ content, priority }: { content: string; priority?: string }, { dispatch, getState }) => {
+        const state = getState() as any;
+        const hadTicketBefore = !!state.support.currentTicket;
+
+        const response = await api.sendSupportMessage(content, priority);
+
+        // First message created a new ticket — refresh Redux with the new ticket
+        if (!hadTicketBefore) {
+            dispatch(fetchMyTicket());
+        }
+
         return response;
     }
 );

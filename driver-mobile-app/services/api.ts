@@ -185,9 +185,10 @@ class ApiClient {
         return data;
     }
 
-    async sendSupportMessage(content: string): Promise<any> {
+    async sendSupportMessage(content: string, priority?: string): Promise<any> {
         const { data } = await this.client.post('/support/my-ticket/messages', {
             content,
+            ...(priority && { priority }),
         });
         return data;
     }

@@ -100,7 +100,10 @@ export default function SupportScreen() {
                         text: 'Oluştur',
                         onPress: async () => {
                             try {
-                                await dispatch(sendSupportMessage(messageText.trim())).unwrap();
+                                await dispatch(sendSupportMessage({
+                                    content: messageText.trim(),
+                                    priority: selectedPriority || undefined,
+                                })).unwrap();
                                 setMessageText('');
                             } catch (error) {
                                 console.error('Failed to send message:', error);
@@ -114,7 +117,10 @@ export default function SupportScreen() {
         }
 
         try {
-            await dispatch(sendSupportMessage(messageText.trim())).unwrap();
+            await dispatch(sendSupportMessage({
+                content: messageText.trim(),
+                priority: selectedPriority || undefined,
+            })).unwrap();
             setMessageText('');
         } catch (error) {
             console.error('Failed to send message:', error);
@@ -374,7 +380,12 @@ export default function SupportScreen() {
 
                 {/* SELECTOR VIEW: shown when viewMode === 'selector' */}
                 {viewMode === 'selector' ? (
-                    <View style={styles.prioritySelectorContainer}>
+                    <ScrollView
+                        style={styles.prioritySelectorContainer}
+                        contentContainerStyle={{ paddingBottom: 32 }}
+                        showsVerticalScrollIndicator={false}
+                        keyboardShouldPersistTaps="handled"
+                    >
                         <Text style={styles.priorityTitle}>Destek Talebi</Text>
 
                         {/* If there's an open/active ticket, show it as the first option */}
@@ -464,7 +475,7 @@ export default function SupportScreen() {
                             <Text style={styles.emergencyCardTitle}>🔴 KAZA - ACİL YARDIM</Text>
                             <Text style={styles.emergencyCardSubtitle}>(Tek tuşla destek)</Text>
                         </TouchableOpacity>
-                    </View>
+                    </ScrollView>
                 ) : (
                     /* CHAT VIEW: shown when viewMode === 'chat' */
                     <FlatList
