@@ -204,7 +204,7 @@ class ApiClient {
     }
 
     async getMyClosedTickets(): Promise<any[]> {
-        const { data } = await this.client.get('/support/tickets/history');
+        const { data } = await this.client.get('/support/my-ticket/history');
         return data;
     }
 

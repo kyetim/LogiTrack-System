@@ -81,7 +81,7 @@ export default function SupportDetailPage() {
 
     const updateStatus = async (status: string) => {
         try {
-            await api.patch(`/support/tickets/${params.id}`, { status });
+            await api.patch(`/support/tickets/${params.id}/status`, { status });
             fetchTicket();
         } catch (error) {
             console.error('Failed to update status:', error);
