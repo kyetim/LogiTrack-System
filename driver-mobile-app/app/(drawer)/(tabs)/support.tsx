@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
     View,
     FlatList,
@@ -283,201 +283,186 @@ export default function SupportScreen() {
                 {getStatusBadge()}
             </View>
 
-            <KeyboardAvoidingView
-                style={styles.keyboardContainer}
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            {/* Emergency Modal — outside scroll wrappers */}
+            <Modal
+                visible={showEmergencyModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowEmergencyModal(false)}
             >
-                {/* Emergency Modal */}
-                <Modal
-                    visible={showEmergencyModal}
-                    transparent
-                    animationType="fade"
-                    onRequestClose={() => setShowEmergencyModal(false)}
-                >
-                    <View style={styles.emergencyModalOverlay}>
-                        <View style={styles.emergencyModalContent}>
-                            <Ionicons name="warning" size={64} color={Colors.danger} />
-                            <Text style={styles.emergencyTitle}>🚨 ACİL DURUM</Text>
-                            <Text style={styles.emergencySubtitle}>
-                                Destek ekibi bilgilendirildi
-                            </Text>
-
-                            <View style={styles.emergencyContactBox}>
-                                <Text style={styles.emergencyContactLabel}>Acil Yardım Hattı:</Text>
-                                <Text style={styles.emergencyPhone}>{emergencyContact?.phone}</Text>
-                                <Text style={styles.emergencyAvailable}>
-                                    {emergencyContact?.available247 ? '7/24 Hizmetinizde' : ''}
-                                </Text>
-                            </View>
-
-                            <TouchableOpacity
-                                style={styles.callButton}
-                                onPress={handleCallEmergency}
-                            >
-                                <Ionicons name="call" size={24} color={Colors.white} />
-                                <Text style={styles.callButtonText}>HEMEN ARA</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={styles.emergencyCloseButton}
-                                onPress={() => setShowEmergencyModal(false)}
-                            >
-                                <Text style={styles.emergencyCloseText}>Kapat</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* History Modal */}
-                <Modal
-                    visible={showHistory}
-                    transparent
-                    animationType="slide"
-                    onRequestClose={() => setShowHistory(false)}
-                >
-                    <View style={styles.historyModalOverlay}>
-                        <View style={styles.historyModalContent}>
-                            <View style={styles.historyHeader}>
-                                <Text style={styles.historyTitle}>Geçmiş Talepler</Text>
-                                <TouchableOpacity onPress={() => setShowHistory(false)}>
-                                    <Ionicons name="close" size={28} color={Colors.gray700} />
-                                </TouchableOpacity>
-                            </View>
-
-                            {loadingHistory ? (
-                                <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
-                            ) : closedTickets.length === 0 ? (
-                                <View style={styles.emptyHistory}>
-                                    <Ionicons name="folder-open-outline" size={64} color={Colors.gray300} />
-                                    <Text style={styles.emptyHistoryText}>Geçmiş talep bulunamadı</Text>
-                                </View>
-                            ) : (
-                                <ScrollView style={styles.historyList}>
-                                    {closedTickets.map((ticket) => (
-                                        <View key={ticket.id} style={styles.historyCard}>
-                                            <View style={styles.historyCardHeader}>
-                                                <Text style={styles.historyTicketNumber}>#{ticket.ticketNumber}</Text>
-                                                <Text style={{
-                                                    fontSize: 12,
-                                                    color: ticket.status === 'CLOSED' ? Colors.gray500 : Colors.success,
-                                                    fontWeight: '600'
-                                                }}>
-                                                    {ticket.status === 'CLOSED' ? 'KAPALI' : 'ÇÖZÜLDÜ'}
-                                                </Text>
-                                            </View>
-                                            <Text style={styles.historySubject}>{ticket.subject}</Text>
-                                            <Text style={styles.historyDate}>
-                                                {new Date(ticket.createdAt).toLocaleDateString('tr-TR')}
-                                            </Text>
-                                        </View>
-                                    ))}
-                                </ScrollView>
-                            )}
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* SELECTOR VIEW: shown when viewMode === 'selector' */}
-                {viewMode === 'selector' ? (
-                    <ScrollView
-                        style={styles.prioritySelectorContainer}
-                        contentContainerStyle={{ paddingBottom: 32 }}
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                    >
-                        <Text style={styles.priorityTitle}>Destek Talebi</Text>
-
-                        {/* If there's an open/active ticket, show it as the first option */}
-                        {currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
-                            <TouchableOpacity
-                                style={styles.activeTicketCard}
-                                onPress={() => setViewMode('chat')}
-                            >
-                                <View style={styles.activeTicketIcon}>
-                                    <Ionicons name="chatbubbles" size={28} color={Colors.primary} />
-                                </View>
-                                <View style={styles.priorityInfo}>
-                                    <Text style={styles.activeTicketLabel}>Açık Destek Talebine Devam Et</Text>
-                                    <Text style={styles.activeTicketSub}>Ticket #{currentTicket.ticketNumber} • {
-                                        { OPEN: 'Açık', ASSIGNED: 'Atandı', WAITING_REPLY: 'Cevap Bekleniyor', IN_PROGRESS: 'Devam Ediyor' }[currentTicket.status as string] || currentTicket.status
-                                    }</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
-                            </TouchableOpacity>
-                        )}
-
-                        {/* Geçmiş Talepler Button */}
-                        {currentTicket && (currentTicket.status === 'CLOSED' || currentTicket.status === 'RESOLVED') && (
-                            <TouchableOpacity
-                                style={styles.historyButton}
-                                onPress={() => setShowHistory(true)}
-                            >
-                                <Ionicons name="time-outline" size={20} color={Colors.gray600} />
-                                <Text style={styles.historyButtonText}>Geçmiş Talepler</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        <Text style={[styles.priorityTitle, { fontSize: 16, marginTop: 16, marginBottom: 12 }]}>
-                            Yeni Talep Oluştur:
+                <View style={styles.emergencyModalOverlay}>
+                    <View style={styles.emergencyModalContent}>
+                        <Ionicons name="warning" size={64} color={Colors.danger} />
+                        <Text style={styles.emergencyTitle}>🚨 ACİL DURUM</Text>
+                        <Text style={styles.emergencySubtitle}>
+                            Destek ekibi bilgilendirildi
                         </Text>
 
-                        {/* LOW */}
+                        <View style={styles.emergencyContactBox}>
+                            <Text style={styles.emergencyContactLabel}>Acil Yardım Hattı:</Text>
+                            <Text style={styles.emergencyPhone}>{emergencyContact?.phone}</Text>
+                            <Text style={styles.emergencyAvailable}>
+                                {emergencyContact?.available247 ? '7/24 Hizmetinizde' : ''}
+                            </Text>
+                        </View>
+
                         <TouchableOpacity
-                            style={[styles.priorityCard, styles.priorityLow]}
-                            onPress={() => { setSelectedPriority('LOW'); setViewMode('chat'); }}
+                            style={styles.callButton}
+                            onPress={handleCallEmergency}
                         >
-                            <View style={styles.priorityIcon}>
-                                <Text style={styles.priorityEmoji}>🟢</Text>
+                            <Ionicons name="call" size={24} color={Colors.white} />
+                            <Text style={styles.callButtonText}>HEMEN ARA</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.emergencyCloseButton}
+                            onPress={() => setShowEmergencyModal(false)}
+                        >
+                            <Text style={styles.emergencyCloseText}>Kapat</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* History Modal — outside scroll wrappers */}
+            <Modal
+                visible={showHistory}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowHistory(false)}
+            >
+                <View style={styles.historyModalOverlay}>
+                    <View style={styles.historyModalContent}>
+                        <View style={styles.historyHeader}>
+                            <Text style={styles.historyTitle}>Geçmiş Talepler</Text>
+                            <TouchableOpacity onPress={() => setShowHistory(false)}>
+                                <Ionicons name="close" size={28} color={Colors.gray700} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {loadingHistory ? (
+                            <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 40 }} />
+                        ) : closedTickets.length === 0 ? (
+                            <View style={styles.emptyHistory}>
+                                <Ionicons name="folder-open-outline" size={64} color={Colors.gray300} />
+                                <Text style={styles.emptyHistoryText}>Geçmiş talep bulunamadı</Text>
+                            </View>
+                        ) : (
+                            <ScrollView style={styles.historyList}>
+                                {closedTickets.map((ticket) => (
+                                    <View key={ticket.id} style={styles.historyCard}>
+                                        <View style={styles.historyCardHeader}>
+                                            <Text style={styles.historyTicketNumber}>#{ticket.ticketNumber}</Text>
+                                            <Text style={{
+                                                fontSize: 12,
+                                                color: ticket.status === 'CLOSED' ? Colors.gray500 : Colors.success,
+                                                fontWeight: '600'
+                                            }}>
+                                                {ticket.status === 'CLOSED' ? 'KAPALI' : 'ÇÖZÜLDÜ'}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.historySubject}>{ticket.subject}</Text>
+                                        <Text style={styles.historyDate}>
+                                            {new Date(ticket.createdAt).toLocaleDateString('tr-TR')}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        )}
+                    </View>
+                </View>
+            </Modal>
+
+            {/* SELECTOR VIEW: plain ScrollView (no KeyboardAvoidingView) */}
+            {viewMode === 'selector' ? (
+                <ScrollView
+                    style={styles.prioritySelectorContainer}
+                    contentContainerStyle={{ paddingBottom: 32 }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <Text style={styles.priorityTitle}>Destek Talebi</Text>
+
+                    {currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
+                        <TouchableOpacity
+                            style={styles.activeTicketCard}
+                            onPress={() => setViewMode('chat')}
+                        >
+                            <View style={styles.activeTicketIcon}>
+                                <Ionicons name="chatbubbles" size={28} color={Colors.primary} />
                             </View>
                             <View style={styles.priorityInfo}>
-                                <Text style={styles.priorityLabel}>Düşük</Text>
-                                <Text style={styles.priorityDescription}>Genel bilgi ve sorular</Text>
+                                <Text style={styles.activeTicketLabel}>Açık Destek Talebine Devam Et</Text>
+                                <Text style={styles.activeTicketSub}>Ticket #{currentTicket.ticketNumber} • {
+                                    { OPEN: 'Açık', ASSIGNED: 'Atandı', WAITING_REPLY: 'Cevap Bekleniyor', IN_PROGRESS: 'Devam Ediyor' }[currentTicket.status as string] || currentTicket.status
+                                }</Text>
                             </View>
+                            <Ionicons name="chevron-forward" size={20} color={Colors.gray400} />
                         </TouchableOpacity>
+                    )}
 
-                        {/* NORMAL */}
+                    {currentTicket && (currentTicket.status === 'CLOSED' || currentTicket.status === 'RESOLVED') && (
                         <TouchableOpacity
-                            style={[styles.priorityCard, styles.priorityNormal]}
-                            onPress={() => { setSelectedPriority('NORMAL'); setViewMode('chat'); }}
+                            style={styles.historyButton}
+                            onPress={() => setShowHistory(true)}
                         >
-                            <View style={styles.priorityIcon}>
-                                <Text style={styles.priorityEmoji}>🟡</Text>
-                            </View>
-                            <View style={styles.priorityInfo}>
-                                <Text style={styles.priorityLabel}>Normal</Text>
-                                <Text style={styles.priorityDescription}>Standart destek talebi</Text>
-                            </View>
+                            <Ionicons name="time-outline" size={20} color={Colors.gray600} />
+                            <Text style={styles.historyButtonText}>Geçmiş Talepler</Text>
                         </TouchableOpacity>
+                    )}
 
-                        {/* HIGH */}
-                        <TouchableOpacity
-                            style={[styles.priorityCard, styles.priorityHigh]}
-                            onPress={() => { setSelectedPriority('HIGH'); setViewMode('chat'); }}
-                        >
-                            <View style={styles.priorityIcon}>
-                                <Text style={styles.priorityEmoji}>🟠</Text>
-                            </View>
-                            <View style={styles.priorityInfo}>
-                                <Text style={styles.priorityLabel}>Yüksek</Text>
-                                <Text style={styles.priorityDescription}>Önemli sorun</Text>
-                            </View>
-                        </TouchableOpacity>
+                    <Text style={[styles.priorityTitle, { fontSize: 16, marginTop: 16, marginBottom: 12 }]}>
+                        Yeni Talep Oluştur:
+                    </Text>
 
-                        <View style={styles.divider} />
+                    <TouchableOpacity
+                        style={[styles.priorityCard, styles.priorityLow]}
+                        onPress={() => { setSelectedPriority('LOW'); setViewMode('chat'); }}
+                    >
+                        <View style={styles.priorityIcon}><Text style={styles.priorityEmoji}>🟢</Text></View>
+                        <View style={styles.priorityInfo}>
+                            <Text style={styles.priorityLabel}>Düşük</Text>
+                            <Text style={styles.priorityDescription}>Genel bilgi ve sorular</Text>
+                        </View>
+                    </TouchableOpacity>
 
-                        {/* EMERGENCY */}
-                        <TouchableOpacity
-                            style={styles.emergencyCard}
-                            onPress={handleEmergency}
-                        >
-                            <Ionicons name="warning" size={32} color={Colors.white} />
-                            <Text style={styles.emergencyCardTitle}>🔴 KAZA - ACİL YARDIM</Text>
-                            <Text style={styles.emergencyCardSubtitle}>(Tek tuşla destek)</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
-                ) : (
-                    /* CHAT VIEW: shown when viewMode === 'chat' */
+                    <TouchableOpacity
+                        style={[styles.priorityCard, styles.priorityNormal]}
+                        onPress={() => { setSelectedPriority('NORMAL'); setViewMode('chat'); }}
+                    >
+                        <View style={styles.priorityIcon}><Text style={styles.priorityEmoji}>🟡</Text></View>
+                        <View style={styles.priorityInfo}>
+                            <Text style={styles.priorityLabel}>Normal</Text>
+                            <Text style={styles.priorityDescription}>Standart destek talebi</Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.priorityCard, styles.priorityHigh]}
+                        onPress={() => { setSelectedPriority('HIGH'); setViewMode('chat'); }}
+                    >
+                        <View style={styles.priorityIcon}><Text style={styles.priorityEmoji}>🟠</Text></View>
+                        <View style={styles.priorityInfo}>
+                            <Text style={styles.priorityLabel}>Yüksek</Text>
+                            <Text style={styles.priorityDescription}>Önemli sorun</Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    <View style={styles.divider} />
+
+                    <TouchableOpacity style={styles.emergencyCard} onPress={handleEmergency}>
+                        <Ionicons name="warning" size={32} color={Colors.white} />
+                        <Text style={styles.emergencyCardTitle}>🔴 KAZA - ACİL YARDIM</Text>
+                        <Text style={styles.emergencyCardSubtitle}>(Tek tuşla destek)</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            ) : (
+                /* CHAT VIEW: KeyboardAvoidingView wraps FlatList + input */
+                <KeyboardAvoidingView
+                    style={styles.keyboardContainer}
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+                >
                     <FlatList
                         data={messages}
                         keyExtractor={(item) => item.id}
@@ -493,16 +478,9 @@ export default function SupportScreen() {
                             </View>
                         }
                     />
-                )}
 
-                {/* Input Area - show only in chat view */}
-                {viewMode === 'chat' && (
                     <View style={styles.inputContainer}>
-                        {/* Geri dön button */}
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={handleCancel}
-                        >
+                        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
                             <Ionicons name="arrow-back" size={20} color={Colors.gray600} />
                         </TouchableOpacity>
                         <TextInput
@@ -530,15 +508,14 @@ export default function SupportScreen() {
                             )}
                         </TouchableOpacity>
                     </View>
-                )}
 
-                {/* Close Ticket Button - only in chat view */}
-                {viewMode === 'chat' && currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
-                    <TouchableOpacity style={styles.closeTicketButton} onPress={handleClose}>
-                        <Text style={styles.closeTicketButtonText}>Sorunum Çözüldü - Ticket'ı Kapat</Text>
-                    </TouchableOpacity>
-                )}
-            </KeyboardAvoidingView>
+                    {currentTicket && currentTicket.status !== 'CLOSED' && currentTicket.status !== 'RESOLVED' && (
+                        <TouchableOpacity style={styles.closeTicketButton} onPress={handleClose}>
+                            <Text style={styles.closeTicketButtonText}>Sorunum Çözüldü - Ticket'ı Kapat</Text>
+                        </TouchableOpacity>
+                    )}
+                </KeyboardAvoidingView>
+            )}
         </SafeAreaView>
     );
 }
