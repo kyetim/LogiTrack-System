@@ -144,7 +144,16 @@ export class SupportController {
         @Param('id') id: string,
         @Body() updateStatusDto: UpdateTicketStatusDto,
     ) {
-        return this.supportService.updateTicketStatus(id, updateStatusDto);
+        const updatedTicket = await this.supportService.updateTicketStatus(id, updateStatusDto);
+        // Emit real-time event to driver + dispatchers
+        if (updatedTicket.driverId) {
+            this.wsGateway.emitTicketStatusChanged(
+                id,
+                updatedTicket.driverId,
+                updatedTicket.status,
+            );
+        }
+        return updatedTicket;
     }
 
     @Get('stats')

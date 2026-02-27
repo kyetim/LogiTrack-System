@@ -37,7 +37,14 @@ module.exports = {
                 "READ_EXTERNAL_STORAGE",
                 "WRITE_EXTERNAL_STORAGE",
                 "FOREGROUND_SERVICE"
-            ]
+            ],
+            // Google Maps API Key — react-native-maps PROVIDER_GOOGLE için zorunlu
+            // Fiziksel Android cihazda haritanın görünmesi için gereklidir
+            config: {
+                googleMaps: {
+                    apiKey: process.env.GOOGLE_MAPS_API_KEY,
+                },
+            },
         },
         web: {
             favicon: "./assets/favicon.png"

@@ -1,5 +1,5 @@
 # LogiTrack System - AI Assistant Guidelines
-# Son Güncelleme: 2026-02-20
+# Son Güncelleme: 2026-02-27
 
 ---
 
@@ -147,43 +147,46 @@ Bu proje, ulusal çapta hizmet veren bir lojistik firması için geliştirilen, 
 | `support` | Destek talebi (ticket) sistemi, Admin-Şoför chat | ✅ Aktif |
 | `file-upload` | Dosya yükleme servisi | ✅ Aktif |
 | `upload` | Upload controller | ✅ Aktif |
+| `audit` | AuditLog sistemi — her CREATE/UPDATE/DELETE/LOGIN işlemi otomatik loglanır (`AuditInterceptor`) | ✅ Aktif |
 | `mqtt` | IoT telemetri (hazır, entegrasyon planlanmış) | 🔶 Hazır |
 | `email` | E-posta bildirimleri | 🔶 Hazır |
 
 #### Prisma Veritabanı Şeması (PostgreSQL + PostGIS)
 | Model | Açıklama |
 |-------|----------|
-| `User` | Tüm kullanıcılar (4 rol) + pushToken |
-| `DriverProfile` | Şoför profili, konum, kapasite, availability |
-| `Vehicle` | Araç bilgileri, bakım tarihleri |
-| `MaintenanceLog` | Araç bakım kayıtları |
-| `Company` | Multi-tenant şirket bilgileri |
-| `CompanyUser` | Şirket-Kullanıcı ilişkisi |
-| `Shipment` | Sevkiyat, PostGIS koordinatlar, sıralama, irsaliye |
-| `DeliveryProof` | Teslimat kanıtı (fotoğraf + imza) |
-| `Geofence` | Coğrafi bölge tanımlamaları |
-| `GeofenceEvent` | Giriş/çıkış events |
-| `Document` | Tüm belgeler (OCR desteği, doğrulama) |
-| `DriverScore` | Şoför performans puanları |
-| `Message` | Admin-Şoför mesajlaşması |
-| `SupportTicket` | Destek talepleri (OPEN→CLOSED lifecycle) |
-| `SupportMessage` | Ticket mesajları (dahili notlar dahil) |
-| `Invoice` | Fatura sistemi |
-| `LocationLog` | GPS geçmiş kayıtları |
+| `User` | Tüm kullanıcılar (5 rol: ADMIN, DISPATCHER, DRIVER, COMPANY_OWNER, COMPANY_MANAGER) + pushToken |
+| `DriverProfile` | Şoför profili, PostGIS konum, kapasite, availability, isAvailableForWork |
+| `Vehicle` | Araç bilgileri, bakım tarihleri, `VehicleTypeEnum` (TRUCK/TRAILER/TANKER vb.) |
+| `MaintenanceLog` | Araç bakım kayıtları (`MaintenanceType`: ROUTINE/REPAIR/INSPECTION/OTHER) |
+| `Company` | Multi-tenant şirket bilgileri, kredi limiti, cari bakiye |
+| `CompanyUser` | Şirket-Kullanıcı ilişkisi (`CompanyUserRole`: OWNER/MANAGER/DISPATCHER/VIEWER) |
+| `Shipment` | Sevkiyat, PostGIS koordinatlar, sıralama (`sequence`), irsaliye (`waybillUrl`) |
+| `DeliveryProof` | Teslimat kanıtı (fotoğraf + imza + alıcı adı + notlar) |
+| `Geofence` | Coğrafi bölge tanımlamaları (`GeofenceType`: PICKUP/DELIVERY/WAREHOUSE/CHECKPOINT) |
+| `GeofenceEvent` | Giriş/çıkış events (ENTER/EXIT) |
+| `Document` | Tüm belgeler — `EntityType` (USER/VEHICLE/SHIPMENT/COMPANY/DRIVER), OCR desteği, doğrulama, expiry |
+| `DriverScore` | Şoför performans puanları (güvenlik, yakıt verimliliği, dakiklik, müşteri puanı) |
+| `Message` | Admin-Şoför mesajlaşması (okundu/okunmadı + `readAt`) |
+| `SupportTicket` | Destek talepleri — `TicketStatus` (OPEN→ASSIGNED→IN_PROGRESS→RESOLVED→CLOSED), `TicketPriority` |
+| `SupportMessage` | Ticket mesajları (dahili notlar + sistem mesajları dahil) |
+| `Invoice` | Fatura sistemi (`InvoiceStatus`: PENDING/PAID/OVERDUE/CANCELLED), PDF URL |
+| `LocationLog` | GPS geçmiş kayıtları (koordinat JSON, heading, speed) |
+| `AuditLog` | Kurumsal denetim logu — tüm CREATE/UPDATE/DELETE/LOGIN/LOGOUT işlemleri, eski/yeni değerler, IP adresi |
 
 #### Admin Dashboard Sayfaları (`admin-dashboard/app/dashboard/`)
 | Sayfa | Özellikler |
 |-------|------------|
 | `/dashboard` | KPI kartları (Bento Grid), analytics, kapasite analizi, sistem metrikleri |
-| `/dashboard/drivers` | Şoför CRUD, belge yönetimi, performans takibi |
-| `/dashboard/vehicles` | Araç CRUD, bakım geçmişi |
-| `/dashboard/shipments` | Sevkiyat oluşturma/atama/durum güncelleme |
-| `/dashboard/map` | Canlı harita (React Leaflet), şoför tracking |
-| `/dashboard/tracking` | Rota optimizasyonu, akıllı eşleştirme |
-| `/dashboard/messages` | İç mesajlaşma (sidebar + chat panel görünümü) |
-| `/dashboard/analytics` | Lojistik raporlama, grafikler |
-| `/dashboard/users` | Kullanıcı yönetimi |
-| `/dashboard/support` | Support ticket yönetimi (Admin tarafı) |
+| `/dashboard/drivers` | Şoför CRUD, belge yönetimi (`DriverDocumentsModal`), performans takibi |
+| `/dashboard/vehicles` | Araç CRUD, bakım geçmişi (`MaintenanceHistoryDialog`), araç tipi ve kapasite |
+| `/dashboard/shipments` | Sevkiyat oluşturma/atama/durum güncelleme, irsaliye upload, teslimat kanıtı görüntüleme |
+| `/dashboard/map` | Canlı harita (React Leaflet → Google Maps migrasyonu hazır), şoför tracking |
+| `/dashboard/tracking` | Rota optimizasyonu (`RouteOptimizationModal`), akıllı eşleştirme (`SmartMatchingCard`) |
+| `/dashboard/messages` | İç mesajlaşma (unified sidebar + chat panel görünümü) |
+| `/dashboard/analytics` | Lojistik raporlama, grafikler (Recharts), tarih aralığı filtresi |
+| `/dashboard/users` | Kullanıcı yönetimi, şirket atama |
+| `/dashboard/support` | Support ticket yönetimi — Admin tarafı, öncelik/durum filtre, ticket atama |
+| `/dashboard/audit-logs` | Kurumsal denetim logları — kullanıcı işlem geçmişi, filtre, sayfalama |
 
 #### Mobil App Ekranları (`driver-mobile-app/app/(drawer)/(tabs)/`)
 | Ekran | Özellikler |
@@ -227,6 +230,7 @@ Mevcut çalışan sistemin üzerine eklenecek performans iyileştirmeleri:
 5. **Unit Testing:** Jest ile kritik servisler için test coverage.
 6. **API Documentation:** Swagger/OpenAPI tam entegrasyon.
 7. **CI/CD Pipeline:** GitHub Actions + Docker deployment.
+8. **Google Maps Geçişi:** Admin harita sayfasında Leaflet → Google Maps geçişi (rehber: `GOOGLE_MAPS_MIGRATION.md`).
 
 ---
 

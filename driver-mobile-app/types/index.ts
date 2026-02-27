@@ -236,9 +236,17 @@ export interface LocationState {
     locationHistory: Coordinates[];
 }
 
+/** react-native-maps Region şeklini yansıtır (dış bağımlılık olmadan) */
+export interface MapRegion {
+    latitude: number;
+    longitude: number;
+    latitudeDelta: number;
+    longitudeDelta: number;
+}
+
 export interface MapState {
     selectedShipmentId: string | null;
-    mapRegion: any | null;
+    mapRegion: MapRegion | null;
     showUserLocation: boolean;
 }
 
@@ -292,8 +300,8 @@ export interface AvailabilityState {
 }
 
 export interface SupportState {
-    currentTicket: any | null;
-    messages: any[];
+    currentTicket: SupportTicket | null;
+    messages: SupportMessage[];
     isLoading: boolean;
     isSending: boolean;
     error: string | null;
@@ -313,10 +321,11 @@ export interface SupportMessage {
 
 export interface SupportTicket {
     id: string;
+    ticketNumber: string;
     driverId: string;
     subject: string;
-    status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
-    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    status: 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+    priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
     messages: SupportMessage[];
     createdAt: string;
     updatedAt: string;

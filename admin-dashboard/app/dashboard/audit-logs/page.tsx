@@ -20,12 +20,13 @@ import {
 
 interface AuditLog {
     id: string;
-    action: string;
+    action: 'CREATE' | 'UPDATE' | 'DELETE' | 'LOGIN' | 'LOGOUT';
     entityType: string;
-    entityId: string;
-    oldValues: any;
-    newValues: any;
-    ipAddress: string;
+    entityId: string | null;
+    oldValues: Record<string, unknown> | null;
+    newValues: Record<string, unknown> | null;
+    ipAddress: string | null;
+    userAgent: string | null;
     createdAt: string;
     user: {
         id: string;
@@ -206,6 +207,12 @@ export default function AuditLogsPage() {
                                     <span className="font-semibold text-gray-500 block">IP:</span>
                                     <span>{selectedLog.ipAddress || '-'}</span>
                                 </div>
+                                {selectedLog.userAgent && (
+                                    <div className="col-span-2">
+                                        <span className="font-semibold text-gray-500 block">User Agent:</span>
+                                        <span className="text-xs text-muted-foreground break-all">{selectedLog.userAgent}</span>
+                                    </div>
+                                )}
                             </div>
 
                             <hr />

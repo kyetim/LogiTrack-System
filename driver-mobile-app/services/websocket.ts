@@ -222,6 +222,19 @@ class WebSocketService {
     }
 
     /**
+     * Listen for ticket status changes (admin closed/resolved ticket etc.)
+     */
+    onTicketStatusChanged(callback: (data: any) => void) {
+        if (!this.supportSocket) return;
+        this.supportSocket.on('support:status-changed', callback);
+    }
+
+    offTicketStatusChanged(callback: (data: any) => void) {
+        if (!this.supportSocket) return;
+        this.supportSocket.off('support:status-changed', callback);
+    }
+
+    /**
      * Remove a specific newMessage listener
      */
     offNewMessage(callback: (message: any) => void) {

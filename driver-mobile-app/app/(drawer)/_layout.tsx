@@ -5,7 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '../../store';
 import { fetchConversations, fetchUnreadCount } from '../../store/slices/messagesSlice';
-import { adminReplied } from '../../store/slices/supportSlice';
+import { adminReplied, ticketStatusChanged } from '../../store/slices/supportSlice';
 import { websocketService } from '../../services/websocket';
 import { useNetworkSync } from '../../src/hooks/useNetworkSync';
 import { usePushNotifications } from '../../src/hooks/usePushNotifications';
@@ -62,6 +62,13 @@ export default function DrawerLayout() {
             websocketService.onAdminReply((data: any) => {
                 if (data?.message) {
                     dispatch(adminReplied(data.message));
+                }
+            });
+
+            // Listen for ticket status changes (e.g., admin closed the ticket)
+            websocketService.onTicketStatusChanged((data: any) => {
+                if (data?.status) {
+                    dispatch(ticketStatusChanged({ status: data.status }));
                 }
             });
         };
