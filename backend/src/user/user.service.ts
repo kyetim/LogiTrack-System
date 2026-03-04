@@ -1,13 +1,17 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserRole } from '@prisma/client';
+import { AccountStatus, UserRole } from '@prisma/client';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private emailService: EmailService,
+    ) { }
 
     async findAll(page: number = 1, limit: number = 10) {
         const skip = (page - 1) * limit;
@@ -188,5 +192,81 @@ export class UserService {
         });
 
         return user;
+    }
+
+    // ============================================================
+    // Admin — Şoför Onay / Red
+    // ============================================================
+
+    /** Admin onayı bekleyen tüm şoförleri listele */
+    async getPendingDrivers() {
+        return this.prisma.user.findMany({
+            where: { accountStatus: AccountStatus.PENDING_APPROVAL, role: UserRole.DRIVER },
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+                createdAt: true,
+                driverProfile: {
+                    select: { id: true, licenseNumber: true },
+                },
+            },
+            orderBy: { createdAt: 'asc' },
+        });
+    }
+
+    /** Şoförü onayla — accountStatus: ACTIVE, DriverProfile.isActive: true */
+    async approveDriver(id: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+            include: { driverProfile: true },
+        });
+
+        if (!user) throw new NotFoundException(`Kullanıcı bulunamadı: ${id}`);
+        if (user.accountStatus !== AccountStatus.PENDING_APPROVAL) {
+            throw new BadRequestException('Bu kullanıcı zaten onaylanmış veya askıya alınmış.');
+        }
+
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id },
+                data: { accountStatus: AccountStatus.ACTIVE },
+            }),
+            this.prisma.driverProfile.update({
+                where: { userId: id },
+                data: { isActive: true },
+            }),
+        ]);
+
+        // Şoföre onay emaili gönder (fire-and-forget)
+        const driverName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email;
+        this.emailService.sendDriverApproved(user.email, driverName).catch(() => { });
+
+        return { message: `${driverName} başarıyla onaylandı.` };
+    }
+
+    /** Şoförü reddet — accountStatus: SUSPENDED, DriverProfile.isActive: false */
+    async rejectDriver(id: string, reason?: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id },
+        });
+
+        if (!user) throw new NotFoundException(`Kullanıcı bulunamadı: ${id}`);
+        if (user.accountStatus !== AccountStatus.PENDING_APPROVAL) {
+            throw new BadRequestException('Bu kullanıcı zaten onaylanmış veya askıya alınmış.');
+        }
+
+        await this.prisma.user.update({
+            where: { id },
+            data: { accountStatus: AccountStatus.SUSPENDED },
+        });
+
+        // Şoföre red emaili gönder (fire-and-forget)
+        const driverName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email;
+        this.emailService.sendDriverRejected(user.email, driverName, reason).catch(() => { });
+
+        return { message: `${driverName} başvurusu reddedildi.` };
     }
 }

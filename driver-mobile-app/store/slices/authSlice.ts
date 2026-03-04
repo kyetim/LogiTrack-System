@@ -37,12 +37,33 @@ export const login = createAsyncThunk(
 
             return { user: response.user, token: response.access_token, driver };
         } catch (error: any) {
-            console.error('❌ Login error:', error);
-            console.error('Error response:', error.response?.data);
-            console.error('Error status:', error.response?.status);
-            console.error('Error message:', error.message);
+            console.log('❌ Login error:', error);
+            console.log('Error response:', error.response?.data);
+            console.log('Error status:', error.response?.status);
+            console.log('Error message:', error.message);
 
-            const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+            let errorMessage = 'Giriş işlemi başarısız oldu. Lütfen tekrar deneyin.';
+
+            if (error.response?.data?.message) {
+                // If backend provided a specific message (string or array of strings)
+                errorMessage = Array.isArray(error.response.data.message)
+                    ? error.response.data.message.join('\n')
+                    : error.response.data.message;
+            } else if (error.message) {
+                // Translate raw Axios errors
+                if (error.message.includes('Network Error')) {
+                    errorMessage = 'Sunucuya bağlanılamadı. Lütfen internet bağlantınızı kontrol edin.';
+                } else if (error.message.includes('401')) {
+                    errorMessage = 'E-posta adresiniz veya şifreniz hatalı.';
+                } else if (error.message.includes('403')) {
+                    errorMessage = 'Hesabınız onaylanmamış veya askıya alınmış olabilir.';
+                } else if (error.message.includes('404')) {
+                    errorMessage = 'Böyle bir hesap bulunamadı.';
+                } else {
+                    errorMessage = error.message; // Fallback to whatever axios threw
+                }
+            }
+
             return rejectWithValue(errorMessage);
         }
     }

@@ -14,6 +14,13 @@ import { useEffect } from 'react';
 import { api } from '../services/api';
 import { websocketService } from '../services/websocket';
 
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
+import { Syne_700Bold, Syne_800ExtraBold } from '@expo-google-fonts/syne';
+import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
+
+SplashScreen.preventAutoHideAsync();
+
 const theme = {
     ...MD3LightTheme,
     colors: {
@@ -49,7 +56,7 @@ function AppContent() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <BottomSheetModalProvider>
                 <PaperProvider theme={theme}>
-                    <StatusBar style="auto" />
+                    <StatusBar style="light" backgroundColor="transparent" translucent={true} />
                     <Slot />
                 </PaperProvider>
             </BottomSheetModalProvider>
@@ -58,6 +65,24 @@ function AppContent() {
 }
 
 export default function RootLayout() {
+    const [fontsLoaded, fontError] = useFonts({
+        Syne_700Bold,
+        Syne_800ExtraBold,
+        Outfit_400Regular,
+        Outfit_500Medium,
+        Outfit_600SemiBold,
+    });
+
+    useEffect(() => {
+        if (fontsLoaded || fontError) {
+            SplashScreen.hideAsync();
+        }
+    }, [fontsLoaded, fontError]);
+
+    if (!fontsLoaded && !fontError) {
+        return null;
+    }
+
     return (
         <Provider store={store}>
             <SafeAreaProvider>

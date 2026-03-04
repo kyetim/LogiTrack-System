@@ -15,6 +15,7 @@ interface DriverLocation {
         id: string;
         status: string;
         isAvailable: boolean;
+        isAvailableForWork: boolean;
         licenseNumber: string;
         user: {
             email: string;

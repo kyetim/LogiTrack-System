@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import api from '@/lib/api';
 
 // Dynamically import map component (Leaflet is client-side only)
 const LiveDriverMap = dynamic(
@@ -40,22 +41,9 @@ export default function MapPage() {
     const fetchDrivers = async () => {
         setLoading(true);
         try {
-            // Using the public endpoint or protected one depending on auth
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'}/drivers/active`, {
-                headers: {
-                    // Assuming token is handled by cookie or localStorage in real app
-                    // For dev, we might strictly need auth if backend enforces it
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setDrivers(data);
-                setLastUpdated(new Date());
-            } else {
-                console.error('Failed to fetch drivers');
-            }
+            const { data } = await api.get('/drivers/active');
+            setDrivers(data);
+            setLastUpdated(new Date());
         } catch (error) {
             console.error('Error fetching drivers:', error);
         } finally {

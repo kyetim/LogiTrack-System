@@ -4,7 +4,9 @@ import { DrawerContentScrollView, DrawerItemList, DrawerContentComponentProps } 
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store';
+import { RootState, useAppDispatch } from '../store';
+import { logout } from '../store/slices/authSlice';
+import { useRouter } from 'expo-router';
 import { COLORS } from '../utils/constants';
 
 // Transit Style Palette
@@ -20,10 +22,17 @@ const DRAWER_COLORS = {
 export default function CustomDrawerContent(props: DrawerContentComponentProps) {
     const { user, driver } = useSelector((state: RootState) => state.auth);
     const [isOnDuty, setIsOnDuty] = React.useState(driver?.status === 'ON_DUTY');
+    const dispatch = useAppDispatch();
+    const router = useRouter();
 
     const toggleStatus = () => {
         setIsOnDuty(!isOnDuty);
         // TODO: Call API to update status
+    };
+
+    const handleLogout = async () => {
+        await dispatch(logout());
+        router.replace('/(auth)/login');
     };
 
     return (
@@ -73,7 +82,7 @@ export default function CustomDrawerContent(props: DrawerContentComponentProps) 
 
             {/* Footer */}
             <View style={styles.footer}>
-                <TouchableOpacity style={styles.logoutButton}>
+                <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                     <MaterialCommunityIcons name="logout" size={24} color="#EF4444" />
                     <Text style={styles.logoutText}>Çıkış Yap</Text>
                 </TouchableOpacity>

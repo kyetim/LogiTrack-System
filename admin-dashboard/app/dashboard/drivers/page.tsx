@@ -21,8 +21,10 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 interface Driver {
     id: string;
@@ -37,6 +39,19 @@ interface Driver {
     createdAt: string;
 }
 
+interface PendingDriver {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
+    createdAt: string;
+    driverProfile: {
+        id: string;
+        licenseNumber: string;
+    };
+}
+
 interface User {
     id: string;
     email: string;
@@ -48,6 +63,7 @@ export default function DriversPage() {
     const router = useRouter();
     const t = useTranslations();
     const [drivers, setDrivers] = useState<Driver[]>([]);
+    const [pendingDrivers, setPendingDrivers] = useState<PendingDriver[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
@@ -88,6 +104,7 @@ export default function DriversPage() {
     useEffect(() => {
         if (user) {
             fetchDrivers();
+            fetchPendingDrivers();
             fetchUsers();
         }
     }, [user]);
@@ -103,6 +120,15 @@ export default function DriversPage() {
             // toast.error(t('common.error'));
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const fetchPendingDrivers = async () => {
+        try {
+            const { data } = await api.get('/users/pending-drivers');
+            setPendingDrivers(data);
+        } catch (error) {
+            console.error('Failed to fetch pending drivers:', error);
         }
     };
 
@@ -146,6 +172,28 @@ export default function DriversPage() {
     const handleViewDocuments = (driver: Driver) => {
         setDocsDriver({ id: driver.id, name: driver.user.email });
         setDocsModalOpen(true);
+    };
+
+    const handleApprove = async (driverId: string) => {
+        try {
+            await api.patch(`/users/${driverId}/approve`);
+            toast.success('Şoför başarıyla onaylandı. Email gönderildi.');
+            fetchPendingDrivers();
+            fetchDrivers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Onaylama başarısız oldu.');
+        }
+    };
+
+    const handleReject = async (driverId: string) => {
+        if (!confirm('Bu başvuruyu reddetmek istediğinize emin misiniz?')) return;
+        try {
+            await api.patch(`/users/${driverId}/reject`, { reason: 'Admin tarafından reddedildi' });
+            toast.success('Başvuru reddedildi. Email gönderildi.');
+            fetchPendingDrivers();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Reddetme başarısız oldu.');
+        }
     };
 
     const handleSubmit = async (data: DriverFormData) => {
@@ -252,6 +300,42 @@ export default function DriversPage() {
         },
     ];
 
+    const pendingColumns: ColumnDef<PendingDriver>[] = [
+        {
+            accessorKey: "firstName",
+            header: "Ad Soyad",
+            cell: ({ row }) => <div className="font-semibold">{row.original.firstName} {row.original.lastName}</div>,
+        },
+        {
+            accessorKey: "email",
+            header: "E-posta",
+        },
+        {
+            accessorKey: "phoneNumber",
+            header: "Telefon",
+        },
+        {
+            accessorKey: "driverProfile.licenseNumber",
+            header: "Ehliyet No",
+            cell: ({ row }) => <div className="font-mono text-xs">{row.original.driverProfile.licenseNumber}</div>,
+        },
+        {
+            accessorKey: "createdAt",
+            header: "Başvuru Tarihi",
+            cell: ({ row }) => <div className="text-sm">{new Date(row.original.createdAt).toLocaleDateString('tr-TR')}</div>,
+        },
+        {
+            id: "actions",
+            header: "Aksiyon",
+            cell: ({ row }) => (
+                <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleApprove(row.original.id)} className="bg-green-600 hover:bg-green-700">Onayla</Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleReject(row.original.id)}>Reddet</Button>
+                </div>
+            )
+        }
+    ];
+
     if (authLoading || !user) {
         return (
             <div className="min-h-screen flex items-center justify-center">
@@ -325,18 +409,47 @@ export default function DriversPage() {
                 </Card>
             </div>
 
-            {/* Data Table */}
-            <DataTable
-                columns={columns}
-                data={drivers}
-                searchKey="email" // Nested accessor search might need custom handling or just use email if flattened
-                searchPlaceholder="E-posta ara..."
-                filterColumn="status"
-                filterOptions={[
-                    { value: 'ON_DUTY', label: t('statuses.ON_DUTY') },
-                    { value: 'OFF_DUTY', label: t('statuses.OFF_DUTY') },
-                ]}
-            />
+            <Tabs defaultValue="active" className="w-full">
+                <TabsList className="mb-4">
+                    <TabsTrigger value="active">
+                        Aktif Sürücüler
+                    </TabsTrigger>
+                    <TabsTrigger value="pending">
+                        Onay Bekleyenler
+                        {pendingDrivers.length > 0 && (
+                            <Badge variant="destructive" className="ml-2 px-1.5 py-0 min-w-5">
+                                {pendingDrivers.length}
+                            </Badge>
+                        )}
+                    </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="active">
+                    {/* Data Table */}
+                    <DataTable
+                        columns={columns}
+                        data={drivers}
+                        searchKey="email" // Nested accessor search might need custom handling or just use email if flattened
+                        searchPlaceholder="E-posta ara..."
+                        filterColumn="status"
+                        filterOptions={[
+                            { value: 'ON_DUTY', label: t('statuses.ON_DUTY') },
+                            { value: 'OFF_DUTY', label: t('statuses.OFF_DUTY') },
+                        ]}
+                    />
+                </TabsContent>
+
+                <TabsContent value="pending">
+                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <DataTable
+                            columns={pendingColumns}
+                            data={pendingDrivers}
+                            searchKey="email"
+                            searchPlaceholder="E-posta ara..."
+                        />
+                    </div>
+                </TabsContent>
+            </Tabs>
 
             <DriverFormModal
                 open={modalOpen}

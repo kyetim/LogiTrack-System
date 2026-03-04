@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class LocationService {
@@ -86,7 +87,6 @@ export class LocationService {
 
         return location;
     }
-
     async getLatestLocations() {
         // Get all active drivers who are ON_DUTY
         const drivers = await this.prisma.driverProfile.findMany({
@@ -111,15 +111,14 @@ export class LocationService {
         // Fetch location for each driver using raw SQL (PostGIS)
         const locationsWithDrivers = await Promise.all(drivers.map(async (driver) => {
             try {
-                // Using queryRawUnsafe to ensure UUID casting works correctly
                 const locationResult: any[] = await this.prisma.$queryRawUnsafe(`
-                    SELECT 
-                        ST_Y(current_location::geometry) as latitude,
-                        ST_X(current_location::geometry) as longitude,
-                        last_location_update as timestamp
-                    FROM driver_profiles 
-                    WHERE id = '${driver.id}'
-                `);
+                        SELECT 
+                            ST_Y(current_location::geometry) as latitude,
+                            ST_X(current_location::geometry) as longitude,
+                            last_location_update as timestamp
+                        FROM driver_profiles 
+                        WHERE id = '${driver.id}'
+                    `);
 
                 const rawLoc = locationResult[0];
 
@@ -140,6 +139,8 @@ export class LocationService {
                     driver: {
                         id: driver.id,
                         status: driver.status,
+                        isAvailable: driver.isAvailable,
+                        isAvailableForWork: driver.isAvailableForWork,
                         licenseNumber: driver.licenseNumber,
                         user: driver.user,
                         vehicle: driver.vehicle,

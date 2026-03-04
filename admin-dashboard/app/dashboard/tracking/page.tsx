@@ -27,6 +27,7 @@ interface DriverLocation {
         id: string;
         status: string;
         isAvailable: boolean;
+        isAvailableForWork: boolean;
         licenseNumber: string;
         user: {
             email: string;
@@ -86,7 +87,8 @@ export default function TrackingPage() {
                             driver: {
                                 ...newLocations[index].driver,
                                 status: data.driver?.status || newLocations[index].driver.status,
-                                isAvailable: data.driver?.isAvailable ?? newLocations[index].driver.isAvailable
+                                isAvailable: data.driver?.isAvailable ?? newLocations[index].driver.isAvailable,
+                                isAvailableForWork: data.driver?.isAvailableForWork ?? newLocations[index].driver.isAvailableForWork
                             }
                         };
                         return newLocations;

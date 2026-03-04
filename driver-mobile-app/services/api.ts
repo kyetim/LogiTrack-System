@@ -52,6 +52,18 @@ class ApiClient {
         return data;
     }
 
+    async registerDriver(payload: any): Promise<void> {
+        await this.client.post('/auth/register-driver', payload);
+    }
+
+    async forgotPassword(email: string): Promise<void> {
+        await this.client.post('/auth/forgot-password', { email });
+    }
+
+    async resetPassword(token: string, newPassword: string): Promise<void> {
+        await this.client.post('/auth/reset-password', { token, newPassword });
+    }
+
     async logout(): Promise<void> {
         await this.client.post('/auth/logout');
     }

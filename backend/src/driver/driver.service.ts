@@ -364,7 +364,7 @@ export class DriverService {
 
 
     async getActiveDrivers() {
-        return this.findAll({ isActive: true, status: DriverStatus.ON_DUTY });
+        return this.findAll({ isActive: true });
     }
 
     /**
@@ -542,6 +542,8 @@ export class DriverService {
                 driver: {
                     id: driver.id,
                     status: driver.status,
+                    isAvailable: driver.isAvailable,
+                    isAvailableForWork: driver.isAvailableForWork,
                     licenseNumber: driver.licenseNumber,
                     user: {
                         email: driver.user.email

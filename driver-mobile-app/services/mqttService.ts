@@ -16,6 +16,7 @@ class MQTTService {
     private driverId: string | null = null;
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 5;
+    private messageCallbacks: ((topic: string, message: string) => void)[] = [];
 
     async connect(): Promise<boolean> {
         try {
@@ -27,6 +28,8 @@ class MQTTService {
             }
             this.driverId = JSON.parse(driverData).id;
 
+            // TODO: WS_URL'i .env'e taşı — şu an local test adresi
+            // Production'da gerçek broker adresiyle değiştirilecek
             const MQTT_URL = __DEV__
                 ? 'ws://192.168.1.127:9001' // WebSocket port - match backend IP
                 : 'wss://your-production-url.com:9001';
@@ -66,6 +69,10 @@ class MQTTService {
                     console.error('Max reconnect attempts reached');
                     this.disconnect();
                 }
+            });
+
+            this.client.on('message', (topic, payload) => {
+                this.messageCallbacks.forEach(cb => cb(topic, payload.toString()));
             });
 
             this.client.on('reconnect', () => {
@@ -146,6 +153,10 @@ class MQTTService {
 
     getQueueSize(): number {
         return this.offlineQueue.length;
+    }
+
+    onMessage(callback: (topic: string, message: string) => void) {
+        this.messageCallbacks.push(callback);
     }
 }
 

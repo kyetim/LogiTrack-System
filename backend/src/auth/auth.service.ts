@@ -1,136 +1,234 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+    Injectable,
+    UnauthorizedException,
+    ConflictException,
+    ForbiddenException,
+    BadRequestException,
+    NotFoundException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { EmailService } from '../email/email.service';
+import { RegisterDto, LoginDto, RegisterDriverDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
+import { AccountStatus, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
+        private emailService: EmailService,
     ) { }
 
+    /** Admin tarafından açılan hesap kaydı (mevcut endpoint — ACTIVE olarak açılır) */
     async register(registerDto: RegisterDto) {
         const { email, password, role } = registerDto;
 
-        // Check if user already exists
-        const existingUser = await this.prisma.user.findUnique({
-            where: { email },
-        });
+        const existingUser = await this.prisma.user.findUnique({ where: { email } });
+        if (existingUser) throw new ConflictException('Bu e-posta adresi zaten kayıtlı.');
 
-        if (existingUser) {
-            throw new ConflictException('User with this email already exists');
-        }
-
-        // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Create user
+        const user = await this.prisma.user.create({
+            data: { email, passwordHash, role, accountStatus: AccountStatus.ACTIVE },
+            select: { id: true, email: true, role: true, accountStatus: true, createdAt: true },
+        });
+
+        const tokens = await this.generateTokens(user.id, user.email, user.role);
+        return { user, ...tokens };
+    }
+
+    /**
+     * Şoför kendi başvurusunu oluşturur.
+     * accountStatus = PENDING_APPROVAL — admin onaylayana kadar login yapamaz.
+     */
+    async registerDriver(dto: RegisterDriverDto) {
+        const { email, password, firstName, lastName, phoneNumber, licenseNumber } = dto;
+
+        // Email tekrarı kontrolü
+        const existingUser = await this.prisma.user.findUnique({ where: { email } });
+        if (existingUser) throw new ConflictException('Bu e-posta adresi zaten kayıtlı.');
+
+        // Ehliyet tekrarı kontrolü
+        const existingLicense = await this.prisma.driverProfile.findUnique({
+            where: { licenseNumber },
+        });
+        if (existingLicense) throw new ConflictException('Bu ehliyet numarası zaten kayıtlı.');
+
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        // Kullanıcı + DriverProfile atomik olarak oluştur
         const user = await this.prisma.user.create({
             data: {
                 email,
                 passwordHash,
-                role,
+                firstName,
+                lastName,
+                phoneNumber,
+                role: UserRole.DRIVER,
+                accountStatus: AccountStatus.PENDING_APPROVAL,
+                driverProfile: {
+                    create: {
+                        licenseNumber,
+                        isActive: false, // Admin onaylayana kadar pasif
+                    },
+                },
             },
             select: {
                 id: true,
                 email: true,
+                firstName: true,
+                lastName: true,
                 role: true,
+                accountStatus: true,
                 createdAt: true,
             },
         });
 
-        // Generate tokens
-        const tokens = await this.generateTokens(user.id, user.email, user.role);
+        // Admin'e bildirim emaili gönder (fire-and-forget)
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@logitrack.com';
+        this.emailService
+            .sendDriverRegistrationRequest(adminEmail, { firstName, lastName, email, phoneNumber, licenseNumber })
+            .catch(() => { }); // Email hatası kayıt akışını engellemez
 
         return {
-            user,
-            ...tokens,
+            message: 'Başvurunuz alındı. Admin onayından sonra giriş yapabileceksiniz.',
+            userId: user.id,
         };
     }
 
+    /** Kullanıcı girişi */
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto;
 
-        console.log('🔐 Login attempt:', { email });
+        const user = await this.prisma.user.findUnique({ where: { email } });
 
-        // Find user
-        const user = await this.prisma.user.findUnique({
-            where: { email },
-        });
+        if (!user) throw new UnauthorizedException('Geçersiz e-posta veya şifre.');
 
-        if (!user) {
-            console.log('❌ User not found:', email);
-            throw new UnauthorizedException('Invalid credentials');
-        }
-
-        console.log('✅ User found:', { id: user.id, email: user.email, role: user.role });
-
-        // Verify password
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+        if (!isPasswordValid) throw new UnauthorizedException('Geçersiz e-posta veya şifre.');
 
-        if (!isPasswordValid) {
-            console.log('❌ Invalid password for:', email);
-            throw new UnauthorizedException('Invalid credentials');
+        // Onay bekleyen hesap girişi engelle
+        if (user.accountStatus === AccountStatus.PENDING_APPROVAL) {
+            throw new ForbiddenException('Hesabınız henüz admin tarafından onaylanmamış. Lütfen bekleyin.');
         }
 
-        console.log('✅ Password valid, generating tokens');
+        if (user.accountStatus === AccountStatus.SUSPENDED) {
+            throw new ForbiddenException('Hesabınız askıya alınmış. Destek için iletişime geçin.');
+        }
 
-        // Generate tokens
         const tokens = await this.generateTokens(user.id, user.email, user.role);
 
         return {
             user: {
                 id: user.id,
                 email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 role: user.role,
+                accountStatus: user.accountStatus,
                 createdAt: user.createdAt,
             },
             ...tokens,
         };
     }
 
-    async refreshToken(userId: string) {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-        });
+    /**
+     * Şifremi unuttum — 6 haneli tek kullanımlık kod üretir ve emaile gönderir.
+     * Kod PENDING_APPROVAL ve ACTIVE hesaplar için çalışır.
+     */
+    async forgotPassword(dto: ForgotPasswordDto) {
+        const { email } = dto;
 
+        const user = await this.prisma.user.findUnique({ where: { email } });
+
+        // Güvenlik: kullanıcı bulunamasa bile aynı mesajı döndür (user enumeration önlemi)
         if (!user) {
-            throw new UnauthorizedException('User not found');
+            return { message: 'Kayıtlı bir hesap varsa sıfırlama kodu gönderildi.' };
         }
 
-        return this.generateTokens(user.id, user.email, user.role);
+        // 6 haneli güvenli rastgele kod
+        const token = crypto.randomInt(100000, 999999).toString();
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 saat
+
+        // Upsert: mevcut token varsa güncelle, yoksa oluştur
+        await this.prisma.passwordResetToken.upsert({
+            where: { userId: user.id },
+            update: { token, expiresAt, used: false },
+            create: { userId: user.id, token, expiresAt },
+        });
+
+        // Email gönder (fire-and-forget)
+        this.emailService.sendPasswordResetEmail(email, token).catch(() => { });
+
+        return { message: 'Kayıtlı bir hesap varsa sıfırlama kodu gönderildi.' };
     }
 
-    private async generateTokens(userId: string, email: string, role: string) {
-        const payload = { sub: userId, email, role };
+    /**
+     * Şifre sıfırlama — token doğrula, yeni şifreyi kaydet.
+     */
+    async resetPassword(dto: ResetPasswordDto) {
+        const { token, newPassword } = dto;
 
-        const accessToken = await this.jwtService.signAsync(payload, {
-            secret: process.env.JWT_SECRET,
-            expiresIn: '15m',
+        const resetRecord = await this.prisma.passwordResetToken.findUnique({
+            where: { token },
+            include: { user: true },
         });
 
-        const refreshToken = await this.jwtService.signAsync(payload, {
-            secret: process.env.JWT_REFRESH_SECRET,
-            expiresIn: '7d',
-        });
+        if (!resetRecord || resetRecord.used) {
+            throw new BadRequestException('Geçersiz veya kullanılmış sıfırlama kodu.');
+        }
 
-        return {
-            access_token: accessToken,
-            refresh_token: refreshToken,
-        };
+        if (resetRecord.expiresAt < new Date()) {
+            throw new BadRequestException('Sıfırlama kodunun süresi dolmuş. Lütfen tekrar isteyin.');
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+
+        // Şifreyi güncelle ve token'ı kullanılmış olarak işaretle (atomik)
+        await this.prisma.$transaction([
+            this.prisma.user.update({
+                where: { id: resetRecord.userId },
+                data: { passwordHash },
+            }),
+            this.prisma.passwordResetToken.update({
+                where: { id: resetRecord.id },
+                data: { used: true },
+            }),
+        ]);
+
+        return { message: 'Şifreniz başarıyla güncellendi. Giriş yapabilirsiniz.' };
+    }
+
+    async refreshToken(userId: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new UnauthorizedException('Kullanıcı bulunamadı.');
+        return this.generateTokens(user.id, user.email, user.role);
     }
 
     async validateUser(userId: string) {
         return this.prisma.user.findUnique({
             where: { id: userId },
-            select: {
-                id: true,
-                email: true,
-                role: true,
-                createdAt: true,
-            },
+            select: { id: true, email: true, role: true, accountStatus: true, createdAt: true },
         });
+    }
+
+    private async generateTokens(userId: string, email: string, role: string) {
+        const payload = { sub: userId, email, role };
+
+        const [accessToken, refreshToken] = await Promise.all([
+            this.jwtService.signAsync(payload, {
+                secret: process.env.JWT_SECRET,
+                expiresIn: '15m',
+            }),
+            this.jwtService.signAsync(payload, {
+                secret: process.env.JWT_REFRESH_SECRET,
+                expiresIn: '7d',
+            }),
+        ]);
+
+        return { access_token: accessToken, refresh_token: refreshToken };
     }
 }

@@ -19,7 +19,10 @@
         "NSLocationWhenInUseUsageDescription": "Sevkiyatlarınızı haritada görebilmek ve konumunuzu paylaşabilmek için konum izni gerekiyor.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Teslimat sırasında konumunuzu otomatik olarak güncelleyebilmek için arka planda konum izni gerekiyor.",
         "NSCameraUsageDescription": "Teslimat fotoğrafı çekebilmek için kamera izni gerekiyor.",
-        "NSPhotoLibraryUsageDescription": "Teslimat fotoğrafı ekleyebilmek için galeri izni gerekiyor."
+        "NSPhotoLibraryUsageDescription": "Teslimat fotoğrafı ekleyebilmek için galeri izni gerekiyor.",
+        "UIBackgroundModes": [
+          "location"
+        ]
       }
     },
     "android": {

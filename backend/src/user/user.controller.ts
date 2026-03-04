@@ -48,23 +48,18 @@ export class UserController {
     @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     @Header('Content-Disposition', 'attachment; filename="users.xlsx"')
     async exportUsers() {
-        // Fetch up to 10,000 users for export
         const users = await this.userService.findAll(1, 10000);
-
-        // Flatten data for Excel
         const exportData = users.data.map(u => ({
             ID: u.id,
             Email: u.email,
             Role: u.role,
             Created_At: u.createdAt,
             Driver_License: u.driverProfile?.licenseNumber || 'N/A',
-            Driver_Status: u.driverProfile?.status || 'N/A'
+            Driver_Status: u.driverProfile?.status || 'N/A',
         }));
-
         const worksheet = xlsx.utils.json_to_sheet(exportData);
         const workbook = xlsx.utils.book_new();
         xlsx.utils.book_append_sheet(workbook, worksheet, 'Users');
-
         const buffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         return new StreamableFile(buffer);
     }
@@ -75,16 +70,49 @@ export class UserController {
         return this.userService.findAdmins();
     }
 
+    // ============================================================
+    // Admin — Şoför Onay / Red (pending-drivers BEFORE :id routes)
+    // ============================================================
+
+    @Get('pending-drivers')
+    @Roles(UserRole.ADMIN)
+    @ApiOperation({ summary: 'Admin onayı bekleyen şoför başvurularını listele' })
+    @ApiResponse({ status: 200, description: 'Onay bekleyen şoför listesi' })
+    async getPendingDrivers() {
+        return this.userService.getPendingDrivers();
+    }
+
+    @Patch(':id/approve')
+    @Roles(UserRole.ADMIN)
+    @ApiOperation({ summary: 'Şoförü onayla — PENDING_APPROVAL → ACTIVE' })
+    @ApiParam({ name: 'id', description: 'Kullanıcı ID' })
+    @ApiResponse({ status: 200, description: 'Şoför onaylandı.' })
+    @ApiResponse({ status: 400, description: 'Zaten onaylanmış veya askıya alınmış.' })
+    @ApiResponse({ status: 404, description: 'Kullanıcı bulunamadı.' })
+    async approveDriver(@Param('id') id: string) {
+        return this.userService.approveDriver(id);
+    }
+
+    @Patch(':id/reject')
+    @Roles(UserRole.ADMIN)
+    @ApiOperation({ summary: 'Şoför başvurusunu reddet — PENDING_APPROVAL → SUSPENDED' })
+    @ApiParam({ name: 'id', description: 'Kullanıcı ID' })
+    @ApiResponse({ status: 200, description: 'Başvuru reddedildi.' })
+    async rejectDriver(@Param('id') id: string, @Body('reason') reason?: string) {
+        return this.userService.rejectDriver(id, reason);
+    }
+
+    // ============================================================
+    // Generic CRUD
+    // ============================================================
+
     @Get(':id')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
-    async findOne(@Param('id') id: string, @Request() req) {
+    async findOne(@Param('id') id: string, @Request() req: { user: { role: UserRole; id: string } }) {
         const user = await this.userService.findOne(id);
-
-        // Drivers can only see their own profile
         if (req.user.role === UserRole.DRIVER && req.user.id !== id) {
-            throw new ForbiddenException('You can only access your own profile');
+            throw new ForbiddenException('Sadece kendi profilinize erişebilirsiniz.');
         }
-
         return user;
     }
 
@@ -99,18 +127,14 @@ export class UserController {
     async update(
         @Param('id') id: string,
         @Body() updateUserDto: UpdateUserDto,
-        @Request() req,
+        @Request() req: { user: { role: UserRole; id: string } },
     ) {
-        // Drivers can only update their own profile
         if (req.user.role === UserRole.DRIVER && req.user.id !== id) {
-            throw new ForbiddenException('You can only update your own profile');
+            throw new ForbiddenException('Sadece kendi profilinizi güncelleyebilirsiniz.');
         }
-
-        // Drivers cannot change their role
         if (req.user.role === UserRole.DRIVER && updateUserDto.role) {
-            throw new ForbiddenException('You cannot change your role');
+            throw new ForbiddenException('Rolünüzü değiştiremezsiniz.');
         }
-
         return this.userService.update(id, updateUserDto);
     }
 
