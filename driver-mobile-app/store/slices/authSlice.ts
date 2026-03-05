@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../../src/services/secureStorage';
 import { api } from '../../services/api';
 import { AuthState, User } from '../../types';
 import { STORAGE_KEYS } from '../../utils/constants';
@@ -24,8 +25,8 @@ export const login = createAsyncThunk(
             console.log('✅ Login API success:', response);
 
             // Store token
-            await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.access_token);
-            await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
+            await secureStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.access_token);
+            await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
 
             // Get driver profile
             console.log('📋 Fetching driver profile...');
@@ -33,7 +34,7 @@ export const login = createAsyncThunk(
             console.log('✅ Driver profile success:', driver);
 
             // Store driver profile for MQTT
-            await AsyncStorage.setItem(STORAGE_KEYS.DRIVER, JSON.stringify(driver));
+            await secureStorage.setItem(STORAGE_KEYS.DRIVER, JSON.stringify(driver));
 
             return { user: response.user, token: response.access_token, driver };
         } catch (error: any) {
@@ -73,7 +74,7 @@ export const logout = createAsyncThunk(
     'auth/logout',
     async () => {
         // Clear storage first
-        await AsyncStorage.multiRemove([
+        await secureStorage.multiRemove([
             STORAGE_KEYS.AUTH_TOKEN,
             STORAGE_KEYS.USER_DATA,
             STORAGE_KEYS.DRIVER,
@@ -95,8 +96,33 @@ export const loadStoredAuth = createAsyncThunk(
     'auth/loadStored',
     async (_, { rejectWithValue }) => {
         try {
-            const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
-            const userData = await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA);
+            // Eski AsyncStorage'dan yeni SecureStore'a tek seferlik migrasyon
+            const migrateToken = async () => {
+                const legacyToken = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                if (legacyToken) {
+                    await secureStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, legacyToken);
+                    await secureStorage.setItem(STORAGE_KEYS.USER_DATA,
+                        await AsyncStorage.getItem(STORAGE_KEYS.USER_DATA) ?? '');
+                    await secureStorage.setItem(STORAGE_KEYS.DRIVER,
+                        await AsyncStorage.getItem(STORAGE_KEYS.DRIVER) ?? '');
+
+                    // Legacy'i temizle
+                    try {
+                        await AsyncStorage.multiRemove([
+                            STORAGE_KEYS.AUTH_TOKEN,
+                            STORAGE_KEYS.USER_DATA,
+                            STORAGE_KEYS.DRIVER,
+                        ]);
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+            };
+
+            await migrateToken();
+
+            const token = await secureStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+            const userData = await secureStorage.getItem(STORAGE_KEYS.USER_DATA);
 
             if (!token || !userData) {
                 throw new Error('No stored auth');

@@ -1,12 +1,1 @@
-src/hooks/useDriverLocation.ts(4,61): error TS2307: Cannot find module '../services/locationTracking' or its corresponding type declarations.
-src/hooks/useDriverLocation.ts(5,25): error TS2307: Cannot find module '../services/mqttService' or its corresponding type declarations.
-src/hooks/useDriverLocation.ts(9,50): error TS2345: Argument of type '({ data, error }: TaskManagerTaskBody<unknown>) => void' is not assignable to parameter of type 'TaskManagerTaskExecutor<unknown>'.
-  Type 'void' is not assignable to type 'Promise<any>'.
-src/screens/profile/DocumentsScreen.tsx(186,29): error TS2322: Type '{ title: string; variant: "primary"; size: "sm"; fullWidth: true; leftIcon: Element; onPress: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & AppButtonProps'.
-  Property 'leftIcon' does not exist on type 'IntrinsicAttributes & AppButtonProps'.
-src/screens/profile/DocumentsScreen.tsx(197,37): error TS2322: Type '{ title: string; variant: "outline"; size: "sm"; fullWidth: true; leftIcon: Element; onPress: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & AppButtonProps'.
-  Property 'leftIcon' does not exist on type 'IntrinsicAttributes & AppButtonProps'.
-src/screens/profile/DocumentsScreen.tsx(207,37): error TS2322: Type '{ title: string; variant: "ghost"; size: "sm"; fullWidth: true; leftIcon: Element; onPress: () => Promise<void>; }' is not assignable to type 'IntrinsicAttributes & AppButtonProps'.
-  Property 'leftIcon' does not exist on type 'IntrinsicAttributes & AppButtonProps'.
-src/screens/profile/LeaderboardScreen.tsx(144,25): error TS2322: Type '{ stats: { label: string; value: string; }[]; }' is not assignable to type 'IntrinsicAttributes & StatsRowProps'.
-  Property 'stats' does not exist on type 'IntrinsicAttributes & StatsRowProps'.
+services/api.ts(249,29): error TS2304: Cannot find name 'AsyncStorage'.

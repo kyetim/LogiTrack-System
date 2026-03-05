@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '@/services/secureStorage';
 import { API_URL, STORAGE_KEYS } from '../utils/constants';
 import { AuthResponse, ApiResponse, Shipment, LocationUpdate, Driver } from '../types';
 
@@ -18,7 +18,7 @@ class ApiClient {
         // Request interceptor - Add auth token
         this.client.interceptors.request.use(
             async (config) => {
-                const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+                const token = await secureStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
                 if (token) {
                     config.headers.Authorization = `Bearer ${token}`;
                 }
@@ -33,7 +33,7 @@ class ApiClient {
             async (error: AxiosError) => {
                 if (error.response?.status === 401) {
                     // Token expired - clear storage
-                    await AsyncStorage.multiRemove([
+                    await secureStorage.multiRemove([
                         STORAGE_KEYS.AUTH_TOKEN,
                         STORAGE_KEYS.USER_DATA,
                     ]);
