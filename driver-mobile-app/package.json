@@ -1,0 +1,76 @@
+{
+  "name": "logitrack-driver",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "node update-ip.js && expo start",
+    "android": "node update-ip.js --emulator && expo start --android",
+    "ios": "node update-ip.js && expo start --ios",
+    "android:device": "node update-ip.js && expo start --android"
+  },
+  "dependencies": {
+    "@expo-google-fonts/outfit": "^0.4.3",
+    "@expo-google-fonts/syne": "^0.4.2",
+    "@expo/vector-icons": "^15.0.3",
+    "@gorhom/bottom-sheet": "^5.2.8",
+    "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/netinfo": "^11.4.1",
+    "@react-navigation/bottom-tabs": "^7.4.0",
+    "@react-navigation/drawer": "^7.5.0",
+    "@react-navigation/native": "^7.1.8",
+    "@react-navigation/native-stack": "^7.3.16",
+    "@reduxjs/toolkit": "^2.11.2",
+    "@sentry/react-native": "^8.5.0",
+    "axios": "^1.13.2",
+    "axios-retry": "^4.5.0",
+    "expo": "~54.0.31",
+    "expo-camera": "~17.0.10",
+    "expo-constants": "~18.0.13",
+    "expo-device": "~8.0.10",
+    "expo-document-picker": "~14.0.8",
+    "expo-file-system": "~19.0.21",
+    "expo-font": "~14.0.11",
+    "expo-image-picker": "~17.0.10",
+    "expo-linear-gradient": "~15.0.8",
+    "expo-linking": "^8.0.11",
+    "expo-location": "^19.0.8",
+    "expo-notifications": "^0.32.16",
+    "expo-router": "~6.0.21",
+    "expo-secure-store": "~15.0.8",
+    "expo-sharing": "~14.0.8",
+    "expo-splash-screen": "~31.0.13",
+    "expo-status-bar": "~3.0.9",
+    "expo-task-manager": "~14.0.9",
+    "lucide-react-native": "^0.575.0",
+    "mqtt": "^5.14.1",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-gesture-handler": "~2.28.0",
+    "react-native-maps": "1.20.1",
+    "react-native-paper": "^5.12.3",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-screens": "~4.16.0",
+    "react-native-signature-canvas": "^5.0.2",
+    "react-native-svg": "^15.12.1",
+    "react-native-webview": "13.15.0",
+    "react-native-worklets": "^0.5.1",
+    "react-redux": "^9.1.2",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.0",
+    "babel-preset-expo": "^54.0.10",
+    "typescript": "~5.9.2"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "@react-native-community/netinfo",
+        "react-native-svg",
+        "react-native-worklets"
+      ]
+    }
+  },
+  "private": true
+}

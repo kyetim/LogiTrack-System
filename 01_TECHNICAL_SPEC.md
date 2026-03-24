@@ -1,4 +1,4 @@
-# LOGITRACK - TEKNİK TASARIM DOKÜMANI (TDD) v2.0 (React Native Edition)
+# LOGITRACK - TEKNİK TASARIM DOKÜMANI (TDD) v2.0 (React Native Expo Edition)
 
 ## 1. PROJE ÖZETİ
 LogiTrack; lojistik firmaları için saha (şoförler) ve merkez (operasyon) arasındaki veri akışını yöneten, gerçek zamanlı konum takibi ve operasyonel yönetim platformudur.
@@ -13,18 +13,33 @@ LogiTrack; lojistik firmaları için saha (şoförler) ve merkez (operasyon) ara
 
 ### B. Mobile App (Şoför)
 * **Framework:** React Native (Expo managed workflow).
-* **State Management:** Zustand (Global State) + TanStack Query (Server State & Caching).
-* **Local Storage:** `react-native-mmkv` (En hızlı yerel depolama).
+* **State Management:** Redux Toolkit (RTK) - Global State.
+* **Local Storage:** `@react-native-async-storage/async-storage` (Mevcut). *Faz 2'de MMKV'ye geçilecek.*
+* **UI Framework:** React Native Paper & Custom Styling.
 * **Maps:** `react-native-maps` (Google/Apple Maps native).
-* **Background Tasks:** `expo-task-manager` ve `expo-background-fetch` (veya `react-native-background-geolocation`).
+* **Background Tasks:** `expo-task-manager` ve `expo-background-fetch`.
 * **Form Management:** React Hook Form + Zod.
 
-### C. Veritabanı Stratejisi
+### C. Admin Panel (Yönetim Konsolu)
+* **Framework:** Next.js / React
+* **Data Fetching:** SWR (Stale-While-Revalidate).
+* **UI Architecture:** TailwindCSS + Radix UI.
+* **UI Components:** `shadcn/ui` (Premium kurumsal görünüm).
+* **Charts:** Recharts.
+
+### D. Veritabanı Stratejisi
 * **PostgreSQL:** İlişkisel veriler (Kullanıcı, Yük, Araç).
 * **PostGIS:** Coğrafi sorgular (Hangi şoför hangi yükleme noktasına yakın? Alan ihlali var mı?).
 * **Redis:** Anlık konum verilerinin önbelleği (Cache) ve İş Kuyrukları (Queue).
 
-## 3. VERİTABANI ŞEMASI (Entity & Relations)
+## 3. ÖLÇEKLENEBİLİRLİK VE PERFORMANS YOL HARİTASI (FAZ 2)
+Mevcut çalışan sistemin üzerine eklenecek performans iyileştirmeleri:
+1. **Storage:** `AsyncStorage` yerine `react-native-mmkv` kullanımı.
+2. **Data Fetching:** Mobil tarafta `RTK Query` entegrasyonu.
+3. **Offline:** `WatermelonDB` ile binlerce kaydın yerel yönetimi.
+4. **Real-Time:** Socket.io optimizasyonları.
+
+## 4. VERİTABANI ŞEMASI (Entity & Relations)
 
 ### Core Entities
 * **User:** (`id`, `email`, `password`, `role` [ADMIN, DISPATCHER, DRIVER], `createdAt`)
@@ -50,26 +65,26 @@ LogiTrack; lojistik firmaları için saha (şoförler) ve merkez (operasyon) ara
     * `speed` (Hız)
     * *Not:* Bu tablo, geçmişe dönük raporlama içindir. Canlı takip Redis üzerinden akar.
 
-## 4. KRİTİK AKIŞLAR (WORKFLOWS)
+## 5. KRİTİK AKIŞLAR (WORKFLOWS)
 
 ### Akış 1: Offline-First Veri Senkronizasyonu
 1.  **Senaryo:** Şoför tünelde, internet yok. "Teslim Ettim" butonuna bastı.
-2.  **Mobile:** `TanStack Query` "mutation" işlemini yapar. İnternet olmadığı için işlem "paused" moda geçer. Veri `react-native-mmkv` içine, "pending_actions" kuyruğuna yazılır. UI'da kullanıcıya "Sırada bekliyor" ikonu gösterilir.
-3.  **Sync:** İnternet geldiği anda (NetInfo listener), kuyruktaki veri NestJS API'ye gönderilir.
+2.  **Mobile:** Redux Toolkit state'i günceller. Veri `AsyncStorage` içine, "pending_actions" kuyruğuna yazılır.
+3.  **Sync:** İnternet geldiği anda (NetInfo listener), kuyruktaki veri backend'e gönderilir.
 
 ### Akış 2: Batarya Dostu Canlı Takip
 1.  Şoför "Mesaiye Başla" der.
 2.  Uygulama arka plan konum servisini başlatır.
 3.  Eğer şoför duruyorsa (hız < 5km/s), GPS 5 dakikada bir ping atar.
 4.  Eğer hareket halindeyse (hız > 20km/s), GPS 10 saniyede bir ping atar.
-5.  Veriler MQTT veya Socket.io üzerinden sunucuya akar.
+5.  Veriler Socket.io üzerinden sunucuya akar.
 
 ### Akış 3: OTA (Over-The-Air) Güncelleme
 1.  Kritik bir hata tespit edildiğinde `eas update` komutu ile yeni JS bundle oluşturulur.
 2.  Şoför uygulamayı bir sonraki açışında sessizce güncelleme iner.
 3.  Uygulama yeniden başladığında güncel kod devreye girer.
 
-## 5. API GÜVENLİĞİ
+## 6. API GÜVENLİĞİ
 * Tüm endpointler **JWT Guard** ile korunur.
 * Şoförler sadece kendilerine atanan `Shipment` verisini görebilir (Service katmanında kontrol).
 * Rate Limiting (NestJS Throttler) uygulanarak API saldırıları engellenir.
@@ -77,8 +92,8 @@ LogiTrack; lojistik firmaları için saha (şoförler) ve merkez (operasyon) ara
 ```mermaid
 graph TD
     subgraph Client_Side [Müşteri Tarafı]
-        DriverApp["📱 Driver Mobile App<br/>(React Native + Offline DB)"]
-        AdminPanel["💻 Admin Dashboard<br/>(Next.js / React)"]
+        DriverApp["📱 Driver Mobile App<br/>(React Native Expo + Redux)"]
+        AdminPanel["💻 Admin Dashboard<br/>(Next.js + SWR)"]
     end
 
     subgraph Server_Side [NestJS Backend Ecosystem]
@@ -108,3 +123,4 @@ graph TD
     style DriverApp fill:#f9f,stroke:#333,stroke-width:2px
     style Postgres fill:#bbf,stroke:#333,stroke-width:2px
     style Redis fill:#d44,stroke:#333,stroke-width:2px,color:#fff
+

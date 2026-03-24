@@ -1,0 +1,660 @@
+// LogiTrack - Internal Company Fleet Management Schema
+// Database: PostgreSQL with PostGIS support
+// Version: 2.1 - Internal Driver Availability Focus
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE ENTITIES
+// ============================================
+
+enum UserRole {
+  ADMIN
+  DISPATCHER
+  DRIVER
+  COMPANY_OWNER
+  COMPANY_MANAGER
+}
+
+enum AccountStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  SUSPENDED
+}
+
+enum DriverStatus {
+  ON_DUTY
+  OFF_DUTY
+}
+
+enum ShipmentStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  passwordHash  String          @map("password_hash")
+  role          UserRole
+  firstName     String?         @map("first_name")
+  lastName      String?         @map("last_name")
+  phoneNumber   String?         @map("phone_number")
+  pushToken     String?         @map("push_token")
+  accountStatus AccountStatus   @default(ACTIVE) @map("account_status")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+  
+  // Relations
+  driverProfile     DriverProfile?
+  shipments         Shipment[]          @relation("AssignedDriver")
+  companyMemberships CompanyUser[]
+  sentMessages      Message[]           @relation("SentMessages")
+  receivedMessages  Message[]           @relation("ReceivedMessages")
+  
+  // Support Ticket Relations
+  driverTickets     SupportTicket[]     @relation("DriverTickets")
+  assignedTickets   SupportTicket[]     @relation("AssignedTickets")
+  supportMessages   SupportMessage[]    @relation("SentSupportMessages")
+  
+  // Audit Logs
+  auditLogs         AuditLog[]          @relation("UserAuditLogs")
+  
+  // Auth
+  passwordResetToken PasswordResetToken?
+  refreshTokens      RefreshToken[]
+  
+  // Soft Delete
+  deletedAt     DateTime?       @map("deleted_at")
+  deletedBy     String?         @map("deleted_by")
+  
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model DriverProfile {
+  id            String        @id @default(uuid())
+  userId        String        @unique @map("user_id")
+  licenseNumber String        @unique @map("license_number")
+  vehicleId     String?       @map("vehicle_id")
+  isActive      Boolean       @default(true) @map("is_active")
+  status        DriverStatus  @default(OFF_DUTY)
+  
+  // Availability & Capacity (Internal Fleet Management)
+  isAvailable        Boolean   @default(true) @map("is_available")
+  currentLoadCapacity  Float    @default(0) @map("current_load_capacity")
+  preferredRoutes      Json?    @map("preferred_routes")
+
+  // Location tracking for job matching
+  currentLocation      Unsupported("geography(Point,4326)")? @map("current_location")
+  lastLocationUpdate   DateTime? @map("last_location_update")
+  isAvailableForWork   Boolean   @default(false) @map("is_available_for_work")
+  
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  
+  // Relations
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle       Vehicle?      @relation(fields: [vehicleId], references: [id])
+  locationLogs  LocationLog[]
+  score         DriverScore?
+  geofenceEvents GeofenceEvent[]
+  
+  @@map("driver_profiles")
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum MaintenanceType {
+  ROUTINE
+  REPAIR
+  INSPECTION
+  OTHER
+}
+
+enum VehicleTypeEnum {
+  TRUCK
+  TRAILER
+  TANKER
+  REFRIGERATED
+  CONTAINER
+  FLATBED
+}
+
+model Vehicle {
+  id              String           @id @default(uuid())
+  plateNumber     String           @unique @map("plate_number")
+  capacity        Float
+  type            String
+  status          VehicleStatus    @default(ACTIVE)
+  mileage         Float            @default(0)
+  lastServiceDate DateTime?        @map("last_service_date")
+  nextServiceDate DateTime?        @map("next_service_date")
+  
+  // Enhanced vehicle specs
+  vehicleTypeEnum VehicleTypeEnum  @default(TRUCK) @map("vehicle_type_enum")
+  maxWeight       Float?           @map("max_weight")
+  maxVolume       Float?           @map("max_volume")
+  features        Json?            // Refrigeration, GPS, etc.
+  
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+  
+  // Relations
+  drivers         DriverProfile[]
+  maintenanceLogs MaintenanceLog[]
+  
+  @@map("vehicles")
+}
+
+model MaintenanceLog {
+  id          String          @id @default(uuid())
+  vehicleId   String          @map("vehicle_id")
+  type        MaintenanceType
+  description String
+  cost        Float
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now()) @map("created_at")
+  
+  // Relations
+  vehicle     Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  
+  @@index([vehicleId])
+  @@map("maintenance_logs")
+}
+
+// ============================================
+// COMPANY & MULTI-TENANCY (INTERNAL)
+// ============================================
+
+enum CompanyUserRole {
+  OWNER
+  MANAGER
+  DISPATCHER
+  VIEWER
+}
+
+model Company {
+  id              String    @id @default(uuid())
+  name            String
+  taxNumber       String    @unique @map("tax_number")
+  address         String
+  contactEmail    String    @map("contact_email")
+  contactPhone    String    @map("contact_phone")
+  isActive        Boolean   @default(true) @map("is_active")
+  
+  // Financial
+  creditLimit     Float     @default(0) @map("credit_limit")
+  currentBalance  Float     @default(0) @map("current_balance")
+  
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  
+  // Relations
+  invoices        Invoice[]
+  users           CompanyUser[]
+  
+  @@map("companies")
+}
+
+model CompanyUser {
+  id         String           @id @default(uuid())
+  userId     String           @map("user_id")
+  companyId  String           @map("company_id")
+  role       CompanyUserRole  @default(VIEWER)
+  createdAt  DateTime         @default(now()) @map("created_at")
+  
+  // Relations
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, companyId])
+  @@map("company_users")
+}
+
+// ============================================
+// LOGISTICS ENTITIES
+// ============================================
+
+model Shipment {
+  id                String          @id @default(uuid())
+  trackingNumber    String          @unique @map("tracking_number")
+  driverId          String?         @map("driver_id")
+  status            ShipmentStatus  @default(PENDING)
+  
+  // Address strings for display
+  origin            String
+  destination       String
+  
+  // Coordinates stored as JSON for display/backward compatibility
+  originCoordinates      Json            @map("origin_coordinates")
+  destinationCoordinates Json            @map("destination_coordinates")
+  
+  // PostGIS geography columns for proximity searches
+  pickupLocationGeo      Unsupported("geography(Point,4326)")? @map("pickup_location_geo")
+  deliveryLocationGeo    Unsupported("geography(Point,4326)")? @map("delivery_location_geo")
+  
+  estimatedArrival  DateTime?       @map("estimated_arrival")
+  proofOfDelivery   Json?           @map("proof_of_delivery")
+  waybillUrl        String?         @map("waybill_url") // Uploaded specific waybill
+  sequence          Int?            // Optimized delivery order (1, 2, 3...)
+  
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  
+  // Relations
+  driver            User?           @relation("AssignedDriver", fields: [driverId], references: [id])
+  deliveryProof     DeliveryProof?
+  geofenceEvents    GeofenceEvent[]
+  invoices          Invoice[]
+  
+  // Soft Delete
+  deletedAt         DateTime?       @map("deleted_at")
+  
+  @@index([driverId])
+  @@index([status])
+  @@index([deletedAt])
+  @@index([status, driverId])
+  @@index([driverId, status])
+  @@map("shipments")
+}
+
+model DeliveryProof {
+  id            String    @id @default(uuid())
+  shipmentId    String    @unique @map("shipment_id")
+  photoUrl      String?   @map("photo_url")
+  signatureUrl  String?   @map("signature_url")
+  recipientName String?   @map("recipient_name")
+  notes         String?
+  deliveredAt   DateTime  @default(now()) @map("delivered_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  
+  // Relations
+  shipment      Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  
+  @@map("delivery_proofs")
+}
+
+// ============================================
+// GEOFENCING SYSTEM
+// ============================================
+
+enum GeofenceType {
+  PICKUP
+  DELIVERY
+  WAREHOUSE
+  CHECKPOINT
+}
+
+model Geofence {
+  id          String         @id @default(uuid())
+  name        String
+  type        GeofenceType
+  
+  center      Json           // { lat, lng }
+  radius      Float          // in meters
+  
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  
+  // Relations
+  events      GeofenceEvent[]
+  
+  @@map("geofences")
+}
+
+enum GeofenceEventType {
+  ENTER
+  EXIT
+}
+
+model GeofenceEvent {
+  id          String            @id @default(uuid())
+  geofenceId  String            @map("geofence_id")
+  driverId    String            @map("driver_id")
+  shipmentId  String?           @map("shipment_id")
+  
+  eventType   GeofenceEventType @map("event_type")
+  timestamp   DateTime          @default(now())
+  location    Json              // { lat, lng }
+  
+  // Relations
+  geofence    Geofence      @relation(fields: [geofenceId], references: [id], onDelete: Cascade)
+  driver      DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  shipment    Shipment?     @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  
+  @@index([driverId])
+  @@index([timestamp])
+  @@index([geofenceId])
+  @@map("geofence_events")
+}
+
+// ============================================
+// DOCUMENT MANAGEMENT
+// ============================================
+
+enum EntityType {
+  USER
+  VEHICLE
+  SHIPMENT
+  COMPANY
+  DRIVER
+}
+
+enum DocumentType {
+  DRIVERS_LICENSE
+  VEHICLE_REGISTRATION
+  INSURANCE
+  SRC_CERTIFICATE
+  PSYCHOTECHNICAL
+  INVOICE
+  WAYBILL
+  DELIVERY_PHOTO
+  OTHER
+}
+
+model Document {
+  id            String       @id @default(uuid())
+  entityType    EntityType   @map("entity_type")
+  entityId      String       @map("entity_id")
+  
+  type          DocumentType
+  fileName      String       @map("file_name")
+  displayName   String?      @map("display_name")  // User-friendly name
+  fileUrl       String       @map("file_url")
+  fileSize      Int          @map("file_size")
+  mimeType      String       @map("mime_type")
+  
+  // OCR & Verification
+  extractedData Json?        @map("extracted_data")
+  isVerified    Boolean      @default(false) @map("is_verified")
+  verifiedBy    String?      @map("verified_by")
+  verifiedAt    DateTime?    @map("verified_at")
+  
+  expiryDate    DateTime?    @map("expiry_date")
+  uploadedAt    DateTime     @default(now()) @map("uploaded_at")
+  uploadLocation Json?       @map("upload_location") // Geofenced upload
+  
+  @@index([entityType, entityId])
+  @@index([type])
+  @@map("documents")
+}
+
+// ============================================
+// DRIVER PERFORMANCE
+// ============================================
+
+model DriverScore {
+  id                String   @id @default(uuid())
+  driverId          String   @unique @map("driver_id")
+  
+  // Scores (0-100)
+  overallScore      Float    @default(0) @map("overall_score")
+  safetyScore       Float    @default(0) @map("safety_score")
+  fuelEfficiency    Float    @default(0) @map("fuel_efficiency")
+  punctualityScore  Float    @default(0) @map("punctuality_score")
+  customerRating    Float    @default(0) @map("customer_rating")
+  
+  // Stats
+  totalDeliveries   Int      @default(0) @map("total_deliveries")
+  onTimeDeliveries  Int      @default(0) @map("on_time_deliveries")
+  lateDeliveries    Int      @default(0) @map("late_deliveries")
+  
+  // Driving behavior
+  hardBrakingCount  Int      @default(0) @map("hard_braking_count")
+  rapidAccelCount   Int      @default(0) @map("rapid_accel_count")
+  speedingCount     Int      @default(0) @map("speeding_count")
+  
+  lastCalculated    DateTime @default(now()) @map("last_calculated")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  driver            DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  
+  @@map("driver_scores")
+}
+
+// ============================================
+// MESSAGING SYSTEM
+// ============================================
+
+model Message {
+  id          String      @id @default(uuid())
+  senderId    String      @map("sender_id")
+  recipientId String      @map("recipient_id")
+  
+  content     String
+  isRead      Boolean     @default(false) @map("is_read")
+  readAt      DateTime?   @map("read_at")
+  
+  attachments Json?       // File URLs
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+  
+  // Relations
+  sender      User        @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User        @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+  
+  @@index([recipientId, isRead])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// ============================================
+// SUPPORT SYSTEM
+// ============================================
+
+model SupportTicket {
+  id              String          @id @default(uuid())
+  ticketNumber    String          @unique @map("ticket_number")
+  driverId        String          @map("driver_id")
+  assignedToId    String?         @map("assigned_to_id")
+  subject         String          @default("Support Request")
+  status          TicketStatus    @default(OPEN)
+  priority        TicketPriority  @default(NORMAL)
+  responseCount   Int             @default(0) @map("response_count")
+  assignedAt      DateTime?       @map("assigned_at")
+  firstResponseAt DateTime?       @map("first_response_at")
+  resolvedAt      DateTime?       @map("resolved_at")
+  closedAt        DateTime?       @map("closed_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  driver          User            @relation("DriverTickets", fields: [driverId], references: [id], onDelete: Cascade)
+  assignedTo      User?           @relation("AssignedTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages        SupportMessage[]
+
+  @@index([driverId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([priority])
+  @@index([status, priority(sort: Desc), createdAt(sort: Desc)])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id              String    @id @default(uuid())
+  ticketId        String    @map("ticket_id")
+  senderId        String    @map("sender_id")
+  content         String
+  isInternal      Boolean   @default(false) @map("is_internal")
+  isSystemMessage Boolean   @default(false) @map("is_system_message")
+  attachments     Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  ticket          SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender          User          @relation("SentSupportMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@index([senderId])
+  @@map("support_messages")
+}
+
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  WAITING_REPLY
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// ============================================
+// BILLING & INVOICING
+// ============================================
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique @map("invoice_number")
+  companyId     String        @map("company_id")
+  shipmentId    String?       @map("shipment_id")
+  
+  amount        Float
+  taxAmount     Float         @default(0) @map("tax_amount")
+  totalAmount   Float         @map("total_amount")
+  
+  status        InvoiceStatus @default(PENDING)
+  
+  dueDate       DateTime      @map("due_date")
+  paidAt        DateTime?     @map("paid_at")
+  
+  fileUrl       String?       @map("file_url") // PDF
+  
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  
+  // Relations
+  company       Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  shipment      Shipment?     @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  
+  @@index([status])
+  @@index([companyId])
+  @@map("invoices")
+}
+
+// ============================================
+// TELEMETRY (High Volume Data)
+// ============================================
+
+model LocationLog {
+  id          String        @id @default(uuid())
+  driverId    String        @map("driver_id")
+  
+  // Coordinates stored as JSON for now (will use PostGIS Point later)
+  coordinates Json
+  
+  heading     Float?        // Direction in degrees
+  speed       Float?        // Speed in km/h
+  timestamp   DateTime      @default(now())
+  
+  // Relations
+  driver      DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  
+  @@index([driverId])
+  @@index([timestamp])
+  @@index([driverId, timestamp(sort: Desc)])
+  @@map("location_logs")
+}
+
+// ============================================
+// AUDIT & LOGGING (Enterprise Features)
+// ============================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  userId      String?     @map("user_id") // Nullable for system actions or failed logins
+  
+  action      AuditAction
+  entityType  String      @map("entity_type") // e.g., "SHIPMENT", "USER", "DRIVER"
+  entityId    String?     @map("entity_id")   // Target record ID, if applicable
+  
+  oldValues   Json?       @map("old_values")  // Previous state
+  newValues   Json?       @map("new_values")  // New state
+  
+  ipAddress   String?     @map("ip_address")
+  userAgent   String?     @map("user_agent")
+  
+  details     String?     // Optional human-readable summary
+  
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  // Relations
+  user        User?       @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([createdAt(sort: Desc), entityType])
+  @@map("audit_logs")
+}
+
+// ============================================
+// AUTH — Password Reset
+// ============================================
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  tokenHash   String    @unique @map("token_hash") // Token'ı hash'lenmiş sakla
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
