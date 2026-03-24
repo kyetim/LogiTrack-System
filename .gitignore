@@ -52,6 +52,21 @@ temp/
 # Redis
 dump.rdb
 
+# Development artifacts & scripts
+recent_changes.patch
+test_*.js
+check-*.js
+get-*.js
+reset-*.js
+create-test-*.js
+fix_*.sql
+reset_*.sql
+update_*.sql
+add_*.sql
+
+# AI prompt files
+00_SYSTEM_PROMPT.md
+
 # Build artifacts
 *.tsbuildinfo
 
