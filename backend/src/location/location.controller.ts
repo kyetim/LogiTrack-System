@@ -41,6 +41,7 @@ export class LocationController {
     @ApiQuery({ name: 'endDate', required: false, type: String })
     @ApiResponse({ status: 200, description: 'GPS log listesi döner.' })
     findAll(
+        @Request() req: any,
         @Query('driverId') driverId?: string,
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
@@ -59,7 +60,7 @@ export class LocationController {
             filters.endDate = new Date(endDate);
         }
 
-        return this.locationService.findAll(filters);
+        return this.locationService.findAll(filters, req?.user);
     }
 
     @Get('driver/:driverId')
@@ -69,18 +70,7 @@ export class LocationController {
         @Query('limit') limit?: string,
         @Request() req?,
     ) {
-        // Drivers can only see their own locations
-        if (req.user.role === UserRole.DRIVER) {
-            const userDriver = await this.locationService['prisma'].driverProfile.findUnique({
-                where: { userId: req.user.id },
-            });
-
-            if (!userDriver || userDriver.id !== driverId) {
-                throw new ForbiddenException('You can only access your own locations');
-            }
-        }
-
-        return this.locationService.findByDriver(driverId, limit ? parseInt(limit) : 50);
+        return this.locationService.findByDriver(driverId, limit ? parseInt(limit) : 50, req.user);
     }
 
     @Get('driver/:driverId/latest')

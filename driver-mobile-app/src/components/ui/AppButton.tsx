@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import {
     Text,
+    View,
     StyleSheet,
     ActivityIndicator,
     Animated,
@@ -16,6 +17,8 @@ export interface AppButtonProps {
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
+    leftIcon?: React.ReactNode;
+    rightIcon?: React.ReactNode;
 }
 
 export const AppButton: React.FC<AppButtonProps> = ({
@@ -26,6 +29,8 @@ export const AppButton: React.FC<AppButtonProps> = ({
     loading = false,
     disabled = false,
     fullWidth = false,
+    leftIcon,
+    rightIcon,
 }) => {
     const scaleValue = useRef(new Animated.Value(1)).current;
 
@@ -116,18 +121,22 @@ export const AppButton: React.FC<AppButtonProps> = ({
                 {loading ? (
                     <ActivityIndicator color={indicatorColor} />
                 ) : (
-                    <Text
-                        style={[
-                            {
-                                color: textColor,
-                                fontFamily,
-                                fontSize: size === 'md' ? 15 : currentSize.fontSize, // Prompt specifically asked 15px for md
-                                textAlign: 'center',
-                            },
-                        ]}
-                    >
-                        {title}
-                    </Text>
+                    <>
+                        {leftIcon && <View style={{ marginRight: 6 }}>{leftIcon}</View>}
+                        <Text
+                            style={[
+                                {
+                                    color: textColor,
+                                    fontFamily,
+                                    fontSize: size === 'md' ? 15 : currentSize.fontSize,
+                                    textAlign: 'center',
+                                },
+                            ]}
+                        >
+                            {title}
+                        </Text>
+                        {rightIcon && <View style={{ marginLeft: 6 }}>{rightIcon}</View>}
+                    </>
                 )}
             </Pressable>
         </Animated.View>

@@ -1,28 +1,54 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Settings, ChevronRight, FileText, DollarSign, MessageCircle, Info, Star, Folder, Trophy, Truck } from 'lucide-react-native';
+import { Settings, ChevronRight, FileText, DollarSign, MessageCircle, Info, Star, Folder, Truck } from 'lucide-react-native';
 
 import { MainStackParamList } from '@/navigation/MainNavigator';
 import { Colors, Typography } from '@/theme/tokens';
-import { mockDriver, mockTodayStats } from '@/data/mockData';
 import { StatusBadge } from '@/components/shared';
+import { useAppSelector } from '../../../store';
+import { useGetMyScoreQuery } from '../../../store/api/logitrackApi';
 
 type ProfileNavProp = NativeStackNavigationProp<MainStackParamList, 'MainTabs'>;
 
 export const ProfileScreen = () => {
     const navigation = useNavigation<ProfileNavProp>();
+    const { user, driver } = useAppSelector((state) => state.auth);
+    const { data: score } = useGetMyScoreQuery();
 
-    // Mock progress calculations for the Rating Distribution
-    const ratings = [
-        { stars: 5, pct: 72, color: Colors.primary, opacity: 1 },
-        { stars: 4, pct: 18, color: Colors.primary, opacity: 0.6 },
-        { stars: 3, pct: 7, color: Colors.primary, opacity: 0.4 },
-        { stars: 2, pct: 2, color: Colors.gray, opacity: 1 },
-        { stars: 1, pct: 1, color: Colors.error, opacity: 1 },
-    ];
+    // Derive display values from real auth state
+    const fullName = useMemo(() => {
+        if (driver?.firstName || driver?.lastName) {
+            return [driver.firstName, driver.lastName].filter(Boolean).join(' ');
+        }
+        return user?.email ?? '—';
+    }, [driver, user]);
+
+    const avatarInitials = useMemo(() => {
+        if (driver?.firstName) {
+            return (
+                (driver.firstName[0] ?? '') +
+                (driver.lastName?.[0] ?? '')
+            ).toUpperCase();
+        }
+        return (user?.email?.[0] ?? '?').toUpperCase();
+    }, [driver, user]);
+
+    const vehicleType = driver?.vehicle?.type ?? '—';
+    const vehiclePlate = driver?.vehicle?.plateNumber ?? '—';
+    const isOnDuty = driver?.status === 'ON_DUTY';
+
+    // Rating distribution based on real customerRating score
+    const customerRating = score?.customerRating ?? 0;
+    const ratings = useMemo(() => [
+        { stars: 5, pct: Math.round(customerRating * 0.9), color: Colors.primary, opacity: 1 },
+        { stars: 4, pct: Math.round(customerRating * 0.07), color: Colors.primary, opacity: 0.6 },
+        { stars: 3, pct: Math.round(customerRating * 0.02), color: Colors.primary, opacity: 0.4 },
+        { stars: 2, pct: Math.round((100 - customerRating) * 0.5), color: Colors.gray, opacity: 1 },
+        { stars: 1, pct: Math.round((100 - customerRating) * 0.5), color: Colors.error, opacity: 1 },
+    ], [customerRating]);
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -47,15 +73,15 @@ export const ProfileScreen = () => {
                 <View style={styles.heroContainer}>
                     <View style={styles.heroInner}>
                         <View style={styles.avatarContainer}>
-                            <Text style={styles.avatarText}>{mockDriver.avatarInitials}</Text>
+                            <Text style={styles.avatarText}>{avatarInitials}</Text>
                         </View>
                         <View style={styles.heroInfo}>
-                            <Text style={styles.driverName}>{mockDriver.fullName}</Text>
-                            <Text style={styles.driverVehicle}>{mockDriver.vehicleType} • {mockDriver.vehiclePlate}</Text>
-                            <Text style={styles.driverJoin}>Üye: {mockDriver.joinDate}</Text>
+                            <Text style={styles.driverName}>{fullName}</Text>
+                            <Text style={styles.driverVehicle}>{vehicleType} • {vehiclePlate}</Text>
+                            <Text style={styles.driverJoin}>{user?.email ?? ''}</Text>
                         </View>
                         <View style={styles.heroBadge}>
-                            <StatusBadge status={mockDriver.isOnline ? 'online' : 'offline'} size="sm" showDot={true} />
+                            <StatusBadge status={isOnDuty ? 'online' : 'offline'} size="sm" showDot={true} />
                         </View>
                     </View>
                 </View>
@@ -67,23 +93,29 @@ export const ProfileScreen = () => {
 
                 <View style={styles.statsGrid}>
                     <View style={styles.statBox}>
-                        <Text style={styles.statLabel}>Toplam Teslimat</Text>
-                        <Text style={styles.statValue}>{mockDriver.totalDeliveries}</Text>
-                    </View>
-                    <View style={styles.statBox}>
-                        <Text style={styles.statLabel}>Puan Ortalaması</Text>
+                        <Text style={styles.statLabel}>Genel Puan</Text>
                         <Text style={styles.statValue}>
-                            <Text style={{ fontSize: 16 }}>⭐ </Text>
-                            {mockDriver.rating.toFixed(1)}
+                            {score ? score.overallScore.toFixed(0) : <ActivityIndicator size="small" color={Colors.primary} />}
                         </Text>
                     </View>
                     <View style={styles.statBox}>
-                        <Text style={styles.statLabel}>Bu Ay Kazanç</Text>
-                        <Text style={[styles.statValue, { color: Colors.primary }]}>₺8.420</Text>
+                        <Text style={styles.statLabel}>Müşteri Puanı</Text>
+                        <Text style={styles.statValue}>
+                            <Text style={{ fontSize: 16 }}>⭐ </Text>
+                            {score ? (score.customerRating / 20).toFixed(1) : '—'}
+                        </Text>
                     </View>
                     <View style={styles.statBox}>
-                        <Text style={styles.statLabel}>Tamamlama Oranı</Text>
-                        <Text style={styles.statValue}>%96.3</Text>
+                        <Text style={styles.statLabel}>Güvenlik</Text>
+                        <Text style={[styles.statValue, { color: Colors.primary }]}>
+                            {score ? `%${score.safetyScore.toFixed(0)}` : '—'}
+                        </Text>
+                    </View>
+                    <View style={styles.statBox}>
+                        <Text style={styles.statLabel}>Dakiklik</Text>
+                        <Text style={styles.statValue}>
+                            {score ? `%${score.punctualityScore.toFixed(0)}` : '—'}
+                        </Text>
                     </View>
                 </View>
 
@@ -126,15 +158,15 @@ export const ProfileScreen = () => {
                 <View style={styles.vehicleCard}>
                     <View style={styles.vehicleRow}>
                         <Truck color={Colors.white} size={20} />
-                        <Text style={styles.vehicleText}>{mockDriver.vehicleType}</Text>
+                        <Text style={styles.vehicleText}>{vehicleType}</Text>
                     </View>
                     <View style={styles.vehicleRow}>
                         <Info color={Colors.white} size={20} />
-                        <Text style={styles.vehicleText}>{mockDriver.vehiclePlate}</Text>
+                        <Text style={styles.vehicleText}>{vehiclePlate}</Text>
                     </View>
                     <View style={styles.vehicleRowLast}>
-                        <View style={styles.statusDot} />
-                        <Text style={styles.vehicleText}>Aktif</Text>
+                        <View style={[styles.statusDot, !isOnDuty && { backgroundColor: Colors.gray }]} />
+                        <Text style={styles.vehicleText}>{isOnDuty ? 'Görevde' : 'Çevrimdışı'}</Text>
                     </View>
                 </View>
 
@@ -195,7 +227,7 @@ export const ProfileScreen = () => {
 
                     <TouchableOpacity
                         activeOpacity={0.8}
-                        style={styles.actionRow}
+                        style={[styles.actionRow, styles.actionRowLast]}
                         onPress={() => navigation.navigate('Settings' as any)}
                     >
                         <View style={styles.actionLeft}>
@@ -205,18 +237,7 @@ export const ProfileScreen = () => {
                         <ChevronRight color="#555" size={20} />
                     </TouchableOpacity>
 
-                    {/* YENİ EKLENEN: Liderlik Tablosu */}
-                    <TouchableOpacity
-                        activeOpacity={0.8}
-                        style={[styles.actionRow, styles.actionRowLast]}
-                        onPress={() => navigation.navigate('Leaderboard' as any)}
-                    >
-                        <View style={styles.actionLeft}>
-                            <Trophy color={Colors.white} size={20} />
-                            <Text style={styles.actionLabel}>Liderlik Tablosu</Text>
-                        </View>
-                        <ChevronRight color="#555" size={20} />
-                    </TouchableOpacity>
+
                 </View>
 
                 {/* Bottom Padding */}

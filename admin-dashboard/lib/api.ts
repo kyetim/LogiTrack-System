@@ -4,18 +4,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export const api = axios.create({
     baseURL: API_URL,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// Add token to requests
+// Request Interceptor
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-
     // Let browser handle Content-Type for FormData (multipart/form-data + boundary)
     if (config.data instanceof FormData) {
         delete config.headers['Content-Type'];
@@ -33,22 +29,16 @@ api.interceptors.response.use(
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
-            const refreshToken = localStorage.getItem('refreshToken');
-            if (refreshToken) {
-                try {
-                    const { data } = await axios.post(`${API_URL}/auth/refresh`, {
-                        refreshToken,
-                    });
+            try {
+                // withCredentials is included in the axios instance setup, or we pass it directly
+                // Here we call the full URL using axios to bypass the main instance interceptors, but add withCredentials
+                await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
 
-                    localStorage.setItem('token', data.accessToken);
-                    api.defaults.headers.Authorization = `Bearer ${data.accessToken}`;
-
-                    return api(originalRequest);
-                } catch (refreshError) {
-                    localStorage.removeItem('token');
-                    localStorage.removeItem('refreshToken');
-                    window.location.href = '/login';
-                }
+                // Retry the original request (cookies and withCredentials will be used automatically)
+                return api(originalRequest);
+            } catch (refreshError) {
+                // If refresh fails, redirect to login
+                window.location.href = '/login';
             }
         }
 

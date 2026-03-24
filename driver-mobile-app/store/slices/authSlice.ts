@@ -81,6 +81,17 @@ export const logout = createAsyncThunk(
             STORAGE_KEYS.CACHED_SHIPMENTS,
         ]);
 
+        // Clear legacy AsyncStorage tokens to prevent ghost resurrection during loadStoredAuth migration
+        try {
+            await AsyncStorage.multiRemove([
+                STORAGE_KEYS.AUTH_TOKEN,
+                STORAGE_KEYS.USER_DATA,
+                STORAGE_KEYS.DRIVER,
+            ]);
+        } catch (e) {
+            // ignore
+        }
+
         // Try to call API logout but don't fail if it errors
         try {
             await api.logout();
@@ -146,6 +157,12 @@ const authSlice = createSlice({
         clearError: (state) => {
             state.error = null;
         },
+        clearAuth: (state) => {
+            state.user = null;
+            state.token = null;
+            state.driver = null;
+            state.error = null;
+        },
     },
     extraReducers: (builder) => {
         // Login
@@ -181,5 +198,5 @@ const authSlice = createSlice({
     },
 });
 
-export const { clearError } = authSlice.actions;
+export const { clearError, clearAuth } = authSlice.actions;
 export default authSlice.reducer;

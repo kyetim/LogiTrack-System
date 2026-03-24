@@ -183,7 +183,7 @@ export const DocumentsScreen = () => {
                             variant="primary"
                             size="sm"
                             fullWidth
-                            // leftIcon={<UploadCloud color={Colors.background} size={18} />}
+                            leftIcon={<UploadCloud color={Colors.background} size={18} />}
                             onPress={() => handleUploadAction(item.id)}
                         />
                     ) : (
@@ -194,7 +194,7 @@ export const DocumentsScreen = () => {
                                     variant="outline"
                                     size="sm"
                                     fullWidth
-                                    // leftIcon={<Download color={Colors.primary} size={18} />}
+                                    leftIcon={<Download color={Colors.primary} size={18} />}
                                     onPress={() => handleDownload(item)}
                                 />
                             </View>
@@ -204,7 +204,7 @@ export const DocumentsScreen = () => {
                                     variant="ghost"
                                     size="sm"
                                     fullWidth
-                                    // leftIcon={<Share2 color={Colors.primary} size={18} />}
+                                    leftIcon={<Share2 color={Colors.primary} size={18} />}
                                     onPress={() => handleShare(item)}
                                 />
                             </View>

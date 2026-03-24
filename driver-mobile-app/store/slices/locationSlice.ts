@@ -23,7 +23,7 @@ const locationSlice = createSlice({
         },
         updateLocation: (state, action: PayloadAction<Coordinates>) => {
             state.currentLocation = action.payload;
-            state.lastUpdate = new Date();
+            state.lastUpdate = new Date().toISOString();
             // Add to history (keep last 10)
             state.locationHistory = [action.payload, ...state.locationHistory].slice(0, 10);
         },

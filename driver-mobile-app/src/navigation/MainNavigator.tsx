@@ -12,8 +12,10 @@ import { SupportScreen } from '../screens/profile/SupportScreen';
 import { SettingsScreen } from '../screens/profile/SettingsScreen';
 import { DocumentsScreen } from '../screens/profile/DocumentsScreen';
 import { LeaderboardScreen } from '../screens/profile/LeaderboardScreen';
+import { ConversationDetailScreen } from '../screens/messages/ConversationDetailScreen';
 import { useAppSelector } from '../../store';
 import mqttService from '../../services/mqttService';
+import OfflineBanner from '../components/shared/OfflineBanner';
 import { ToastNotification, ToastType } from '../components/shared/ToastNotification';
 
 export type MainStackParamList = {
@@ -25,6 +27,7 @@ export type MainStackParamList = {
     ReportIssue: { id?: string };
     Earnings: undefined;
     Support: undefined;
+    ConversationDetail: { userId: string; email: string };
     Settings: undefined;
     Documents: undefined;
     Leaderboard: undefined;
@@ -96,6 +99,11 @@ export const MainNavigator = () => {
                     options={{ headerShown: false }}
                 />
                 <Stack.Screen
+                    name="ConversationDetail"
+                    component={ConversationDetailScreen}
+                    options={{ headerShown: false }}
+                />
+                <Stack.Screen
                     name="Settings"
                     component={SettingsScreen}
                     options={{ headerShown: false }}
@@ -112,6 +120,7 @@ export const MainNavigator = () => {
                 />
             </Stack.Navigator>
 
+            <OfflineBanner />
             <ToastNotification
                 message={toast.message}
                 type={toast.type as ToastType}

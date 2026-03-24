@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Message } from '../../types';
+import { Colors, Typography } from '../../src/theme/tokens';
 
 interface ChatBubbleProps {
     message: Message;
@@ -8,36 +9,24 @@ interface ChatBubbleProps {
 }
 
 export function ChatBubble({ message, isCurrentUser }: ChatBubbleProps) {
+    const timeStr = new Date(message.createdAt).toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
     return (
-        <View style={[
-            styles.container,
-            isCurrentUser ? styles.currentUserContainer : styles.otherUserContainer
-        ]}>
-            <View style={[
-                styles.bubble,
-                isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
-            ]}>
-                <Text style={[
-                    styles.text,
-                    isCurrentUser ? styles.currentUserText : styles.otherUserText
-                ]}>
+        <View style={[styles.container, isCurrentUser ? styles.containerMe : styles.containerThem]}>
+            <View style={[styles.bubble, isCurrentUser ? styles.bubbleMe : styles.bubbleThem]}>
+                <Text style={[styles.text, isCurrentUser ? styles.textMe : styles.textThem]}>
                     {message.content}
                 </Text>
-
-                <View style={styles.metaContainer}>
-                    <Text style={[
-                        styles.timestamp,
-                        isCurrentUser ? styles.currentUserTimestamp : styles.otherUserTimestamp
-                    ]}>
-                        {new Date(message.createdAt).toLocaleTimeString('tr-TR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                        })}
+                <View style={styles.meta}>
+                    <Text style={[styles.time, isCurrentUser ? styles.timeMe : styles.timeThem]}>
+                        {timeStr}
                     </Text>
-
                     {isCurrentUser && (
                         <Text style={styles.readIndicator}>
-                            {message.read ? '✓✓' : '✓'}
+                            {message.read ? ' ✓✓' : ' ✓'}
                         </Text>
                     )}
                 </View>
@@ -47,57 +36,23 @@ export function ChatBubble({ message, isCurrentUser }: ChatBubbleProps) {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        marginVertical: 4,
-        paddingHorizontal: 12,
-    },
-    currentUserContainer: {
-        alignItems: 'flex-end',
-    },
-    otherUserContainer: {
-        alignItems: 'flex-start',
-    },
+    container:      { marginVertical: 4, paddingHorizontal: 12 },
+    containerMe:    { alignItems: 'flex-end' },
+    containerThem:  { alignItems: 'flex-start' },
     bubble: {
-        maxWidth: '75%',
-        paddingHorizontal: 16,
+        maxWidth: '80%',
+        paddingHorizontal: 14,
         paddingVertical: 10,
-        borderRadius: 18,
+        borderRadius: 16,
     },
-    currentUserBubble: {
-        backgroundColor: '#007AFF',
-        borderBottomRightRadius: 4,
-    },
-    otherUserBubble: {
-        backgroundColor: '#E5E5EA',
-        borderBottomLeftRadius: 4,
-    },
-    text: {
-        fontSize: 16,
-        lineHeight: 20,
-    },
-    currentUserText: {
-        color: '#FFFFFF',
-    },
-    otherUserText: {
-        color: '#000000',
-    },
-    metaContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 4,
-        gap: 4,
-    },
-    timestamp: {
-        fontSize: 11,
-    },
-    currentUserTimestamp: {
-        color: 'rgba(255, 255, 255, 0.7)',
-    },
-    otherUserTimestamp: {
-        color: 'rgba(0, 0, 0, 0.5)',
-    },
-    readIndicator: {
-        fontSize: 11,
-        color: 'rgba(255, 255, 255, 0.7)',
-    },
+    bubbleMe:   { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
+    bubbleThem: { backgroundColor: Colors.surface, borderBottomLeftRadius: 4 },
+    text: { fontFamily: Typography.fontBody, fontSize: 14, lineHeight: 20 },
+    textMe:     { color: Colors.background },
+    textThem:   { color: Colors.white },
+    meta: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    time: { fontFamily: Typography.fontBody, fontSize: 10 },
+    timeMe:     { color: 'rgba(13,13,13,0.6)' },
+    timeThem:   { color: Colors.gray },
+    readIndicator: { fontSize: 10, color: 'rgba(13,13,13,0.6)' },
 });

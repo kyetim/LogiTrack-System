@@ -73,7 +73,7 @@ export const logitrackApi = createApi({
 
         /** Giriş yapmış sürücünün kendi puanını getir */
         getMyScore: builder.query<DriverScore, void>({
-            query: () => '/scoring/my-score',
+            query: () => '/scoring/drivers/me',
             providesTags: ['Score'],
         }),
 
@@ -110,77 +110,7 @@ export const logitrackApi = createApi({
             invalidatesTags: ['Document'],
         }),
 
-        // ── Messaging ────────────────────────────────────────────────────────
 
-        /** Konuşma listesini getir (son mesaj + okunmamış sayısı) */
-        getConversations: builder.query<Conversation[], void>({
-            query: () => '/messages/conversations',
-            providesTags: ['Conversation'],
-        }),
-
-        /** Belirli bir kullanıcıyla mesaj geçmişini getir */
-        getMessages: builder.query<Message[], string>({
-            query: (userId) => `/messages/conversation/${userId}`,
-            providesTags: (_result, _err, userId) => [{ type: 'Message', id: userId }],
-        }),
-
-        /** Okunmamış mesaj sayısını getir */
-        getUnreadCount: builder.query<{ count: number }, void>({
-            query: () => '/messages/unread-count',
-            providesTags: ['Message'],
-        }),
-
-        /** Mesaj gönder */
-        sendMessage: builder.mutation<Message, { recipientId: string; content: string }>({
-            query: (body) => ({
-                url: '/messages',
-                method: 'POST',
-                body,
-            }),
-            invalidatesTags: ['Conversation', 'Message'],
-        }),
-
-        /** Mesajı okundu olarak işaretle */
-        markMessageAsRead: builder.mutation<void, string>({
-            query: (id) => ({
-                url: `/messages/${id}/read`,
-                method: 'PATCH',
-            }),
-            invalidatesTags: ['Message', 'Conversation'],
-        }),
-
-        // ── Support ──────────────────────────────────────────────────────────
-
-        /** Sürücünün aktif destek talebini getir */
-        getMyTicket: builder.query<SupportTicket | null, void>({
-            query: () => '/support/my-ticket',
-            providesTags: ['SupportTicket'],
-        }),
-
-        /** Kapalı/çözülmüş eski talepleri getir */
-        getTicketHistory: builder.query<SupportTicket[], void>({
-            query: () => '/support/my-ticket/history',
-            providesTags: ['SupportTicket'],
-        }),
-
-        /** Destek mesajı gönder */
-        sendSupportMessage: builder.mutation<void, { content: string }>({
-            query: (body) => ({
-                url: '/support/my-ticket/messages',
-                method: 'POST',
-                body,
-            }),
-            invalidatesTags: ['SupportTicket'],
-        }),
-
-        /** Talebi kapat */
-        closeTicket: builder.mutation<void, void>({
-            query: () => ({
-                url: '/support/my-ticket/close',
-                method: 'PATCH',
-            }),
-            invalidatesTags: ['SupportTicket'],
-        }),
     }),
 });
 
@@ -195,15 +125,5 @@ export const {
     useGetExpiringDocumentsQuery,
     useUploadDocumentMutation,
     useDeleteDocumentMutation,
-    // Messaging
-    useGetConversationsQuery,
-    useGetMessagesQuery,
-    useGetUnreadCountQuery,
-    useSendMessageMutation,
-    useMarkMessageAsReadMutation,
-    // Support
-    useGetMyTicketQuery,
-    useGetTicketHistoryQuery,
-    useSendSupportMessageMutation,
-    useCloseTicketMutation,
+
 } = logitrackApi;

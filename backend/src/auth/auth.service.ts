@@ -5,6 +5,7 @@ import {
     ForbiddenException,
     BadRequestException,
     NotFoundException,
+    HttpException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -16,6 +17,10 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
+    private readonly loginAttempts = new Map<string, { count: number; lastAttempt: number }>();
+    private readonly MAX_ATTEMPTS = 5;
+    private readonly LOCKOUT_MS = 15 * 60 * 1000;
+
     constructor(
         private prisma: PrismaService,
         private jwtService: JwtService,
@@ -103,12 +108,30 @@ export class AuthService {
     async login(loginDto: LoginDto) {
         const { email, password } = loginDto;
 
+        // Brute-force kontrolü
+        this.checkLoginAttempts(email);
+
         const user = await this.prisma.user.findUnique({ where: { email } });
 
-        if (!user) throw new UnauthorizedException('Geçersiz e-posta veya şifre.');
+        if (!user) {
+            this.recordFailedAttempt(email);
+            throw new UnauthorizedException('Geçersiz e-posta veya şifre.');
+        }
 
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isPasswordValid) throw new UnauthorizedException('Geçersiz e-posta veya şifre.');
+        if (!isPasswordValid) {
+            this.recordFailedAttempt(email);
+            const record = this.loginAttempts.get(email);
+            const remaining = Math.max(0, this.MAX_ATTEMPTS - (record?.count || 0));
+            throw new UnauthorizedException(
+                remaining > 0
+                    ? `Geçersiz şifre. ${remaining} deneme hakkınız kaldı.`
+                    : 'Hesabınız kilitlendi. 15 dakika sonra tekrar deneyin.',
+            );
+        }
+
+        // Başarılı giriş — kilidi kaldır
+        this.clearLoginAttempts(email);
 
         // Onay bekleyen hesap girişi engelle
         if (user.accountStatus === AccountStatus.PENDING_APPROVAL) {
@@ -215,7 +238,35 @@ export class AuthService {
         });
     }
 
-    private async generateTokens(userId: string, email: string, role: string) {
+    /** Şifre değiştir — mevcut şifre doğrulanır, yeni şifre kaydedilir */
+    async changePassword(userId: string, currentPassword: string, newPassword: string) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new UnauthorizedException('Kullanıcı bulunamadı.');
+
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Mevcut şifre hatalı.');
+        }
+
+        if (newPassword.length < 8) {
+            throw new BadRequestException('Yeni şifre en az 8 karakter olmalıdır.');
+        }
+
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { passwordHash },
+        });
+
+        return { message: 'Şifreniz başarıyla değiştirildi.' };
+    }
+
+    private async generateTokens(
+        userId: string,
+        email: string,
+        role: string,
+        meta?: { ipAddress?: string; userAgent?: string }
+    ) {
         const payload = { sub: userId, email, role };
 
         const [accessToken, refreshToken] = await Promise.all([
@@ -229,6 +280,68 @@ export class AuthService {
             }),
         ]);
 
+        // Refresh token'ı hash'le ve DB'ye kaydet
+        const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+        await this.prisma.refreshToken.create({
+            data: {
+                userId,
+                tokenHash,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                ipAddress: meta?.ipAddress,
+                userAgent: meta?.userAgent,
+            },
+        });
+
         return { access_token: accessToken, refresh_token: refreshToken };
+    }
+
+    async logout(refreshToken: string) {
+        if (refreshToken) {
+            const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+            await this.prisma.refreshToken.updateMany({
+                where: { tokenHash, revokedAt: null },
+                data: { revokedAt: new Date() },
+            }).catch(() => { }); // Bulunamasa da önemli değil
+        }
+        return { message: 'Çıkış yapıldı.' };
+    }
+
+    // Cron veya startup'ta çalıştırılabilir
+    async cleanupExpiredTokens() {
+        await this.prisma.refreshToken.deleteMany({
+            where: { expiresAt: { lt: new Date() } },
+        });
+    }
+
+    private checkLoginAttempts(identifier: string): void {
+        const record = this.loginAttempts.get(identifier);
+        if (!record) return;
+
+        const timeSinceLast = Date.now() - record.lastAttempt;
+        if (timeSinceLast > this.LOCKOUT_MS) {
+            this.loginAttempts.delete(identifier);
+            return;
+        }
+
+        if (record.count >= this.MAX_ATTEMPTS) {
+            const remainingMin = Math.ceil((this.LOCKOUT_MS - timeSinceLast) / 60000);
+            throw new HttpException(
+                `Çok fazla başarısız deneme. ${remainingMin} dakika sonra tekrar deneyin.`,
+                429,
+            );
+        }
+    }
+
+    private recordFailedAttempt(identifier: string): void {
+        const existing = this.loginAttempts.get(identifier) || { count: 0, lastAttempt: 0 };
+        this.loginAttempts.set(identifier, {
+            count: existing.count + 1,
+            lastAttempt: Date.now(),
+        });
+    }
+
+    private clearLoginAttempts(identifier: string): void {
+        this.loginAttempts.delete(identifier);
     }
 }

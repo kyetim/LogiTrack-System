@@ -8,7 +8,7 @@ import { DriverFormModal, DriverFormData } from '@/components/DriverFormModal';
 import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, FileText, Truck, UserCheck, Clock, MoreHorizontal, Download } from 'lucide-react';
+import { Plus, Pencil, Trash2, FileText, Truck, UserCheck, Clock, MoreHorizontal, Download, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { DriverDocumentsModal } from '@/components/DriverDocumentsModal';
 import { DataTable } from '@/components/ui/data-table';
@@ -35,7 +35,7 @@ interface Driver {
     licenseNumber: string;
     phoneNumber: string;
     status: string;
-    isAvailable: boolean; // Added isAvailable field
+    isAvailable: boolean;
     createdAt: string;
 }
 
@@ -113,11 +113,9 @@ export default function DriversPage() {
         try {
             setIsLoading(true);
             const { data } = await api.get('/drivers');
-            console.log('DEBUG: Fetched Drivers:', data); // Debug log
             setDrivers(data);
         } catch (error) {
             console.error('Failed to fetch drivers:', error);
-            // toast.error(t('common.error'));
         } finally {
             setIsLoading(false);
         }
@@ -213,7 +211,6 @@ export default function DriversPage() {
 
     const handleDelete = async (id: string) => {
         if (!confirm(t('users.deleteConfirm'))) return;
-
         try {
             await api.delete(`/drivers/${id}`);
             toast.success(t('users.deleteSuccess'));
@@ -223,7 +220,10 @@ export default function DriversPage() {
         }
     };
 
-    // Helper to determine display status
+    // DB değerlerini (status + isAvailable) görünen etikete dönüştür
+    // OFF_DUTY              → 'OFF_DUTY'  → "Çevrimdışı"
+    // ON_DUTY + available   → 'AVAILABLE' → "Müsait"
+    // ON_DUTY + !available  → 'ON_DUTY'   → "Görevde"
     const getDisplayStatus = (driver: Driver) => {
         if (driver.status === 'OFF_DUTY') return 'OFF_DUTY';
         if (driver.status === 'ON_DUTY') {
@@ -232,7 +232,6 @@ export default function DriversPage() {
         return driver.status;
     };
 
-    // Columns
     const columns: ColumnDef<Driver>[] = [
         {
             accessorKey: "user.email",
@@ -240,8 +239,6 @@ export default function DriversPage() {
             header: t('users.email'),
             cell: ({ row }) => <div className="font-semibold text-foreground">{row.original.user.email}</div>,
         },
-
-        // ... columns ...
         {
             accessorKey: "licenseNumber",
             header: t('drivers.licenseNumber'),
@@ -253,8 +250,8 @@ export default function DriversPage() {
             cell: ({ row }) => <div className="text-sm">{row.getValue("phoneNumber")}</div>,
         },
         {
-            id: "status", // Use custom id for combined status
-            accessorFn: (row) => getDisplayStatus(row), // Accessor for filtering/sorting
+            id: "status",
+            accessorFn: (row) => getDisplayStatus(row),
             header: t('drivers.status'),
             cell: ({ row }) => {
                 const displayStatus = getDisplayStatus(row.original);
@@ -262,9 +259,9 @@ export default function DriversPage() {
                     <StatusBadge
                         status={displayStatus}
                         labels={{
-                            'ON_DUTY': t('statuses.ON_DUTY'), // "Görevde" (Busy)
-                            'OFF_DUTY': t('statuses.OFF_DUTY'),
-                            'AVAILABLE': 'Müsait' // Add translation key if missing, or hardcode for now
+                            'ON_DUTY': t('statuses.ON_DUTY'),       // Görevde
+                            'OFF_DUTY': t('statuses.OFF_DUTY'),     // Çevrimdışı
+                            'AVAILABLE': t('statuses.AVAILABLE'),   // Müsait
                         }}
                     />
                 );
@@ -363,8 +360,8 @@ export default function DriversPage() {
                 </div>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Summary Cards — 4 kart: Toplam / Görevde / Müsait / Çevrimdışı */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <Card className="border-none shadow-soft bg-gradient-to-br from-primary to-primary/80 text-primary-foreground transform hover:scale-105 transition-all duration-300">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-primary-foreground/90">
@@ -389,22 +386,37 @@ export default function DriversPage() {
                         <div className="text-2xl font-bold">
                             {drivers.filter(d => d.status === 'ON_DUTY' && !d.isAvailable).length}
                         </div>
-                        <p className="text-xs text-secondary-foreground/80 mt-1 opacity-80">Şu an aktif çalışan</p>
+                        <p className="text-xs text-secondary-foreground/80 mt-1 opacity-80">Aktif teslimat yapan</p>
                     </CardContent>
                 </Card>
 
                 <Card className="border-none shadow-soft bg-gradient-to-br from-accent to-accent/90 text-accent-foreground transform hover:scale-105 transition-all duration-300">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
                         <CardTitle className="text-sm font-medium text-accent-foreground/90">
-                            Müsait / İzinli
+                            Müsait
                         </CardTitle>
                         <Clock className="h-4 w-4 text-accent-foreground/90" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
-                            {drivers.filter(d => d.status !== 'ON_DUTY' || (d.status === 'ON_DUTY' && d.isAvailable)).length}
+                            {drivers.filter(d => d.status === 'ON_DUTY' && d.isAvailable).length}
                         </div>
                         <p className="text-xs text-accent-foreground/80 mt-1 opacity-80">Görev bekleyen</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-none shadow-soft bg-gradient-to-br from-slate-600 to-slate-700 text-white transform hover:scale-105 transition-all duration-300">
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-sm font-medium text-white/90">
+                            Çevrimdışı
+                        </CardTitle>
+                        <WifiOff className="h-4 w-4 text-white/90" />
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">
+                            {drivers.filter(d => d.status === 'OFF_DUTY').length}
+                        </div>
+                        <p className="text-xs text-white/80 mt-1 opacity-80">Mesai dışı</p>
                     </CardContent>
                 </Card>
             </div>
@@ -425,14 +437,14 @@ export default function DriversPage() {
                 </TabsList>
 
                 <TabsContent value="active">
-                    {/* Data Table */}
                     <DataTable
                         columns={columns}
                         data={drivers}
-                        searchKey="email" // Nested accessor search might need custom handling or just use email if flattened
+                        searchKey="email"
                         searchPlaceholder="E-posta ara..."
                         filterColumn="status"
                         filterOptions={[
+                            { value: 'AVAILABLE', label: t('statuses.AVAILABLE') },
                             { value: 'ON_DUTY', label: t('statuses.ON_DUTY') },
                             { value: 'OFF_DUTY', label: t('statuses.OFF_DUTY') },
                         ]}

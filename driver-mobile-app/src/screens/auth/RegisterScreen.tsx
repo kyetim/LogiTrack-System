@@ -7,6 +7,7 @@ import {
     Platform,
     ScrollView,
     TouchableOpacity,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, Mail, Phone, Lock, UploadCloud, Check } from 'lucide-react-native';
@@ -14,6 +15,7 @@ import { Colors, Typography, Radius } from '@/theme/tokens';
 import { HexLogo } from '@/components/ui/HexLogo';
 import { AppInput } from '@/components/ui/AppInput';
 import { AppButton } from '@/components/ui/AppButton';
+import { api } from '../../../services/api';
 
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -49,7 +51,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
     const validateEmail = useCallback((val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), []);
     const validatePhone = useCallback((val: string) => val.length >= 10, []); // Basic check
 
-    const handleRegister = useCallback(() => {
+    const handleRegister = useCallback(async () => {
         let newErrors: any = {};
         let isValid = true;
 
@@ -92,12 +94,36 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 
         if (isValid) {
             setIsLoading(true);
-            // TODO: Simulated API Call
-            setTimeout(() => {
+            try {
+                const nameParts = form.fullName.trim().split(' ');
+                const firstName = nameParts[0];
+                const lastName = nameParts.slice(1).join(' ') || '';
+
+                await api.registerDriver({
+                    email: form.email,
+                    password: form.password,
+                    phoneNumber: form.phone,
+                    firstName,
+                    lastName,
+                });
+
+                Alert.alert(
+                    'Kayıt Başarılı',
+                    'Hesabınız oluşturuldu. Yönetici onayından sonra giriş yapabilirsiniz.',
+                    [{ text: 'Tamam', onPress: () => navigation.navigate('Login') }]
+                );
+            } catch (error: any) {
+                const message = error.response?.data?.message
+                    ? Array.isArray(error.response.data.message)
+                        ? error.response.data.message.join('\n')
+                        : error.response.data.message
+                    : 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.';
+                Alert.alert('Hata', message);
+            } finally {
                 setIsLoading(false);
-            }, 1500);
+            }
         }
-    }, [form.fullName, form.email, form.phone, form.password, form.confirmPassword, licenseUploaded, termsAccepted, validateEmail, validatePhone]);
+    }, [form.fullName, form.email, form.phone, form.password, form.confirmPassword, licenseUploaded, termsAccepted, validateEmail, validatePhone, navigation]);
 
     return (
         <SafeAreaView style={styles.container}>

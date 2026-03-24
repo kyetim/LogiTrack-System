@@ -4,10 +4,16 @@ import { CreateGeofenceDto } from './dto/create-geofence.dto';
 import { UpdateGeofenceDto } from './dto/update-geofence.dto';
 import { CheckLocationDto } from './dto/check-location.dto';
 import { GeofenceEventType } from '@prisma/client';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
+import { PushNotificationService } from '../push-notification/push-notification.service';
 
 @Injectable()
 export class GeofencingService {
-    constructor(private prisma: PrismaService) { }
+    constructor(
+        private prisma: PrismaService,
+        private wsGateway: WebsocketGateway,
+        private pushNotification: PushNotificationService,
+    ) { }
 
     /**
      * Create a new geofence
@@ -277,8 +283,33 @@ export class GeofencingService {
             },
         });
 
-        // TODO: Send notification to dispatcher
-        // TODO: Update shipment status if applicable
+        // Notify dispatchers via WebSocket
+        const driverName = event.driver?.user?.email ?? event.driverId;
+        const eventLabel = event.eventType === GeofenceEventType.ENTER ? 'girdi' : 'çıktı';
+        this.wsGateway.server.to('dispatchers').emit('geofence:event', {
+            geofenceId: event.geofenceId,
+            geofenceName: event.geofence?.name,
+            driverId: event.driverId,
+            driverName,
+            eventType: event.eventType,
+            shipmentId: event.shipmentId ?? null,
+            timestamp: new Date(),
+        });
+
+        // Send push notification to dispatcher(s)
+        const dispatchers = await this.prisma.user.findMany({
+            where: { role: 'DISPATCHER' },
+            select: { id: true },
+        });
+        for (const dispatcher of dispatchers) {
+            await this.pushNotification.sendToUser({
+                userId: dispatcher.id,
+                title: 'Geofence Olayı',
+                body: `Sürücü ${driverName}, ${event.geofence?.name ?? 'bölgeye'} ${eventLabel}.`,
+                type: 'INFO' as any,
+                data: { type: 'geofence_event', geofenceId: event.geofenceId, driverId: event.driverId },
+            });
+        }
 
         return event;
     }

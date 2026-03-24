@@ -102,8 +102,9 @@ export class MessagingController {
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     @ApiOperation({ summary: 'Get unread message count' })
     @ApiResponse({ status: 200, description: 'Unread count retrieved successfully' })
-    getUnreadCount(@Request() req) {
-        return this.messagingService.getUnreadCount(req.user.id);
+    async getUnreadCount(@Request() req) {
+        const count = await this.messagingService.getUnreadCount(req.user.id);
+        return { count, unreadCount: count };
     }
 
     @Get(':id')

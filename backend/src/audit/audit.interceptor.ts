@@ -8,6 +8,27 @@ import { AuditAction } from '@prisma/client';
 export class AuditInterceptor implements NestInterceptor {
     constructor(private readonly auditService: AuditService) { }
 
+    private maskSensitiveFields(data: any): any {
+        if (!data || typeof data !== 'object') return data;
+
+        const SENSITIVE_FIELDS = [
+            'password', 'passwordHash', 'password_hash',
+            'currentPassword', 'newPassword', 'confirmPassword',
+            'token', 'access_token', 'refresh_token',
+            'secret', 'apiKey', 'creditCard', 'pin',
+        ];
+
+        const masked = Array.isArray(data) ? [...data] : { ...data };
+        for (const key of Object.keys(masked)) {
+            if (SENSITIVE_FIELDS.includes(key)) {
+                masked[key] = '***MASKED***';
+            } else if (typeof masked[key] === 'object' && masked[key] !== null) {
+                masked[key] = this.maskSensitiveFields(masked[key]);
+            }
+        }
+        return masked;
+    }
+
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const req = context.switchToHttp().getRequest();
         const method = req.method;
@@ -53,7 +74,7 @@ export class AuditInterceptor implements NestInterceptor {
                     action,
                     entityType,
                     entityId,
-                    newValues: body ? body : null, // Logging the submitted body
+                    newValues: body ? this.maskSensitiveFields(body) : null,
                     ipAddress,
                     userAgent,
                     details: `${method} ${url}`,

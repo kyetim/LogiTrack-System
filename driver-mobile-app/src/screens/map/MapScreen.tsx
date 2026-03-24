@@ -1,24 +1,25 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import {
+    View, Text, StyleSheet, TouchableOpacity,
+    useColorScheme, Linking, Platform,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
-import { MapPin, Navigation, Crosshair, Layers } from 'lucide-react-native';
-
+import MapView, { PROVIDER_GOOGLE, Polyline, Camera } from 'react-native-maps';
 import {
-    CustomMarker,
-    RoutePolyline,
-    ShipmentBottomSheet
-} from '@/components/map';
+    MapPin, Navigation, Crosshair, Layers,
+    Box as Cube, Map as Map2D, ExternalLink,
+    ChevronRight, Clock, Minus as Ruler,
+} from 'lucide-react-native';
+
+import { CustomMarker, RoutePolyline, ShipmentBottomSheet } from '@/components/map';
 import { useDriverLocation } from '@/hooks/useDriverLocation';
 import {
-    DARK_MAP_STYLE,
+    DARK_MAP_STYLE, LIGHT_MAP_STYLE,
     MAP_INITIAL_REGION,
-    MOCK_PICKUP_COORD,
-    MOCK_DELIVERY_COORD,
-    MOCK_ROUTE_COORDS
+    MOCK_PICKUP_COORD, MOCK_DELIVERY_COORD, MOCK_ROUTE_COORDS,
 } from '@/constants/mapStyles';
-import { Colors, Typography, Spacing } from '@/theme/tokens';
+import { Colors, Typography, Spacing, Radius } from '@/theme/tokens';
 import { useAppSelector, useAppDispatch } from '../../../store';
 import { fetchShipments } from '../../../store/slices/shipmentsSlice';
 import { Delivery, AvailableJob } from '@/types';
@@ -27,74 +28,130 @@ export const MapScreen = () => {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const dispatch = useAppDispatch();
+    const colorScheme = useColorScheme(); // 'light' | 'dark' — dark/light mode ready
 
-    // Map State
+    // Map refs & state
     const mapRef = useRef<MapView>(null);
+    const [is3D, setIs3D] = useState(false);
     const [mapMode, setMapMode] = useState<'driver' | 'overview'>('driver');
     const [showJobPins, setShowJobPins] = useState(true);
 
-    // Bottom Sheet State
+    // Bottom sheet state
     const [selectedItem, setSelectedItem] = useState<Delivery | AvailableJob | null>(null);
     const [bottomSheetType, setBottomSheetType] = useState<'active' | 'job'>('active');
     const [isBottomSheetVisible, setIsBottomSheetVisible] = useState(false);
 
-    // Location Hook
-    const { backgroundPermissionGranted, startTracking } = useDriverLocation();
+    // Navigation step state (mock — gerçek Directions API entegrasyonuna hazır)
+    const [currentNavStep] = useState('Düz devam et — 350 m');
 
-    // Redux Data
+    // Location hook
+    const { foregroundPermissionGranted, startTracking } = useDriverLocation();
+
+    // Redux
     const { shipments } = useAppSelector((state) => state.shipments);
+    const { currentLocation } = useAppSelector((state) => state.location);
 
     useEffect(() => {
         dispatch(fetchShipments());
     }, [dispatch]);
 
-    // Handle initial permissions if not granted
-    if (!backgroundPermissionGranted) {
+    // Map style: dark/light mode'a göre otomatik geçiş
+    const mapStyle = colorScheme === 'dark' ? DARK_MAP_STYLE : LIGHT_MAP_STYLE;
+
+    // 3D toggle
+    const toggle3D = useCallback(() => {
+        const next = !is3D;
+        setIs3D(next);
+        mapRef.current?.animateCamera(
+            { pitch: next ? 55 : 0, altitude: next ? 400 : 1000 },
+            { duration: 600 }
+        );
+    }, [is3D]);
+
+    // Center on current location
+    const handleCenter = () => {
+        if (!currentLocation) return;
+        mapRef.current?.animateCamera({
+            center: { latitude: currentLocation.latitude, longitude: currentLocation.longitude },
+            pitch: is3D ? 55 : 0,
+            zoom: 16,
+        }, { duration: 800 });
+    };
+
+    // Open in external Google Maps
+    const openInGoogleMaps = () => {
+        if (!currentLocation) return;
+        const url = Platform.select({
+            ios: `maps://app?daddr=${MOCK_DELIVERY_COORD.latitude},${MOCK_DELIVERY_COORD.longitude}`,
+            android: `google.navigation:q=${MOCK_DELIVERY_COORD.latitude},${MOCK_DELIVERY_COORD.longitude}`,
+        });
+        if (url) Linking.openURL(url);
+    };
+
+    const initialCamera: Camera = {
+        center: {
+            latitude: currentLocation?.latitude ?? MAP_INITIAL_REGION.latitude,
+            longitude: currentLocation?.longitude ?? MAP_INITIAL_REGION.longitude,
+        },
+        pitch: 0,
+        heading: 0,
+        altitude: 1000,
+        zoom: 14,
+    };
+
+    // Permission screen
+    if (!foregroundPermissionGranted) {
+        const isDark = colorScheme === 'dark';
         return (
-            <View style={styles.permissionContainer}>
-                <MapPin size={64} color={Colors.primary} style={styles.permissionIcon} />
-                <Text style={styles.permissionTitle}>Konum İzni Gerekli</Text>
-                <Text style={styles.permissionText}>
-                    Harita üzerinde işleri ve rotanızı görmek için konum iznine ihtiyacımız var.
-                </Text>
-                <TouchableOpacity style={styles.permissionBtn} onPress={startTracking}>
-                    <Text style={styles.permissionBtnText}>İzin Ver</Text>
-                </TouchableOpacity>
+            <View style={[styles.permissionContainer, isDark && styles.permissionDark]}>
+                <View style={styles.permissionContent}>
+                    <View style={styles.permissionIconWrap}>
+                        <MapPin size={42} color={Colors.primary} />
+                    </View>
+                    <Text style={[styles.permissionTitle, isDark ? { color: Colors.white } : { color: '#0F172A' }]}>
+                        Konum İzni Gerekli
+                    </Text>
+                    <Text style={[styles.permissionText, isDark ? { color: Colors.gray } : { color: '#64748B' }]}>
+                        Uygulamayı kullanabilmek ve harita üzerinde rotanızı görebilmek için konum erişimine izin vermeniz gerekmektedir.
+                    </Text>
+                </View>
+                <View style={[styles.permissionFooter, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+                    <TouchableOpacity style={styles.permissionBtn} onPress={startTracking} activeOpacity={0.8}>
+                        <Text style={styles.permissionBtnText}>Konum İzni Ver</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
         );
     }
 
-    const handleCenterLocation = () => {
-        if (mapRef.current) {
-            // For now centering to initial region; real driver location will be used later
-            mapRef.current.animateToRegion(MAP_INITIAL_REGION, 1000);
-        }
-    };
-
     return (
         <View style={styles.container}>
+            {/* ─── MAP ──────────────────────────────────────── */}
             <MapView
                 ref={mapRef}
                 provider={PROVIDER_GOOGLE}
                 style={styles.map}
-                customMapStyle={DARK_MAP_STYLE}
-                initialRegion={MAP_INITIAL_REGION}
-                showsUserLocation={false}
+                customMapStyle={mapStyle}
+                initialCamera={initialCamera}
+                showsUserLocation={true}
                 showsCompass={false}
                 showsMyLocationButton={false}
                 showsTraffic={false}
-                pitchEnabled={false}
+                showsBuildings={true}      // 3D bina desteği
+                pitchEnabled={true}        // 3D için şart
+                rotateEnabled={true}
                 onPress={() => setIsBottomSheetVisible(false)}
             >
-                {/* Simulated Driver Location */}
-                <CustomMarker type="driver" coordinate={MAP_INITIAL_REGION} />
+                {!currentLocation && (
+                    <CustomMarker type="driver" coordinate={MAP_INITIAL_REGION} />
+                )}
 
-                {/* Active Delivery Route Mock */}
-                <CustomMarker type="pickup" coordinate={MOCK_PICKUP_COORD} isActive={bottomSheetType === 'active'} />
-                <CustomMarker type="delivery" coordinate={MOCK_DELIVERY_COORD} isActive={bottomSheetType === 'active'} />
+                {/* Active Delivery Route */}
+                <CustomMarker type="pickup" coordinate={MOCK_PICKUP_COORD} isActive />
+                <CustomMarker type="delivery" coordinate={MOCK_DELIVERY_COORD} isActive />
                 <RoutePolyline coordinates={MOCK_ROUTE_COORDS} variant="active" />
 
-                {/* Job Pins from Redux */}
+                {/* Job pins from Redux */}
                 {showJobPins && shipments?.map((s) => {
                     if (!s.pickupLocation?.lat || !s.pickupLocation?.lng) return null;
                     return (
@@ -107,8 +164,7 @@ export const MapScreen = () => {
                                 longitude: s.pickupLocation.lng,
                             }}
                             onPress={() => {
-                                // Transform shipment to match AvailableJob structure for the bottom sheet
-                                const transformedJob: AvailableJob = {
+                                const job: AvailableJob = {
                                     id: s.id,
                                     customerName: s.customerName || 'Bilinmeyen Müşteri',
                                     deliveryAddress: (s as any).deliveryAddress || 'Bilinmeyen Adres',
@@ -119,9 +175,9 @@ export const MapScreen = () => {
                                     packageType: (s as any).type || 'standard',
                                     pickupAddress: (s as any).pickupAddress || 'Bilinmeyen Alım Yeri',
                                     postedTime: (s as any).createdAt || new Date().toISOString(),
-                                    expiresIn: 45 // mock expiry
+                                    expiresIn: 45,
                                 };
-                                setSelectedItem(transformedJob);
+                                setSelectedItem(job);
                                 setBottomSheetType('job');
                                 setIsBottomSheetVisible(true);
                             }}
@@ -130,73 +186,107 @@ export const MapScreen = () => {
                 })}
             </MapView>
 
-            {/* Floating UI OVERLAY */}
-            <View style={[styles.floatingOverlay, { paddingTop: Math.max(insets.top, 20) }]} pointerEvents="box-none">
+            {/* ─── FLOATING OVERLAY ─────────────────────────── */}
+            <View
+                style={[styles.overlay, { paddingTop: Math.max(insets.top, 16) }]}
+                pointerEvents="box-none"
+            >
+                {/* ── TOP PANEL: Aktif Sipariş Bilgisi ── */}
+                <View style={styles.topPanel} pointerEvents="box-none">
+                    {/* Sol: Sipariş Kartı */}
+                    <TouchableOpacity
+                        style={styles.orderCard}
+                        onPress={() => {
+                            setSelectedItem({
+                                id: 'dlv_01', status: 'active',
+                                pickupAddress: 'Depo A', deliveryAddress: 'Kadıköy Merkez',
+                                customerName: 'Ahmet Yılmaz', distance: '4.2 km',
+                                estimatedTime: '18 dk', price: '125',
+                                packageType: 'standard', date: new Date().toISOString(),
+                            } as Delivery);
+                            setBottomSheetType('active');
+                            setIsBottomSheetVisible(true);
+                        }}
+                    >
+                        <View style={styles.orderCardInner}>
+                            <View style={styles.orderDot} />
+                            <View style={styles.orderTextWrap}>
+                                <Text style={styles.orderCustomer} numberOfLines={1}>
+                                    Ahmet Yılmaz
+                                </Text>
+                                <Text style={styles.orderAddress} numberOfLines={1}>
+                                    Kadıköy Merkez, İstanbul
+                                </Text>
+                            </View>
+                            <ChevronRight size={16} color={Colors.gray} />
+                        </View>
+                    </TouchableOpacity>
 
-                {/* Top Row: Mode Toggle & Actions */}
-                <View style={styles.topRow} pointerEvents="box-none">
-
-                    {/* Left: Map Mode Toggle */}
-                    <View style={styles.modeToggleContainer}>
+                    {/* Sağ: Aksiyon Butonları */}
+                    <View style={styles.actionCol}>
+                        <TouchableOpacity style={styles.circleBtn} onPress={handleCenter}>
+                            <Crosshair size={20} color={Colors.white} />
+                        </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.modeChip, mapMode === 'driver' && styles.modeChipActive]}
-                            onPress={() => setMapMode('driver')}
+                            style={[styles.circleBtn, is3D && styles.circleBtnActive]}
+                            onPress={toggle3D}
                         >
-                            <Text style={[styles.modeChipText, mapMode === 'driver' && styles.modeChipTextActive]}>Sürücü</Text>
+                            <Text style={[styles.btn3DText, is3D && styles.btn3DTextActive]}>
+                                {is3D ? '3D' : '2D'}
+                            </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.modeChip, mapMode === 'overview' && styles.modeChipActive]}
-                            onPress={() => setMapMode('overview')}
-                        >
-                            <Text style={[styles.modeChipText, mapMode === 'overview' && styles.modeChipTextActive]}>Genel</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Right: Action Buttons */}
-                    <View style={styles.actionButtonsCol}>
-                        <TouchableOpacity style={styles.circleBtn} onPress={handleCenterLocation}>
-                            <Crosshair size={22} color={Colors.white} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.circleBtn, !showJobPins && styles.circleBtnInactive]}
+                            style={[styles.circleBtn, !showJobPins && styles.circleBtnDim]}
                             onPress={() => setShowJobPins(!showJobPins)}
                         >
-                            <Layers size={22} color={showJobPins ? Colors.primary : Colors.gray} />
+                            <Layers size={20} color={showJobPins ? Colors.white : Colors.gray} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* Bottom Center: Active Delivery Mini Banner */}
-                {!isBottomSheetVisible && (
-                    <View style={styles.bottomBannerContainer} pointerEvents="box-none">
-                        <TouchableOpacity
-                            style={styles.activeDeliveryBanner}
-                            onPress={() => {
-                                // Mock Active Delivery
-                                setSelectedItem({
-                                    id: 'dlv_01',
-                                    status: 'active',
-                                    pickupAddress: 'Depo A',
-                                    deliveryAddress: 'Kadıköy Merkez',
-                                    customerName: 'Ahmet Yılmaz',
-                                    distance: '4.2 km',
-                                    estimatedTime: '18 dk',
-                                    price: '125',
-                                    packageType: 'standard',
-                                    date: new Date().toISOString()
-                                } as Delivery);
-                                setBottomSheetType('active');
-                                setIsBottomSheetVisible(true);
-                            }}
-                        >
-                            <Navigation size={16} color={Colors.primary} style={{ marginRight: 8 }} />
-                            <Text style={styles.activeDeliveryText}>Aktif Teslimat · 4.2 km · 18 dk</Text>
-                        </TouchableOpacity>
+                {/* ── NAV STEP BAR (Navigasyon Adımı) ── */}
+                <View style={styles.navStepBar} pointerEvents="none">
+                    <Navigation size={16} color={Colors.primary} />
+                    <Text style={styles.navStepText} numberOfLines={1}>
+                        {currentNavStep}
+                    </Text>
+                    <TouchableOpacity style={styles.externalBtn} onPress={openInGoogleMaps}>
+                        <ExternalLink size={14} color={Colors.gray} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* ── BOTTOM INFO BAR (ETA + Teslim Ettim) ── */}
+                <View
+                    style={[
+                        styles.bottomPanelContainer,
+                        colorScheme === 'dark' && { backgroundColor: Colors.surface, shadowColor: '#000' },
+                        { paddingBottom: Math.max(insets.bottom, 24) },
+                    ]}
+                    pointerEvents="box-none"
+                >
+                    <View style={styles.etaRow}>
+                        <View style={styles.etaItem}>
+                            <Clock size={16} color={Colors.primary} />
+                            <Text style={[styles.etaValue, colorScheme === 'dark' && { color: Colors.white }]}>18 dk</Text>
+                        </View>
+                        <View style={[styles.etaSep, colorScheme === 'dark' && { backgroundColor: Colors.border }]} />
+                        <View style={styles.etaItem}>
+                            <Ruler size={16} color={Colors.primary} />
+                            <Text style={[styles.etaValue, colorScheme === 'dark' && { color: Colors.white }]}>4.2 km</Text>
+                        </View>
                     </View>
-                )}
+
+                    <TouchableOpacity
+                        style={styles.deliverBtn}
+                        onPress={() => navigation.navigate('ActiveDelivery')}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.deliverBtnText}>✓  Teslim Ettim</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
-            {/* Bottom Sheet */}
+            {/* ─── BOTTOM SHEET ─────────────────────────── */}
             <ShipmentBottomSheet
                 delivery={selectedItem}
                 type={bottomSheetType}
@@ -204,19 +294,17 @@ export const MapScreen = () => {
                 onClose={() => setIsBottomSheetVisible(false)}
                 onPrimaryAction={() => {
                     setIsBottomSheetVisible(false);
-                    if (bottomSheetType === 'active') {
-                        navigation.navigate('ActiveDelivery');
-                    } else {
-                        navigation.navigate('JobDetail', { id: selectedItem?.id });
-                    }
+                    navigation.navigate(
+                        bottomSheetType === 'active' ? 'ActiveDelivery' : 'JobDetail',
+                        bottomSheetType === 'job' ? { id: selectedItem?.id } : undefined,
+                    );
                 }}
                 onSecondaryAction={() => {
                     setIsBottomSheetVisible(false);
-                    if (bottomSheetType === 'active') {
-                        navigation.navigate('ReportIssue');
-                    } else {
-                        navigation.navigate('JobDetail', { id: selectedItem?.id });
-                    }
+                    navigation.navigate(
+                        bottomSheetType === 'active' ? 'ReportIssue' : 'JobDetail',
+                        { id: selectedItem?.id },
+                    );
                 }}
             />
         </View>
@@ -224,129 +312,159 @@ export const MapScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors.background,
-    },
-    map: {
-        flex: 1,
-    },
+    container: { flex: 1 },
+    map: { flex: 1 },
+
+    // Permission
     permissionContainer: {
+        flex: 1, backgroundColor: '#FFFFFF',
+        justifyContent: 'space-between',
+    },
+    permissionDark: { backgroundColor: Colors.background },
+    permissionContent: {
         flex: 1,
-        backgroundColor: Colors.background,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: Spacing[4],
+        paddingHorizontal: 32,
     },
-    permissionIcon: {
-        marginBottom: Spacing[3],
+    permissionFooter: {
+        paddingHorizontal: 24,
+        paddingTop: 16,
+    },
+    permissionIconWrap: {
+        width: 96, height: 96, borderRadius: 48,
+        backgroundColor: 'rgba(255,215,0,0.15)',
+        justifyContent: 'center', alignItems: 'center',
+        marginBottom: 32,
     },
     permissionTitle: {
-        fontFamily: Typography.fontDisplay,
-        fontSize: 22,
-        color: Colors.white,
-        marginBottom: Spacing[1],
-        textAlign: 'center',
+        fontFamily: Typography.fontDisplayBold, fontSize: 26,
+        marginBottom: 12, textAlign: 'center',
     },
     permissionText: {
-        fontFamily: Typography.fontBody,
-        fontSize: 15,
-        color: Colors.gray,
-        textAlign: 'center',
-        marginBottom: Spacing[4],
-        lineHeight: 22,
+        fontFamily: Typography.fontBody, fontSize: 15,
+        textAlign: 'center', lineHeight: 22,
     },
     permissionBtn: {
-        backgroundColor: Colors.primary,
-        paddingHorizontal: Spacing[4],
-        paddingVertical: 14,
-        borderRadius: 12,
-        width: '100%',
-        alignItems: 'center',
-    },
-    permissionBtnText: {
-        fontFamily: Typography.fontBodySemiBold,
-        fontSize: 16,
-        color: '#000',
-    },
-    floatingOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        paddingHorizontal: Spacing[2],
-    },
-    topRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-    modeToggleContainer: {
-        flexDirection: 'row',
-        backgroundColor: 'rgba(13,13,13,0.9)',
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#2A2A2A',
-        padding: 4,
-    },
-    modeChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 16,
-    },
-    modeChipActive: {
-        backgroundColor: Colors.primary,
-    },
-    modeChipText: {
-        fontFamily: Typography.fontBodySemiBold,
-        fontSize: 13,
-        color: Colors.gray,
-    },
-    modeChipTextActive: {
-        color: '#000',
-    },
-    actionButtonsCol: {
-        gap: 12,
-    },
-    circleBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(13,13,13,0.9)',
-        borderWidth: 1,
-        borderColor: '#2A2A2A',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    circleBtnInactive: {
-        opacity: 0.6,
-    },
-    bottomBannerContainer: {
-        position: 'absolute',
-        bottom: 110, // above bottom tabs
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-    },
-    activeDeliveryBanner: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(13,13,13,0.95)',
-        borderWidth: 1,
-        borderColor: Colors.primary,
-        borderRadius: 16,
-        paddingHorizontal: Spacing[3],
-        paddingVertical: 12,
-        elevation: 8,
+        backgroundColor: Colors.primary, borderRadius: 16,
+        paddingVertical: 18, alignItems: 'center',
         shadowColor: Colors.primary,
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
+        shadowOpacity: 0.3, shadowRadius: 12, elevation: 8,
     },
-    activeDeliveryText: {
-        fontFamily: Typography.fontBodyMedium,
-        fontSize: 13,
-        color: Colors.primary,
+    permissionBtnText: {
+        fontFamily: Typography.fontBodySemiBold, fontSize: 16, color: '#000',
+    },
+
+    // Overlay wrapper
+    overlay: {
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        paddingHorizontal: 12,
+    },
+
+    // Top Panel
+    topPanel: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        marginBottom: 10,
+    },
+    orderCard: {
+        flex: 1,
+        backgroundColor: 'rgba(255,255,255,0.97)',
+        borderRadius: 14,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+        elevation: 8,
+    },
+    orderCardInner: {
+        flexDirection: 'row', alignItems: 'center',
+        padding: 12, gap: 10,
+    },
+    orderDot: {
+        width: 10, height: 10, borderRadius: 5,
+        backgroundColor: Colors.primary,
+    },
+    orderTextWrap: { flex: 1 },
+    orderCustomer: {
+        fontFamily: Typography.fontBodySemiBold,
+        fontSize: 13, color: '#0F172A',
+    },
+    orderAddress: {
+        fontFamily: Typography.fontBody,
+        fontSize: 11, color: '#64748B', marginTop: 1,
+    },
+
+    // Action buttons column
+    actionCol: { gap: 8 },
+    circleBtn: {
+        width: 42, height: 42, borderRadius: 21,
+        backgroundColor: 'rgba(13,13,13,0.88)',
+        borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center', alignItems: 'center',
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25, shadowRadius: 6, elevation: 6,
+    },
+    circleBtnActive: {
+        backgroundColor: Colors.primary,
+        borderColor: Colors.primary,
+    },
+    circleBtnDim: { opacity: 0.5 },
+    btn3DText: {
+        fontFamily: Typography.fontBodySemiBold,
+        fontSize: 12, color: Colors.white,
+    },
+    btn3DTextActive: { color: '#000' },
+
+    // Nav Step Bar
+    navStepBar: {
+        flexDirection: 'row', alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.97)',
+        borderRadius: 12, paddingVertical: 10, paddingHorizontal: 14,
+        gap: 10,
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1, shadowRadius: 8, elevation: 5,
+        marginBottom: 0,
+    },
+    navStepText: {
+        flex: 1, fontFamily: Typography.fontBodyMedium,
+        fontSize: 13, color: '#1E293B',
+    },
+    externalBtn: {
+        width: 28, height: 28, justifyContent: 'center', alignItems: 'center',
+    },
+
+    // Bottom Panel Container
+    bottomPanelContainer: {
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        gap: 16,
+        shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.1, shadowRadius: 16, elevation: 12,
+    },
+    etaRow: {
+        flexDirection: 'row', alignItems: 'center',
+        justifyContent: 'center', gap: 32,
+        marginBottom: 4,
+    },
+    etaItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    etaValue: {
+        fontFamily: Typography.fontDisplayBold,
+        fontSize: 18, color: '#0F172A',
+    },
+    etaSep: { width: 1, height: 24, backgroundColor: '#E2E8F0' },
+    deliverBtn: {
+        backgroundColor: Colors.primary, borderRadius: 16,
+        paddingVertical: 18, alignItems: 'center',
+    },
+    deliverBtnText: {
+        fontFamily: Typography.fontBodySemiBold,
+        fontSize: 16, color: '#000',
     },
 });

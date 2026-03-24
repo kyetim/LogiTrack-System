@@ -117,10 +117,10 @@ export class SupportController {
     ) {
         const message = await this.supportService.sendAdminReply(id, req.user.id, sendMessageDto);
         // Push real-time notification to the driver's app
-        this.wsGateway.server.to('drivers').emit('support:admin-reply', {
-            ticketId: id,
-            message,
-        });
+        const ticketDetail = await this.supportService.getTicket(id, req.user.id, req.user.role);
+        if (ticketDetail.driverId) {
+            this.wsGateway.emitAdminReply(ticketDetail.driverId, message);
+        }
         return message;
     }
 

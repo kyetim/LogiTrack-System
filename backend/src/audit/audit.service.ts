@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction, AuditLog } from '@prisma/client';
+import { PaginationDto, getPaginationParams } from '../common/dto/pagination.dto';
 
 export interface CreateAuditLogDto {
     userId?: string;
@@ -28,13 +29,13 @@ export class AuditService {
         });
     }
 
-    async findAll(page = 1, limit = 20) {
-        const skip = (page - 1) * limit;
+    async findAll(pagination?: PaginationDto) {
+        const { skip, take, page, limit } = getPaginationParams(pagination ?? {});
 
         const [logs, total] = await Promise.all([
             this.prisma.auditLog.findMany({
                 skip,
-                take: limit,
+                take,
                 orderBy: { createdAt: 'desc' },
                 include: {
                     user: {

@@ -108,7 +108,7 @@
         "DELIVERED": "Teslim Edildi",
         "CANCELLED": "İptal Edildi",
         "ON_DUTY": "Görevde",
-        "OFF_DUTY": "Görev Dışı",
+        "OFF_DUTY": "Çevrimdışı",
         "AVAILABLE": "Müsait",
         "IN_USE": "Kullanımda",
         "MAINTENANCE": "Bakımda"

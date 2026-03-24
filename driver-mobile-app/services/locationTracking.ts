@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
 import mqttService from './mqttService';
+import { websocketService } from './websocket';
 import { store } from '../store';
 import { api } from './api';
 import { offlineStorage } from './OfflineStorage';
@@ -55,7 +56,21 @@ export const startLocationTracking = async (): Promise<boolean> => {
 
                 // 1. Try to send immediate update
                 try {
+                    // Update Redux state so UI components like MapScreen can read it
+                    store.dispatch({
+                        type: 'location/updateLocation',
+                        payload: coords
+                    });
+
                     await api.updateMyLocation(coords.latitude, coords.longitude, timestamp);
+
+                    // Real-time broadcast to admin via WebSocket
+                    websocketService.emitLocation(
+                        coords,
+                        location.coords.speed || undefined,
+                        location.coords.heading || undefined
+                    );
+
                     store.dispatch({ type: 'location/setConnected', payload: true });
                     // console.log('✅ Location sent successfully');
 

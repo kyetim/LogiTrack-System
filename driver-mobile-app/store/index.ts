@@ -35,7 +35,12 @@ export const store = configureStore({
         getDefaultMiddleware({
             serializableCheck: {
                 ignoredActions: ['shipments/fetch/fulfilled', 'shipments/updateStatus/fulfilled'],
-                ignoredActionPaths: ['payload.lastSync', 'payload.pendingAction.createdAt'],
+                ignoredActionPaths: [
+                    'payload.lastSync',
+                    'payload.pendingAction.createdAt',
+                    'meta.arg',
+                    'meta.baseQueryMeta'
+                ],
                 ignoredPaths: ['shipments.lastSync'],
             },
         }).concat(logitrackApi.middleware),

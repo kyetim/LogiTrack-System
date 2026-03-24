@@ -31,23 +31,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const checkAuth = async () => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            try {
-                const { data } = await api.get('/auth/me');
+        try {
+            const { data } = await api.get('/auth/me');
 
-                // Route Guarding check
-                if (!checkRouteAccess(data.role, window.location.pathname)) {
-                    router.push('/dashboard'); // Redirect to safe default
-                }
+            // Route Guarding check
+            if (!checkRouteAccess(data.role, window.location.pathname)) {
+                router.push('/dashboard'); // Redirect to safe default
+            }
 
-                setUser(data);
-            } catch (error) {
-                localStorage.removeItem('token');
-                localStorage.removeItem('refreshToken');
-                if (window.location.pathname !== '/login') {
-                    router.push('/login');
-                }
+            setUser(data);
+        } catch (error) {
+            // API call failed, meaning no valid cookie / unauthorized
+            if (window.location.pathname !== '/login') {
+                router.push('/login');
             }
         }
         setIsLoading(false);
@@ -78,15 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             throw new Error('Sürücüler yönetim paneline giriş yapamaz. Lütfen mobil uygulamayı kullanın.');
         }
 
-        localStorage.setItem('token', data.access_token);
-        localStorage.setItem('refreshToken', data.refresh_token);
+        // Cookies are set automatically by backend, just set user state
         setUser(data.user);
         router.push('/dashboard');
     };
 
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
+    const logout = async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch (e) {
+            console.error('Logout error', e);
+        }
         setUser(null);
         router.push('/login');
     };

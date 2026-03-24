@@ -1,18 +1,31 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import secureStorage from '@/services/secureStorage';
+import axiosRetry from 'axios-retry';
 import { API_URL, STORAGE_KEYS } from '../utils/constants';
 import { AuthResponse, ApiResponse, Shipment, LocationUpdate, Driver } from '../types';
+import { store } from '../store';
+import { clearAuth } from '../store/slices/authSlice';
 
 class ApiClient {
     private client: AxiosInstance;
+    private isLoggingOut = false;
 
     constructor() {
         this.client = axios.create({
             baseURL: API_URL,
-            timeout: 10000,
+            timeout: 15000,
             headers: {
                 'Content-Type': 'application/json',
             },
+        });
+
+        axiosRetry(this.client, {
+            retries: 2,
+            retryDelay: axiosRetry.exponentialDelay,
+            retryCondition: (error) =>
+                !!axiosRetry.isNetworkError(error) &&
+                error.response?.status !== 401 &&
+                error.response?.status !== 403,
         });
 
         // Request interceptor - Add auth token
@@ -31,12 +44,18 @@ class ApiClient {
         this.client.interceptors.response.use(
             (response) => response,
             async (error: AxiosError) => {
-                if (error.response?.status === 401) {
+                if (error.response?.status === 401 && !this.isLoggingOut) {
+                    this.isLoggingOut = true;
                     // Token expired - clear storage
                     await secureStorage.multiRemove([
                         STORAGE_KEYS.AUTH_TOKEN,
                         STORAGE_KEYS.USER_DATA,
+                        STORAGE_KEYS.DRIVER,
                     ]);
+                    // Clear redüktör tetikleme:
+                    store.dispatch(clearAuth());
+
+                    setTimeout(() => { this.isLoggingOut = false; }, 3000);
                 }
                 return Promise.reject(error);
             }
@@ -45,11 +64,18 @@ class ApiClient {
 
     // Auth
     async login(email: string, password: string): Promise<AuthResponse> {
-        const { data } = await this.client.post<AuthResponse>('/auth/login', {
-            email,
-            password,
-        });
-        return data;
+        console.log('📡 [API] POST /auth/login cagiriliyor...', email);
+        try {
+            const { data } = await this.client.post<AuthResponse>('/auth/login', {
+                email,
+                password,
+            });
+            console.log('✅ [API] POST /auth/login basarili');
+            return data;
+        } catch (error: any) {
+            console.log('❌ [API] POST /auth/login hata firlatti:', error.message);
+            throw error;
+        }
     }
 
     async registerDriver(payload: any): Promise<void> {
@@ -246,7 +272,7 @@ class ApiClient {
 
     async uploadDocumentV2(file: FormData): Promise<any> {
         console.log('🚀 API: uploadDocumentV2 (FETCH) called');
-        const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        const token = await secureStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
 
         // file-upload is excluded from /api prefix on backend
         const baseUrl = API_URL.replace('/api', '');
@@ -347,6 +373,14 @@ class ApiClient {
             isAvailable,
         });
         return data;
+    }
+
+    async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+        await this.client.patch('/auth/change-password', { currentPassword, newPassword });
+    }
+
+    async deleteAccount(): Promise<void> {
+        await this.client.delete('/users/me');
     }
 
     // ==================== END NEW ENDPOINTS ====================

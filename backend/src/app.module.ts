@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditInterceptor } from './audit/audit.interceptor';
 import { ConfigModule } from '@nestjs/config';
+import { envValidationSchema } from './config/env.validation';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -29,6 +30,7 @@ import { EmailModule } from './email/email.module';
 import { FileUploadModule } from './file-upload/file-upload.module';
 import { SupportModule } from './support/support.module';
 import { AuditModule } from './audit/audit.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -36,6 +38,11 @@ import { AuditModule } from './audit/audit.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validationSchema: envValidationSchema,
+      validationOptions: {
+        allowUnknown: true,
+        abortEarly: false,
+      },
     }),
 
     // Rate limiting
@@ -83,6 +90,7 @@ import { AuditModule } from './audit/audit.module';
     SupportModule,
 
     AuditModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [

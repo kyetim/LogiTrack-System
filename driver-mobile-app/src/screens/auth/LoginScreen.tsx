@@ -15,6 +15,9 @@ import { HexLogo } from '@/components/ui/HexLogo';
 import { AppInput } from '@/components/ui/AppInput';
 import { AppButton } from '@/components/ui/AppButton';
 
+import { useAppDispatch } from '../../../store';
+import { login } from '../../../store/slices/authSlice';
+
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 
@@ -24,6 +27,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+    const dispatch = useAppDispatch();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -53,13 +57,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
         }
 
         if (isValid) {
+            console.log('🔘 Giriş Yap butonuna basıldı. Dispatching actions...');
             setIsLoading(true);
-            // TODO: Implement actual API login in next sprint
-            setTimeout(() => {
-                setIsLoading(false);
-            }, 1500);
+            dispatch(login({ email, password }))
+                .unwrap()
+                .then(() => {
+                    console.log('✅ LoginScreen: Dispatch başarılı, yönlendiriliyor...');
+                    setIsLoading(false);
+                })
+                .catch((err) => {
+                    console.log('❌ LoginScreen: Dispatch hata fırlattı:', err);
+                    setPasswordError(typeof err === 'string' ? err : 'Giriş yapılamadı.');
+                    setIsLoading(false);
+                });
         }
-    }, [email, password, validateEmail]);
+    }, [email, password, validateEmail, dispatch]);
 
 
     return (

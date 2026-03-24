@@ -1,6 +1,6 @@
 import mqtt, { MqttClient } from 'mqtt';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STORAGE_KEYS } from '../utils/constants';
+import secureStorage from '@/services/secureStorage';
+import { STORAGE_KEYS, MQTT_URL } from '../utils/constants';
 
 interface LocationData {
     coordinates: { latitude: number; longitude: number };
@@ -21,18 +21,12 @@ class MQTTService {
     async connect(): Promise<boolean> {
         try {
             // Get driver ID from storage
-            const driverData = await AsyncStorage.getItem(STORAGE_KEYS.DRIVER);
+            const driverData = await secureStorage.getItem(STORAGE_KEYS.DRIVER);
             if (!driverData) {
                 console.error('No driver found');
                 return false;
             }
             this.driverId = JSON.parse(driverData).id;
-
-            // TODO: WS_URL'i .env'e taşı — şu an local test adresi
-            // Production'da gerçek broker adresiyle değiştirilecek
-            const MQTT_URL = __DEV__
-                ? 'ws://192.168.1.127:9001' // WebSocket port - match backend IP
-                : 'wss://your-production-url.com:9001';
 
             console.log(`🔌 Connecting to MQTT: ${MQTT_URL}`);
 

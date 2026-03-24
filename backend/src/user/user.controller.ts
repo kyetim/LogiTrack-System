@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -33,14 +34,9 @@ export class UserController {
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
     @ApiOperation({ summary: 'Tüm kullanıcıları listele (sayfalanmış)' })
-    @ApiQuery({ name: 'page', required: false, type: Number })
-    @ApiQuery({ name: 'limit', required: false, type: Number })
     @ApiResponse({ status: 200, description: 'Kullanıcı listesi döner.' })
-    findAll(@Query('page') page: string, @Query('limit') limit: string) {
-        return this.userService.findAll(
-            page ? parseInt(page) : 1,
-            limit ? parseInt(limit) : 10,
-        );
+    findAll(@Query() pagination: PaginationDto) {
+        return this.userService.findAll(pagination);
     }
 
     @Get('export')
@@ -48,7 +44,7 @@ export class UserController {
     @Header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     @Header('Content-Disposition', 'attachment; filename="users.xlsx"')
     async exportUsers() {
-        const users = await this.userService.findAll(1, 10000);
+        const users = await this.userService.findAll({ page: 1, limit: 100000 } as any);
         const exportData = users.data.map(u => ({
             ID: u.id,
             Email: u.email,
@@ -106,6 +102,14 @@ export class UserController {
     // Generic CRUD
     // ============================================================
 
+    @Delete('me')
+    @Roles(UserRole.DRIVER, UserRole.ADMIN, UserRole.DISPATCHER)
+    @ApiOperation({ summary: 'Kendi hesabını sil (soft delete)' })
+    @ApiResponse({ status: 200, description: 'Hesap silindi.' })
+    async deleteMe(@Request() req: { user: { id: string } }) {
+        return this.userService.deleteMe(req.user.id);
+    }
+
     @Get(':id')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async findOne(@Param('id') id: string, @Request() req: { user: { role: UserRole; id: string } }) {
@@ -138,10 +142,24 @@ export class UserController {
         return this.userService.update(id, updateUserDto);
     }
 
+    @Get('deleted-users')
+    @Roles(UserRole.ADMIN)
+    @ApiOperation({ summary: 'Silinmiş kullanıcıları listele' })
+    getDeletedUsers() {
+        return this.userService.getDeletedUsers();
+    }
+
+    @Patch(':id/restore')
+    @Roles(UserRole.ADMIN)
+    @ApiOperation({ summary: 'Silinmiş kullanıcıyı geri getir (Restore)' })
+    restore(@Param('id') id: string) {
+        return this.userService.restore(id);
+    }
+
     @Delete(':id')
     @Roles(UserRole.ADMIN)
-    remove(@Param('id') id: string) {
-        return this.userService.remove(id);
+    remove(@Param('id') id: string, @Request() req: { user: { id: string } }) {
+        return this.userService.softDelete(id, req.user.id);
     }
 
     @Patch(':id/role')

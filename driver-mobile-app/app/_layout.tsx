@@ -1,25 +1,50 @@
 import 'react-native-gesture-handler';
-import { Slot } from 'expo-router';
+import { Slot, useRouter } from 'expo-router';
 import { Provider, useSelector } from 'react-redux';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { store, RootState } from '../store';
+import { store, RootState, useAppDispatch } from '../store';
+import { fetchConversations, incrementUnreadCount } from '../store/slices/messagesSlice';
+import { setStatus } from '../store/slices/availabilitySlice';
 import { COLORS } from '../utils/constants';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { useNetworkSync } from '../src/hooks/useNetworkSync';
 import { useEffect } from 'react';
 import { api } from '../services/api';
 import { websocketService } from '../services/websocket';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { Syne_700Bold, Syne_800ExtraBold } from '@expo-google-fonts/syne';
 import { Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    environment: __DEV__ ? 'development' : 'production',
+    enabled: !__DEV__, // Sadece production'da aktif
+    tracesSampleRate: 0.1,
+});
+
 SplashScreen.preventAutoHideAsync();
+
+// Global unhandled promise rejection handler
+const originalHandler = (global as any).ErrorUtils?.getGlobalHandler?.();
+; (global as any).ErrorUtils?.setGlobalHandler?.(
+    (error: Error, isFatal?: boolean) => {
+        if (__DEV__) {
+            console.error('[GlobalError]', error, 'isFatal:', isFatal);
+        } else {
+            Sentry.captureException(error);
+        }
+        originalHandler?.(error, isFatal);
+    }
+);
 
 const theme = {
     ...MD3LightTheme,
@@ -35,8 +60,27 @@ const theme = {
 function AppContent() {
     const { expoPushToken } = usePushNotifications();
     const { token } = useSelector((state: RootState) => state.auth);
+    const driver = useSelector((state: RootState) => state.auth.driver);
+    const dispatch = useAppDispatch();
     // Offline-First: Ağ bağlantısı izleme ve otomatik sync
     useNetworkSync();
+
+    // Auth yüklendiğinde availability slice'ı driver.status ile senkronize et
+    useEffect(() => {
+        if (driver) {
+            let derivedStatus: 'AVAILABLE' | 'ON_DUTY' | 'OFF_DUTY' = 'OFF_DUTY';
+            if (driver.status === 'OFF_DUTY') {
+                derivedStatus = 'OFF_DUTY';
+            } else if (driver.status === 'ON_DUTY' && (driver as any).isAvailable === true) {
+                derivedStatus = 'AVAILABLE';
+            } else if (driver.status === 'ON_DUTY' && !(driver as any).isAvailable) {
+                derivedStatus = 'ON_DUTY';
+            }
+            dispatch(setStatus(derivedStatus));
+        }
+    }, [driver]);
+
+    const router = useRouter();
 
     useEffect(() => {
         if (expoPushToken && token) {
@@ -47,8 +91,25 @@ function AppContent() {
 
         if (token) {
             websocketService.connect();
+            websocketService.connectSupportSocket();
+
+            const handleGlobalNewMessage = (_message: any) => {
+                dispatch(incrementUnreadCount());
+                dispatch(fetchConversations());
+            };
+            websocketService.onNewMessage(handleGlobalNewMessage);
+
+            return () => {
+                websocketService.offNewMessage(handleGlobalNewMessage);
+            };
         } else {
             websocketService.disconnect();
+            websocketService.disconnectSupportSocket();
+            // BULLETPROOF: Force router to kick out
+            if (router) {
+                console.log('Global auth state recognized as NULL -> routing to /(auth)');
+                router.replace('/(auth)');
+            }
         }
     }, [expoPushToken, token]);
 
@@ -84,10 +145,12 @@ export default function RootLayout() {
     }
 
     return (
-        <Provider store={store}>
-            <SafeAreaProvider>
-                <AppContent />
-            </SafeAreaProvider>
-        </Provider>
+        <ErrorBoundary>
+            <Provider store={store}>
+                <SafeAreaProvider>
+                    <AppContent />
+                </SafeAreaProvider>
+            </Provider>
+        </ErrorBoundary>
     );
 }

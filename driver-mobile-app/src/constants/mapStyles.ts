@@ -37,6 +37,10 @@ export const DARK_MAP_STYLE: MapStyleElement[] = [
     },
 ];
 
+export const LIGHT_MAP_STYLE: MapStyleElement[] = [];
+// Boş dizi = Google Maps'in varsayılan standard stili
+// Dark mode eklendiğinde DARK_MAP_STYLE otomatik devreye girer
+
 export const MAP_INITIAL_REGION = {
     latitude: 41.0082,
     longitude: 28.9784,

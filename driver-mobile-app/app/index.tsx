@@ -24,10 +24,14 @@ export default function Index() {
     useEffect(() => {
         if (!navigationState?.key || isInitializing) return;
 
-        // TEST BYPASS: Her durumda (main) klasörümüze yani MainNavigator'a yönlendiriyoruz.
-        // Daha sonra auth state logic'ine tekrar bağlanacak.
-        router.replace('/(main)');
-    }, [navigationState?.key, isInitializing]);
+        const isAuthenticated = !!(token && user);
+
+        if (isAuthenticated) {
+            router.replace('/(main)');
+        } else {
+            router.replace('/(auth)');
+        }
+    }, [user, token, navigationState?.key, isInitializing]);
 
     // Show loading while initializing
     return (

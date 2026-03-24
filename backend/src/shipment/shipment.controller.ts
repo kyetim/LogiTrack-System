@@ -29,6 +29,7 @@ import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
 import { AssignDriverDto } from './dto/assign-driver.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -53,6 +54,7 @@ export class ShipmentController {
     @ApiQuery({ name: 'endDate', required: false, type: String })
     @ApiResponse({ status: 200, description: 'Sevkiyat listesi döner.' })
     findAll(
+        @Query() pagination: PaginationDto,
         @Query('status') status?: ShipmentStatus,
         @Query('driverId') driverId?: string,
         @Query('startDate') startDate?: string,
@@ -76,7 +78,7 @@ export class ShipmentController {
             filters.endDate = new Date(endDate);
         }
 
-        return this.shipmentService.findAll(filters);
+        return this.shipmentService.findAll(filters, pagination);
     }
 
     @Get('export')
@@ -95,7 +97,9 @@ export class ShipmentController {
         if (startDate) filters.startDate = new Date(startDate);
         if (endDate) filters.endDate = new Date(endDate);
 
-        const shipments = await this.shipmentService.findAll(filters);
+        // Override limit completely for internal export
+        const shipmentsResp = await this.shipmentService.findAll(filters, { page: 1, limit: 100000 } as any);
+        const shipments = shipmentsResp.data;
 
         const exportData = shipments.map(s => ({
             ID: s.id,
@@ -157,16 +161,9 @@ export class ShipmentController {
     @ApiOperation({ summary: 'Tekil sevkiyatı getir' })
     @ApiParam({ name: 'id', type: String })
     @ApiResponse({ status: 200, description: 'Sevkiyat detayı döner.' })
-    @ApiResponse({ status: 403, description: 'Sürucü kendi sevkiyatına erişebilir.' })
+    @ApiResponse({ status: 403, description: 'Sürücü kendi sevkiyatına erişebilir.' })
     async findOne(@Param('id') id: string, @Request() req: any) {
-        const shipment = await this.shipmentService.findOne(id);
-
-        // Drivers can only see their own shipments
-        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
-            throw new ForbiddenException('You can only access your own shipments');
-        }
-
-        return shipment;
+        return this.shipmentService.findOne(id, req.user);
     }
 
     @Post()
@@ -199,12 +196,7 @@ export class ShipmentController {
         @Body() updateStatusDto: UpdateStatusDto,
         @Request() req,
     ) {
-        const shipment = await this.shipmentService.findOne(id);
-
-        // Drivers can only update their own shipments
-        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
-            throw new ForbiddenException('You can only update your own shipments');
-        }
+        const shipment = await this.shipmentService.findOne(id, req.user);
 
         // Only ADMIN can cancel shipments
         if (updateStatusDto.status === ShipmentStatus.CANCELLED && req.user.role !== UserRole.ADMIN) {
@@ -231,11 +223,8 @@ export class ShipmentController {
         @Body() data: { photoUrl?: string; signatureUrl?: string; recipientName?: string; notes?: string },
         @Request() req: any,
     ) {
-        // Verify driver owns this shipment
-        const shipment = await this.shipmentService.findOne(id);
-        if (shipment.driverId !== req.user.id) {
-            throw new ForbiddenException('You can only create delivery proof for your own shipments');
-        }
+        // findOne will natively throw if driver does not own the shipment
+        await this.shipmentService.findOne(id, req.user);
 
         return this.shipmentService.createDeliveryProof(id, data);
     }
@@ -243,11 +232,8 @@ export class ShipmentController {
     @Get(':id/delivery-proof')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async getDeliveryProof(@Param('id') id: string, @Request() req) {
-        // Verify access
-        const shipment = await this.shipmentService.findOne(id);
-        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
-            throw new ForbiddenException('You can only access delivery proof for your own shipments');
-        }
+        // Verify access natively through service
+        await this.shipmentService.findOne(id, req.user);
 
         return this.shipmentService.getDeliveryProof(id);
     }
@@ -255,12 +241,8 @@ export class ShipmentController {
     @Get(':id/waybill')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async getWaybill(@Param('id') id: string, @Request() req, @Res() res: Response) {
-        // Verify access (Driver can only see their own - simplified check)
-        const shipment = await this.shipmentService.findOne(id);
-
-        if (req.user.role === UserRole.DRIVER && shipment.driverId !== req.user.id) {
-            throw new ForbiddenException('You can only access waybill for your own shipments');
-        }
+        // Verify access (Driver can only see their own via findOne)
+        const shipment = await this.shipmentService.findOne(id, req.user);
 
         // If manual waybill uploaded, serve it
         if (shipment.waybillUrl) {

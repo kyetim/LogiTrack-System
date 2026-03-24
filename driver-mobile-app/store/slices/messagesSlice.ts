@@ -4,7 +4,6 @@ import { api } from '../../services/api';
 
 const initialState: MessagesState = {
     conversations: [],
-    messagesByConversation: {},
     currentMessages: [],
     unreadCount: 0,
     isLoading: false,
@@ -123,6 +122,14 @@ const messagesSlice = createSlice({
         });
         builder.addCase(sendMessage.fulfilled, (state, action) => {
             state.currentMessages.push(action.payload);
+
+            // Also update the matching conversation's lastMessage so the list stays fresh
+            const sentMsg = action.payload;
+            const otherUserId = sentMsg.recipientId;
+            const conv = state.conversations.find(c => c.user.id === otherUserId);
+            if (conv) {
+                conv.lastMessage = sentMsg;
+            }
         });
         builder.addCase(sendMessage.rejected, (state, action) => {
             state.error = action.error.message || 'Failed to send message';

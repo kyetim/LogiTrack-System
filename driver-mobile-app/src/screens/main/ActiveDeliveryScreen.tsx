@@ -67,7 +67,7 @@ export const ActiveDeliveryScreen = () => {
                         pickupLng={(deliveryData as any).pickupLocation?.lng || 28.9784}
                         deliveryLat={(deliveryData as any).deliveryLocation?.lat || 40.9822}
                         deliveryLng={(deliveryData as any).deliveryLocation?.lng || 29.0234}
-                        onPress={() => (navigation as any).navigate('MapTab' as any)}
+                        onPress={() => (navigation as any).navigate('MainTabs', { screen: 'MapTab' })}
                     />
                     <View style={styles.mapInfoChip}>
                         <Text style={styles.mapInfoText}>

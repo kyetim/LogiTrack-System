@@ -4,6 +4,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { AccountStatus, UserRole } from '@prisma/client';
 import { EmailService } from '../email/email.service';
+import { PaginationDto, getPaginationParams } from '../common/dto/pagination.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -13,13 +14,13 @@ export class UserService {
         private emailService: EmailService,
     ) { }
 
-    async findAll(page: number = 1, limit: number = 10) {
-        const skip = (page - 1) * limit;
+    async findAll(pagination?: PaginationDto) {
+        const { skip, take, page, limit } = getPaginationParams(pagination ?? {});
 
         const [users, total] = await Promise.all([
             this.prisma.user.findMany({
                 skip,
-                take: limit,
+                take,
                 select: {
                     id: true,
                     email: true,
@@ -41,12 +42,7 @@ export class UserService {
 
         return {
             data: users,
-            meta: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit),
-            },
+            meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
         };
     }
 
@@ -165,15 +161,46 @@ export class UserService {
         return user;
     }
 
-    async remove(id: string) {
-        // Check if user exists
-        await this.findOne(id);
+    // Hard delete yerine soft delete
+    async softDelete(userId: string, deletedBy?: string) {
+        await this.findOne(userId);
 
-        await this.prisma.user.delete({
-            where: { id },
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                deletedAt: new Date(),
+                deletedBy: deletedBy || null,
+                accountStatus: 'SUSPENDED', // Aktif değil ama silinmiş değil görünümünde
+            },
         });
 
         return { message: 'User deleted successfully' };
+    }
+
+    async restore(userId: string) {
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: {
+                deletedAt: null,
+                deletedBy: null,
+                accountStatus: 'ACTIVE',
+            },
+        });
+
+        return { message: 'User restored successfully' };
+    }
+
+    async getDeletedUsers() {
+        return this.prisma.user.findMany({
+            where: { deletedAt: { not: null } },
+            select: {
+                id: true,
+                email: true,
+                role: true,
+                deletedAt: true,
+                deletedBy: true,
+            },
+        });
     }
 
     async updateRole(id: string, role: UserRole) {
@@ -229,16 +256,16 @@ export class UserService {
             throw new BadRequestException('Bu kullanıcı zaten onaylanmış veya askıya alınmış.');
         }
 
-        await this.prisma.$transaction([
-            this.prisma.user.update({
+        await this.prisma.$transaction(async (tx) => {
+            await tx.user.update({
                 where: { id },
                 data: { accountStatus: AccountStatus.ACTIVE },
-            }),
-            this.prisma.driverProfile.update({
+            });
+            await tx.driverProfile.update({
                 where: { userId: id },
                 data: { isActive: true },
-            }),
-        ]);
+            });
+        }, { timeout: 30000 });
 
         // Şoföre onay emaili gönder (fire-and-forget)
         const driverName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email;
@@ -268,5 +295,19 @@ export class UserService {
         this.emailService.sendDriverRejected(user.email, driverName, reason).catch(() => { });
 
         return { message: `${driverName} başvurusu reddedildi.` };
+    }
+
+    /** Sürücü kendi hesabını siler (soft delete: accountStatus → SUSPENDED) */
+    async deleteMe(id: string) {
+        const user = await this.prisma.user.findUnique({ where: { id } });
+        if (!user) throw new NotFoundException('Kullanıcı bulunamadı.');
+
+        // Soft delete: hesabı askıya al
+        await this.prisma.user.update({
+            where: { id },
+            data: { accountStatus: AccountStatus.SUSPENDED },
+        });
+
+        return { message: 'Hesabınız başarıyla silindi.' };
     }
 }

@@ -14,7 +14,9 @@ import { LocationService } from '../location/location.service';
 
 @WebSocketGateway({
   cors: {
-    origin: true, // Allow all origins — LAN dev + prod can be restricted via env
+    origin: process.env.NODE_ENV === 'development'
+      ? true
+      : (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()),
     credentials: true,
   },
 })
@@ -172,6 +174,39 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
       status,
       timestamp: new Date(),
     });
+  }
+
+  /**
+   * Broadcast driver location update to all dispatchers/admins.
+   * Called from DriverController after HTTP location update.
+   */
+  broadcastLocationUpdate(payload: {
+    driverId: string;
+    driverEmail: string;
+    coordinates: { latitude: number; longitude: number };
+    speed?: number;
+    heading?: number;
+    timestamp: Date;
+    driver?: {
+      status: string;
+      isAvailable: boolean;
+      isAvailableForWork: boolean;
+      licenseNumber: string;
+      vehicle?: { plateNumber: string } | null;
+    };
+  }) {
+    this.server.to('dispatchers').emit('location:update', {
+      driverId: payload.driverId,
+      driverEmail: payload.driverEmail,
+      coordinates: payload.coordinates,
+      speed: payload.speed,
+      heading: payload.heading,
+      timestamp: payload.timestamp,
+      driver: payload.driver,
+    });
+    this.logger.log(
+      `📍 Location broadcast → dispatchers: driver=${payload.driverId}`
+    );
   }
 
   // ==================== SUPPORT TICKET EVENTS ====================

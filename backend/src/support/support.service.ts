@@ -457,8 +457,22 @@ export class SupportService {
 
         await this.addSystemMessage(ticket.id, emergencyMessage);
 
-        // TODO: Send WebSocket notification to all admins
-        // TODO: Send push notification
+        // Notify dispatchers via WebSocket
+        this.wsGateway.emitNewSupportTicket(ticket);
+
+        // Send push notification to all dispatchers
+        const dispatchers = await this.prisma.user.findMany({
+            where: { role: UserRole.DISPATCHER },
+            select: { id: true },
+        });
+        await Promise.all(dispatchers.map(d =>
+            this.notificationService.sendPushNotification(
+                d.id,
+                '🚨 ACİL DESTEK TALEBİ',
+                `Sürücü ${ticket.driver?.email ?? ticket.driverId} acil yardım talep etti.`,
+                { type: 'emergency_ticket', ticketId: ticket.id },
+            ).catch(() => { /* bildirim başarısız olsa bile devam et */ })
+        ));
 
         // Return ticket + emergency contact
         return {

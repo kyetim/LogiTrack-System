@@ -26,12 +26,15 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }: any) =>
 });
 
 export const useDriverLocation = () => {
+    const [foregroundPermissionGranted, setForegroundPermissionGranted] = useState(false);
     const [backgroundPermissionGranted, setBackgroundPermissionGranted] = useState(false);
 
     const startTracking = async () => {
         // Start foreground legacy tracking
         const success = await startLocationTracking();
         if (!success) return;
+
+        setForegroundPermissionGranted(true);
 
         // Try to start background tracking
         try {
@@ -53,8 +56,9 @@ export const useDriverLocation = () => {
             } else {
                 console.warn('⚠️ Background permission denied, falling back to foreground only');
             }
-        } catch (err) {
-            console.error('Failed to start background tracking:', err);
+        } catch (err: any) {
+            // Expo Go throws an error for background location on iOS. We catch it and warn instead.
+            console.warn('⚠️ Failed to start background tracking (expected in Expo Go):', err.message || err);
         }
     };
 
@@ -77,6 +81,7 @@ export const useDriverLocation = () => {
     };
 
     return {
+        foregroundPermissionGranted,
         backgroundPermissionGranted,
         startTracking,
         stopTracking

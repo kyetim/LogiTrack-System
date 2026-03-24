@@ -1,1 +1,1 @@
-services/api.ts(249,29): error TS2304: Cannot find name 'AsyncStorage'.
+src/components/shared/ErrorBoundary.tsx(6,24): error TS2307: Cannot find module '../../utils/constants' or its corresponding type declarations.

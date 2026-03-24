@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional, IsArray, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray, IsEnum, MaxLength } from 'class-validator';
 import { TicketPriority } from '@prisma/client';
 
 export class SendMessageDto {
@@ -9,6 +9,7 @@ export class SendMessageDto {
     })
     @IsString()
     @IsNotEmpty()
+    @MaxLength(2000, { message: 'Mesaj 2000 karakterden uzun olamaz.' })
     content: string;
 
     @ApiPropertyOptional({

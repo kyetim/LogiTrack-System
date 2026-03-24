@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { Prisma } from '@prisma/client';
@@ -7,10 +7,14 @@ import { Prisma } from '@prisma/client';
 export class LocationService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(filters?: { driverId?: string; startDate?: Date; endDate?: Date }) {
+    async findAll(filters?: { driverId?: string; startDate?: Date; endDate?: Date }, requestingUser?: { id: string; role: string }) {
         const where: any = {};
 
-        if (filters?.driverId) {
+        // DRIVER ise sadece kendi driver profil ID'sini görebilir (IDOR koruması)
+        if (requestingUser?.role === 'DRIVER') {
+            const profile = await this.prisma.driverProfile.findUnique({ where: { userId: requestingUser.id } });
+            where.driverId = profile?.id;
+        } else if (filters?.driverId) {
             where.driverId = filters.driverId;
         }
 
@@ -44,14 +48,19 @@ export class LocationService {
         });
     }
 
-    async findByDriver(driverId: string, limit: number = 50) {
+    async findByDriver(driverId: string, limit: number = 50, requestingUser?: { id: string; role: string }) {
         // Verify driver exists
         const driver = await this.prisma.driverProfile.findUnique({
             where: { id: driverId },
         });
 
         if (!driver) {
-            throw new NotFoundException('Driver not found');
+            throw new NotFoundException('Sürücü bulunamadı.');
+        }
+
+        // DRIVER ise sadece kendi lokasyon loglarını görebilir (IDOR koruması)
+        if (requestingUser?.role === 'DRIVER' && driver.userId !== requestingUser.id) {
+            throw new ForbiddenException('Sadece kendi konum geçmişinize erişebilirsiniz.');
         }
 
         return this.prisma.locationLog.findMany({

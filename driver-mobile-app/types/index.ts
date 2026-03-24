@@ -231,7 +231,7 @@ export interface LocationState {
     isTracking: boolean;
     currentLocation: Coordinates | null;
     error: string | null;
-    lastUpdate: Date | null;
+    lastUpdate: string | null;
     isConnected: boolean;
     locationHistory: Coordinates[];
 }
@@ -258,7 +258,6 @@ export interface ConfigState {
 
 export interface MessagesState {
     conversations: Conversation[];
-    messagesByConversation: Record<string, Message[]>;
     currentMessages: Message[];
     unreadCount: number;
     isLoading: boolean;
@@ -313,9 +312,16 @@ export interface SupportMessage {
     id: string;
     ticketId: string;
     senderId: string;
-    senderRole: 'DRIVER' | 'ADMIN' | 'DISPATCHER';
+    sender: {
+        id: string;
+        email: string;
+        role: string;
+    };
+    senderRole?: 'DRIVER' | 'ADMIN' | 'DISPATCHER';
     content: string;
     isInternal: boolean;
+    isSystemMessage: boolean;
+    attachments?: string[];
     createdAt: string;
 }
 

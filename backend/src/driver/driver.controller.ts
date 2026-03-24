@@ -18,6 +18,7 @@ import * as xlsx from 'xlsx';
 
 import { DriverService } from './driver.service';
 import { CreateDriverDto } from './dto/create-driver.dto';
+import { WebsocketGateway } from '../websocket/websocket.gateway';
 import { UpdateDriverDto } from './dto/update-driver.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -29,7 +30,10 @@ import { UserRole, DriverStatus } from '@prisma/client';
 @Controller('drivers')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class DriverController {
-    constructor(private readonly driverService: DriverService) { }
+    constructor(
+        private readonly driverService: DriverService,
+        private readonly websocketGateway: WebsocketGateway,
+    ) { }
 
     @Get()
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER)
@@ -272,18 +276,36 @@ export class DriverController {
     @Roles(UserRole.DRIVER)
     async updateMyLocation(
         @Request() req,
-        @Body() locationDto: { lat: number; lng: number }
+        @Body() locationDto: { lat: number; lng: number; timestamp?: string },
     ) {
         const driver = await this.driverService.findByUserId(req.user.id);
         if (!driver) {
             throw new ForbiddenException('Driver profile not found');
         }
 
-        return this.driverService.updateDriverLocation(
+        // 1. PostGIS güncelle (mevcut davranış korunuyor)
+        const result = await this.driverService.updateDriverLocation(
             driver.id,
             locationDto.lat,
-            locationDto.lng
+            locationDto.lng,
         );
+
+        // 2. Admin dashboard'a anlık WebSocket broadcast
+        this.websocketGateway.broadcastLocationUpdate({
+            driverId: driver.id,
+            driverEmail: req.user.email,
+            coordinates: { latitude: locationDto.lat, longitude: locationDto.lng },
+            timestamp: locationDto.timestamp ? new Date(locationDto.timestamp) : new Date(),
+            driver: {
+                status: driver.status,
+                isAvailable: driver.isAvailable ?? false,
+                isAvailableForWork: driver.isAvailableForWork ?? false,
+                licenseNumber: driver.licenseNumber,
+                vehicle: driver.vehicle ? { plateNumber: driver.vehicle.plateNumber } : null,
+            },
+        });
+
+        return result;
     }
 
     @Post('me/availability-for-work')

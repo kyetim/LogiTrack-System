@@ -1,0 +1,48 @@
+{
+    "cli": {
+        "version": ">= 10.0.0",
+        "appVersionSource": "remote"
+    },
+    "build": {
+        "development": {
+            "developmentClient": true,
+            "distribution": "internal",
+            "env": {
+                "EXPO_PUBLIC_ENV": "development"
+            },
+            "ios": {
+                "simulator": true
+            }
+        },
+        "preview": {
+            "distribution": "internal",
+            "env": {
+                "EXPO_PUBLIC_ENV": "development"
+            },
+            "android": {
+                "buildType": "apk"
+            }
+        },
+        "production": {
+            "autoIncrement": true,
+            "env": {
+                "EXPO_PUBLIC_ENV": "production"
+            },
+            "android": {
+                "buildType": "app-bundle"
+            }
+        }
+    },
+    "submit": {
+        "production": {
+            "android": {
+                "serviceAccountKeyPath": "./google-play-key.json",
+                "track": "internal"
+            },
+            "ios": {
+                "appleId": "BURAYA_APPLE_ID",
+                "ascAppId": "BURAYA_APP_STORE_CONNECT_APP_ID"
+            }
+        }
+    }
+}

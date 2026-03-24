@@ -37,14 +37,32 @@ function getLocalIpAddress() {
     return 'localhost';
 }
 
-const ip = getLocalIpAddress();
-console.log(`🌐 Aktif Yerel IP Adresi Bulundu: ${ip}`);
+const isEmulator = process.argv.includes('--emulator');
+let ip;
+
+if (isEmulator) {
+    ip = '10.0.2.2'; // Android emulator's host alias
+    console.log(`🌐 Emulator IP Adresi Kullanılıyor: ${ip}`);
+} else {
+    ip = getLocalIpAddress();
+    console.log(`🌐 Aktif Yerel IP Adresi Bulundu: ${ip}`);
+}
+
 
 const envContent = `EXPO_PUBLIC_API_URL=http://${ip}:3000/api
-EXPO_PUBLIC_WS_URL=ws://${ip}:3001
+EXPO_PUBLIC_WS_URL=ws://${ip}:3000
+`;
+
+const envDevContent = `EXPO_PUBLIC_API_URL=http://${ip}:3000/api
+EXPO_PUBLIC_WS_URL=ws://${ip}:3000
+EXPO_PUBLIC_MQTT_URL=ws://${ip}:9001
+EXPO_PUBLIC_ENV=development
 `;
 
 const envPath = path.join(__dirname, '.env');
-fs.writeFileSync(envPath, envContent, { encoding: 'utf8' });
+const envDevPath = path.join(__dirname, '.env.development');
 
-console.log(`✅ .env dosyası güncellendi.`);
+fs.writeFileSync(envPath, envContent, { encoding: 'utf8' });
+fs.writeFileSync(envDevPath, envDevContent, { encoding: 'utf8' });
+
+console.log(`✅ .env ve .env.development dosyaları güncellendi.`);

@@ -114,7 +114,7 @@ export const JobDetailScreen = () => {
                         pickupLng={(jobData as any).pickupLocation?.lng || 28.9784}
                         deliveryLat={(jobData as any).deliveryLocation?.lat || 40.9822}
                         deliveryLng={(jobData as any).deliveryLocation?.lng || 29.0234}
-                        onPress={() => (navigation as any).navigate('MapTab' as any)}
+                        onPress={() => (navigation as any).navigate('MainTabs', { screen: 'MapTab' })}
                     />
                     <View style={styles.routeDetails}>
                         <View style={styles.routeRow}>

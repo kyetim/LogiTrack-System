@@ -1,31 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SendNotificationDto, RegisterDeviceDto, BroadcastNotificationDto, NotificationType } from './dto/notification.dto';
-
-// Note: Firebase Admin SDK should be installed and configured
-// npm install firebase-admin
+import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 
 @Injectable()
 export class PushNotificationService {
     private logger = new Logger('PushNotificationService');
-    // private firebaseApp: admin.app.App; // Uncomment when Firebase is configured
+    private expo: Expo;
 
     constructor(private prisma: PrismaService) {
-        // Initialize Firebase Admin SDK
-        // this.initializeFirebase();
+        this.expo = new Expo();
     }
-
-    /**
-     * Initialize Firebase Admin SDK
-     * Uncomment and configure when ready to use
-     */
-    // private initializeFirebase() {
-    //   const serviceAccount = require('../../firebase-admin-sdk.json');
-    //   this.firebaseApp = admin.initializeApp({
-    //     credential: admin.credential.cert(serviceAccount),
-    //   });
-    //   this.logger.log('Firebase Admin SDK initialized');
-    // }
 
     /**
      * Register device token for a user
@@ -137,8 +122,7 @@ export class PushNotificationService {
     }
 
     /**
-     * Send Firebase Cloud Messaging notification
-     * This is a mock implementation - replace with actual Firebase SDK when configured
+     * Send push notification via Expo Push Notification Service
      */
     private async sendFirebaseNotification(
         tokens: string[],
@@ -146,25 +130,44 @@ export class PushNotificationService {
         body: string,
         data?: any
     ) {
-        // TODO: Replace with actual Firebase implementation
-        // const message = {
-        //   notification: { title, body },
-        //   data: data || {},
-        //   tokens,
-        // };
-        // 
-        // const response = await admin.messaging().sendMulticast(message);
-        // return { success: true, successCount: response.successCount, failureCount: response.failureCount };
+        const validTokens = tokens.filter(token => Expo.isExpoPushToken(token));
 
-        // Mock response
-        this.logger.log(`[MOCK] Sending notification to ${tokens.length} devices: ${title}`);
+        if (validTokens.length === 0) {
+            this.logger.warn(`No valid Expo push tokens among ${tokens.length} provided`);
+            return { success: false, successCount: 0, failureCount: tokens.length };
+        }
 
-        return {
-            success: true,
-            successCount: tokens.length,
-            failureCount: 0,
-            message: 'Notification sent (mock mode)',
-        };
+        const messages: ExpoPushMessage[] = validTokens.map(token => ({
+            to: token,
+            sound: 'default',
+            title,
+            body,
+            data: data || {},
+        }));
+
+        let successCount = 0;
+        let failureCount = 0;
+
+        try {
+            const chunks = this.expo.chunkPushNotifications(messages);
+            for (const chunk of chunks) {
+                const tickets = await this.expo.sendPushNotificationsAsync(chunk);
+                for (const ticket of tickets) {
+                    if (ticket.status === 'ok') {
+                        successCount++;
+                    } else {
+                        failureCount++;
+                        this.logger.warn(`Push notification failed: ${ticket.message}`);
+                    }
+                }
+            }
+        } catch (error) {
+            this.logger.error('Expo push notification error', error);
+            return { success: false, successCount, failureCount: tokens.length };
+        }
+
+        this.logger.log(`Push notifications sent: ${successCount} success, ${failureCount} failed`);
+        return { success: true, successCount, failureCount };
     }
 
     /**

@@ -4,6 +4,7 @@ import { CreateShipmentDto } from './dto/create-shipment.dto';
 import { UpdateShipmentDto } from './dto/update-shipment.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { ShipmentStatus } from '@prisma/client';
+import { PaginationDto, getPaginationParams } from '../common/dto/pagination.dto';
 
 import { NotificationService } from '../notification/notification.service';
 import { FileUploadService } from '../file-upload/file-upload.service';
@@ -16,7 +17,10 @@ export class ShipmentService {
         private fileUploadService: FileUploadService
     ) { }
 
-    async findAll(filters?: { status?: ShipmentStatus; driverId?: string; startDate?: Date; endDate?: Date }) {
+    async findAll(
+        filters?: { status?: ShipmentStatus; driverId?: string; startDate?: Date; endDate?: Date },
+        pagination?: PaginationDto,
+    ) {
         const where: any = {};
 
         if (filters?.status) {
@@ -37,19 +41,31 @@ export class ShipmentService {
             }
         }
 
-        return this.prisma.shipment.findMany({
-            where,
-            include: {
-                driver: {
-                    select: {
-                        id: true,
-                        email: true,
-                        role: true,
+        const { skip, take, page, limit } = getPaginationParams(pagination ?? {});
+
+        const [data, total] = await Promise.all([
+            this.prisma.shipment.findMany({
+                where,
+                include: {
+                    driver: {
+                        select: {
+                            id: true,
+                            email: true,
+                            role: true,
+                        },
                     },
                 },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take,
+            }),
+            this.prisma.shipment.count({ where }),
+        ]);
+
+        return {
+            data,
+            meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+        };
     }
 
     async findByDriver(driverId: string) {
@@ -59,7 +75,7 @@ export class ShipmentService {
         });
     }
 
-    async findOne(id: string) {
+    async findOne(id: string, requestingUser?: { id: string; role: string }) {
         const shipment = await this.prisma.shipment.findUnique({
             where: { id },
             include: {
@@ -74,7 +90,12 @@ export class ShipmentService {
         });
 
         if (!shipment) {
-            throw new NotFoundException(`Shipment with ID ${id} not found`);
+            throw new NotFoundException(`Sevkiyat bulunamadı. (${id})`);
+        }
+
+        // DRIVER sadece kendi sevkiyatını görebilir
+        if (requestingUser?.role === 'DRIVER' && shipment.driverId !== requestingUser.id) {
+            throw new ForbiddenException('Bu sevkiyata erişim yetkiniz yok.');
         }
 
         return shipment;

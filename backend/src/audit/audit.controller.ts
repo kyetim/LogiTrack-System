@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Controller('audit-logs')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -12,13 +13,7 @@ export class AuditController {
 
     @Get()
     @Roles(UserRole.ADMIN)
-    findAll(
-        @Query('page') page: string,
-        @Query('limit') limit: string
-    ) {
-        return this.auditService.findAll(
-            page ? parseInt(page) : 1,
-            limit ? parseInt(limit) : 20
-        );
+    findAll(@Query() pagination: PaginationDto) {
+        return this.auditService.findAll(pagination);
     }
 }

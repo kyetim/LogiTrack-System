@@ -1,11 +1,15 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { FilterDocumentDto } from './dto/filter-document.dto';
 import { EntityType } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class DocumentService {
+    private readonly logger = new Logger(DocumentService.name);
+
     constructor(private prisma: PrismaService) { }
 
     // ... existing code ...
@@ -143,7 +147,24 @@ export class DocumentService {
             where: { id },
         });
 
-        // TODO: Also delete the file from storage (S3, etc.)
+        // Delete the physical file from local storage
+        if (document.fileUrl) {
+            try {
+                let filePath: string;
+                // fileUrl may be an absolute URL (http://host/uploads/...) or a relative path
+                if (document.fileUrl.startsWith('http://') || document.fileUrl.startsWith('https://')) {
+                    const url = new URL(document.fileUrl);
+                    filePath = path.join(process.cwd(), url.pathname);
+                } else {
+                    filePath = path.join(process.cwd(), document.fileUrl);
+                }
+                await fs.promises.unlink(filePath);
+                this.logger.log(`Deleted file: ${filePath}`);
+            } catch (err: any) {
+                // File may have already been deleted or path is invalid — log and continue
+                this.logger.warn(`Could not delete file for document ${id}: ${err.message}`);
+            }
+        }
 
         return { message: 'Document deleted successfully' };
     }
