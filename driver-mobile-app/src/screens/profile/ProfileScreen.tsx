@@ -179,7 +179,7 @@ export const ProfileScreen = () => {
                     <TouchableOpacity
                         activeOpacity={0.8}
                         style={styles.actionRow}
-                        onPress={() => navigation.navigate('DeliveryList' as any)}
+                        onPress={() => navigation.navigate('HistoryTab' as any)}
                     >
                         <View style={styles.actionLeft}>
                             <FileText color={Colors.white} size={20} />

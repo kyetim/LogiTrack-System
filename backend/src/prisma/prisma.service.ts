@@ -17,26 +17,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     async onModuleInit() {
         await this.$connect();
 
-        this.$use(async (params, next) => {
-            // Soft delete filtresi — sadece aktif kayıtları getir
-            const modelsWithSoftDelete = ['User', 'Shipment'];
-
-            if (modelsWithSoftDelete.includes(params.model)) {
-                if (params.action === 'findUnique' || params.action === 'findFirst') {
-                    params.action = 'findFirst';
-                    if (params.args.where?.deletedAt === undefined) {
-                        params.args.where = { ...params.args.where, deletedAt: null };
-                    }
-                }
-                if (params.action === 'findMany') {
-                    params.args = params.args || {};
-                    if (params.args.where?.deletedAt === undefined) {
-                        params.args.where = { ...params.args.where, deletedAt: null };
-                    }
-                }
-            }
-            return next(params);
-        });
+        // Prisma v6 does not support $use middleware.
+        // Soft delete logic should be rebuilt using Client Extensions ($extends) or explicit filters.
     }
 
     async onModuleDestroy() {

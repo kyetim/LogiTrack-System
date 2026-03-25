@@ -64,8 +64,12 @@ export class AuthController {
             path: '/api/auth/refresh',
         });
 
-        // Response body'de token GÖNDERME — sadece user bilgisi
-        return { user: result.user };
+        // Web dashboard cookie ile auth yapar, mobil uygulama body'deki token'ı okur
+        return {
+            user: result.user,
+            access_token: result.access_token,
+            refresh_token: result.refresh_token,
+        };
     }
 
     @Post('logout')

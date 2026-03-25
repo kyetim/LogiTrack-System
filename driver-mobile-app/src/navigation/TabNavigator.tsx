@@ -94,7 +94,7 @@ export const TabNavigator = () => {
                 options={{
                     tabBarLabel: 'Mesajlar',
                     tabBarIcon: ({ color }) => (
-                        <View>
+                        <View style={{ overflow: 'visible' }}>
                             <MessageCircle color={color} size={22} />
                             {unreadCount > 0 && (
                                 <View
@@ -125,7 +125,7 @@ export const TabNavigator = () => {
                 options={{
                     tabBarLabel: 'Destek',
                     tabBarIcon: ({ color }) => (
-                        <View>
+                        <View style={{ overflow: 'visible' }}>
                             <Headphones color={color} size={22} />
                             {hasActiveTicket && (
                                 <View

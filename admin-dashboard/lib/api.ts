@@ -26,19 +26,22 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
 
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        // Skip refresh logic for auth endpoints to prevent infinite loops
+        const isAuthEndpoint = originalRequest?.url?.includes('/auth/refresh') ||
+            originalRequest?.url?.includes('/auth/me') ||
+            originalRequest?.url?.includes('/auth/login');
+
+        if (error.response?.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
             originalRequest._retry = true;
 
             try {
-                // withCredentials is included in the axios instance setup, or we pass it directly
-                // Here we call the full URL using axios to bypass the main instance interceptors, but add withCredentials
                 await axios.post(`${API_URL}/auth/refresh`, {}, { withCredentials: true });
-
-                // Retry the original request (cookies and withCredentials will be used automatically)
+                // Retry the original request
                 return api(originalRequest);
             } catch (refreshError) {
-                // If refresh fails, redirect to login
-                window.location.href = '/login';
+                // Let AuthContext handle the redirect — do NOT use window.location.href
+                // (hard reload causes infinite loop by re-triggering checkAuth)
+                return Promise.reject(refreshError);
             }
         }
 

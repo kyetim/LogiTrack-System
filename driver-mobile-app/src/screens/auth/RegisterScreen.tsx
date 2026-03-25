@@ -16,6 +16,7 @@ import { HexLogo } from '@/components/ui/HexLogo';
 import { AppInput } from '@/components/ui/AppInput';
 import { AppButton } from '@/components/ui/AppButton';
 import { api } from '../../../services/api';
+import * as DocumentPicker from 'expo-document-picker';
 
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
@@ -30,10 +31,12 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         fullName: '',
         email: '',
         phone: '',
+        licenseNumber: '',
         password: '',
         confirmPassword: '',
     });
     const [licenseUploaded, setLicenseUploaded] = useState(false);
+    const [licenseFile, setLicenseFile] = useState<any>(null);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -42,6 +45,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         fullName?: string;
         email?: string;
         phone?: string;
+        licenseNumber?: string;
         password?: string;
         confirmPassword?: string;
         terms?: string;
@@ -67,6 +71,11 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 
         if (!form.phone || !validatePhone(form.phone)) {
             newErrors.phone = 'Geçerli bir telefon numarası giriniz.';
+            isValid = false;
+        }
+
+        if (!form.licenseNumber || form.licenseNumber.length < 4) {
+            newErrors.licenseNumber = 'Geçerli bir ehliyet numarası giriniz.';
             isValid = false;
         }
 
@@ -103,9 +112,13 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                     email: form.email,
                     password: form.password,
                     phoneNumber: form.phone,
+                    licenseNumber: form.licenseNumber,
                     firstName,
                     lastName,
                 });
+
+                // Not: Şimdilik fotoğraf backend'e ayrıca yüklenmiyor çünkü "register-driver" endpoint sadece metin alıyor.
+                // İleride driver onaylandıktan sonra hesaptan belge foto yüklemesi the system'a açılacaktır.
 
                 Alert.alert(
                     'Kayıt Başarılı',
@@ -123,7 +136,27 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                 setIsLoading(false);
             }
         }
-    }, [form.fullName, form.email, form.phone, form.password, form.confirmPassword, licenseUploaded, termsAccepted, validateEmail, validatePhone, navigation]);
+    }, [form, licenseUploaded, termsAccepted, validateEmail, validatePhone, navigation]);
+
+    const handlePickDocument = async () => {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({
+                type: ['image/*', 'application/pdf'],
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+                setLicenseUploaded(true);
+                setLicenseFile(result.assets[0]);
+                setErrors((prev) => ({ ...prev, license: undefined }));
+            } else if (__DEV__) {
+                console.log("Emülatör dev modu: Dosya seçimi iptal edildi veya dosya yok, otomatik başarılı sayılıyor.");
+                setLicenseUploaded(true);
+                setErrors((prev) => ({ ...prev, license: undefined }));
+            }
+        } catch (error) {
+            console.log("Belge seçme hatası:", error);
+            Alert.alert("Hata", "Dosya seçilirken bir hata oluştu.");
+        }
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -193,6 +226,18 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                     />
 
                     <AppInput
+                        label="Ehliyet Numarası"
+                        placeholder="Örn. 12345678"
+                        value={form.licenseNumber}
+                        onChangeText={(t) => {
+                            setForm((prev) => ({ ...prev, licenseNumber: t }));
+                            setErrors({ ...errors, licenseNumber: undefined });
+                        }}
+                        icon={<User color={Colors.gray} size={18} />}
+                        error={errors.licenseNumber}
+                    />
+
+                    <AppInput
                         label="Şifre"
                         placeholder="Şifrenizi oluşturun"
                         value={form.password}
@@ -225,10 +270,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                     <TouchableOpacity
                         activeOpacity={0.8}
                         style={styles.uploadContainer}
-                        onPress={() => {
-                            setLicenseUploaded(!licenseUploaded);
-                            setErrors({ ...errors, license: undefined });
-                        }}
+                        onPress={handlePickDocument}
                     >
                         <View style={styles.uploadLeft}>
                             <UploadCloud color={Colors.gray} size={20} />

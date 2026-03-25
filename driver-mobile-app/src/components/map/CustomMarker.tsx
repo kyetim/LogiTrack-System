@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { Marker, LatLng } from 'react-native-maps';
-import { Truck, ArrowUp, Home, Briefcase } from 'lucide-react-native';
 import { Colors, Typography } from '@/theme/tokens';
 
 export interface CustomMarkerProps {
@@ -57,18 +56,15 @@ export const CustomMarker: React.FC<CustomMarkerProps> = ({
                 });
 
                 return (
-                    <View style={styles.driverContainer}>
+                    <View style={styles.driverContainer} collapsable={false}>
                         <Animated.View
                             style={[
                                 styles.driverPulseRing,
-                                {
-                                    transform: [{ scale }],
-                                    opacity,
-                                },
+                                { transform: [{ scale }], opacity },
                             ]}
                         />
-                        <View style={styles.driverInnerCircle}>
-                            <Truck color="#000" size={16} />
+                        <View style={styles.driverInnerCircle} collapsable={false}>
+                            <Text style={styles.iconText}>🚚</Text>
                         </View>
                     </View>
                 );
@@ -85,7 +81,7 @@ export const CustomMarker: React.FC<CustomMarkerProps> = ({
                 });
 
                 return (
-                    <View style={styles.pinContainer}>
+                    <View style={styles.pinContainer} collapsable={false}>
                         {isActive && (
                             <Animated.View
                                 style={[
@@ -94,8 +90,8 @@ export const CustomMarker: React.FC<CustomMarkerProps> = ({
                                 ]}
                             />
                         )}
-                        <View style={[styles.pickupCircle, isActive && styles.activeElevation]}>
-                            <ArrowUp color="#000" size={16} strokeWidth={3} />
+                        <View style={[styles.pickupCircle, isActive && styles.activeElevation]} collapsable={false}>
+                            <Text style={styles.iconText}>↑</Text>
                         </View>
                         <View style={[styles.pickupTriangle, { borderTopColor: Colors.primary }]} />
                     </View>
@@ -113,17 +109,17 @@ export const CustomMarker: React.FC<CustomMarkerProps> = ({
                 });
 
                 return (
-                    <View style={styles.pinContainer}>
+                    <View style={styles.pinContainer} collapsable={false}>
                         {isActive && (
                             <Animated.View
                                 style={[
                                     styles.activeRing,
-                                    { borderColor: Colors.white, transform: [{ scale: ringScale }], opacity: ringOpacity },
+                                    { borderColor: Colors.primary, transform: [{ scale: ringScale }], opacity: ringOpacity },
                                 ]}
                             />
                         )}
-                        <View style={[styles.deliveryCircle, isActive && styles.activeElevation]}>
-                            <Home color="#0D0D0D" size={16} strokeWidth={2.5} />
+                        <View style={[styles.deliveryCircle, isActive && styles.activeElevation]} collapsable={false}>
+                            <Text style={styles.iconTextDark}>⌂</Text>
                         </View>
                         <View style={[styles.pickupTriangle, { borderTopColor: Colors.white }]} />
                     </View>
@@ -134,16 +130,13 @@ export const CustomMarker: React.FC<CustomMarkerProps> = ({
                 const isJobActive = isActive;
                 return (
                     <View
+                        collapsable={false}
                         style={[
                             styles.jobPill,
                             isJobActive && styles.jobPillActive,
                         ]}
                     >
-                        <Briefcase
-                            color={isJobActive ? '#000' : Colors.primary}
-                            size={12}
-                            strokeWidth={2.5}
-                        />
+                        <Text style={[styles.jobIconText, { color: isJobActive ? '#000' : Colors.primary }]}>💼</Text>
                         {label && (
                             <Text
                                 style={[
@@ -210,15 +203,15 @@ const styles = StyleSheet.create({
     pinContainer: {
         alignItems: 'center',
         justifyContent: 'flex-end',
-        width: 50,
-        height: 56, // Account for circle + triangle
+        width: 56,
+        height: 72,
     },
     activeRing: {
         position: 'absolute',
-        top: 4,
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        top: 12,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
         borderWidth: 2,
     },
     activeElevation: {
@@ -295,6 +288,21 @@ const styles = StyleSheet.create({
     },
     jobPillActive: {
         backgroundColor: Colors.primary,
+    },
+    iconText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#000',
+        lineHeight: 20,
+    },
+    iconTextDark: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#0D0D0D',
+        lineHeight: 22,
+    },
+    jobIconText: {
+        fontSize: 12,
     },
     jobLabel: {
         fontFamily: Typography.fontDisplay,
