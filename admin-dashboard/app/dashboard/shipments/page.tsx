@@ -80,7 +80,7 @@ export default function ShipmentsPage() {
         try {
             setIsLoading(true);
             const { data } = await api.get('/shipments');
-            setShipments(data);
+            setShipments(data.data || data);
         } catch (error) {
             console.error('Failed to fetch shipments:', error);
             // Don't show toast on initial load error if it's just empty or network blip
@@ -92,7 +92,7 @@ export default function ShipmentsPage() {
     const fetchDrivers = async () => {
         try {
             const { data } = await api.get('/drivers');
-            setDrivers(data);
+            setDrivers(data.data || data);
         } catch (error) {
             console.error('Failed to fetch drivers:', error);
         }

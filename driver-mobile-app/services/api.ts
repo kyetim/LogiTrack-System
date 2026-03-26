@@ -44,7 +44,14 @@ class ApiClient {
         this.client.interceptors.response.use(
             (response) => response,
             async (error: AxiosError) => {
-                if (error.response?.status === 401 && !this.isLoggingOut) {
+                const requestUrl = (error.config as any)?.url ?? '';
+                // Skip auth-clear for login/register endpoints — they return 401
+                // legitimately (wrong password) and must NOT clear the store
+                const isAuthEndpoint =
+                    requestUrl.includes('/auth/login') ||
+                    requestUrl.includes('/auth/register');
+
+                if (error.response?.status === 401 && !this.isLoggingOut && !isAuthEndpoint) {
                     this.isLoggingOut = true;
                     // Token expired - clear storage
                     await secureStorage.multiRemove([
@@ -52,7 +59,7 @@ class ApiClient {
                         STORAGE_KEYS.USER_DATA,
                         STORAGE_KEYS.DRIVER,
                     ]);
-                    // Clear redüktör tetikleme:
+                    // Clear Redux state
                     store.dispatch(clearAuth());
 
                     setTimeout(() => { this.isLoggingOut = false; }, 3000);
