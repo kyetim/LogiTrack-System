@@ -88,7 +88,33 @@ export default function TrackingPage() {
         };
 
         socket.on('location:update', handleLocationUpdate);
-        return () => { socket.off('location:update', handleLocationUpdate); };
+
+        // Handle driver status changes (online/offline toggle)
+        const handleDriverStatus = (data: any) => {
+            setLocations(prev => {
+                const idx = prev.findIndex(l => l.driverId === data.driverId);
+                if (idx === -1) return prev; // driver not in list yet, ignore
+                const next = [...prev];
+                next[idx] = {
+                    ...next[idx],
+                    driver: {
+                        ...next[idx].driver,
+                        isAvailable: data.isAvailable ?? next[idx].driver.isAvailable,
+                        isAvailableForWork: data.isAvailableForWork ?? next[idx].driver.isAvailableForWork,
+                        status: data.status ?? next[idx].driver.status,
+                    },
+                };
+                return next;
+            });
+            setLastUpdateTime(new Date());
+        };
+
+        socket.on('driver:status', handleDriverStatus);
+        return () => {
+            socket.off('location:update', handleLocationUpdate);
+            socket.off('driver:status', handleDriverStatus);
+        };
+
     }, [socket, isConnected]);
 
     // Filtered list
@@ -135,8 +161,8 @@ export default function TrackingPage() {
                     <div className="flex items-center gap-3">
                         {/* WS Bağlantı Durumu */}
                         <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${isConnected
-                                ? 'bg-green-50 text-green-700 border border-green-200'
-                                : 'bg-red-50 text-red-700 border border-red-200'
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-red-50 text-red-700 border border-red-200'
                             }`}>
                             {isConnected ? (
                                 <><Wifi className="h-3.5 w-3.5" /> Canlı</>
@@ -203,8 +229,8 @@ export default function TrackingPage() {
                                 key={f.value}
                                 onClick={() => setFilterStatus(f.value)}
                                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${filterStatus === f.value
-                                        ? f.color + ' ring-2 ring-offset-1 ring-blue-400'
-                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                    ? f.color + ' ring-2 ring-offset-1 ring-blue-400'
+                                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                     }`}
                             >
                                 {f.label}

@@ -209,7 +209,24 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     );
   }
 
-  // ==================== SUPPORT TICKET EVENTS ====================
+  /**
+   * Broadcast driver availability/status change to all dispatchers/admins.
+   * Called from DriverController when a driver goes online or offline.
+   */
+  broadcastDriverStatus(payload: {
+    driverId: string;
+    driverEmail: string;
+    isAvailable: boolean;
+    isAvailableForWork: boolean;
+    status: string;
+  }) {
+    this.server.to('dispatchers').emit('driver:status', payload);
+    this.logger.log(
+      `🟢 Status broadcast → dispatchers: driver=${payload.driverId} isAvailableForWork=${payload.isAvailableForWork}`
+    );
+  }
+
+
 
   // Emit new support ticket created (to all admins/dispatchers)
   emitNewSupportTicket(ticket: any) {

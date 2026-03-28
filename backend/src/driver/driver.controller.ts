@@ -319,10 +319,22 @@ export class DriverController {
             throw new ForbiddenException('Driver profile not found');
         }
 
-        return this.driverService.setAvailabilityForWork(
+        const updated = await this.driverService.setAvailabilityForWork(
             driver.id,
             availabilityDto.isAvailable
         );
+
+        // Broadcast real-time status change so admin Canlı Takip page updates instantly
+        this.websocketGateway.broadcastDriverStatus({
+            driverId: driver.id,
+            driverEmail: req.user.email,
+            isAvailable: availabilityDto.isAvailable,
+            isAvailableForWork: availabilityDto.isAvailable,
+            status: availabilityDto.isAvailable ? 'ON_DUTY' : 'OFF_DUTY',
+        });
+
+        return updated;
     }
 }
+
 
