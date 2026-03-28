@@ -51,8 +51,9 @@ export function ChatInput({
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            enabled={Platform.OS === 'ios'}
         >
             <View style={styles.container}>
                 <TextInput

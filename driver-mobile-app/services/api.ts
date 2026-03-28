@@ -189,9 +189,6 @@ class ApiClient {
         await this.client.post('/locations/batch', { locations });
     }
 
-
-    // ==================== NEW ENDPOINTS ====================
-
     // Messaging
     async getConversations(): Promise<any> {
         const { data } = await this.client.get('/messages/conversations');
@@ -343,10 +340,11 @@ class ApiClient {
 
     // Driver Availability
     async updateAvailability(status: 'AVAILABLE' | 'ON_DUTY' | 'OFF_DUTY'): Promise<any> {
-        const { data } = await this.client.patch('/drivers/me/availability', {
-            status,
-        });
-        return data;
+        const isGoingOnline = status !== 'OFF_DUTY';
+        // Update the isAvailableForWork flag so the admin map marker shows correctly
+        await this.client.post('/drivers/me/availability-for-work', { isAvailable: isGoingOnline });
+        // Also return data for slice usage
+        return { status, isAvailable: isGoingOnline };
     }
 
     async getAvailabilitySummary(): Promise<any> {
