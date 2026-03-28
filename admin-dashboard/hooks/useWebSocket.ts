@@ -26,8 +26,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         socketRef.current = io(url, {
             transports: ['websocket', 'polling'],
             reconnection: true,
-            reconnectionDelay: 1000,
-            reconnectionAttempts: 5,
+            reconnectionDelay: 2000,
+            reconnectionDelayMax: 10000,
+            reconnectionAttempts: Infinity,
             auth: {
                 token,
             },

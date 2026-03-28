@@ -39,12 +39,21 @@ export default function TrackingPage() {
         }
     }, []);
 
-    // Initial fetch + 5dk fallback poll
+    // Initial fetch + 15s fallback poll (catches stale status when WS is down)
     useEffect(() => {
         fetchLocations();
-        const interval = setInterval(fetchLocations, 300_000);
-        return () => clearInterval(interval);
+        const interval = setInterval(fetchLocations, 15_000);
+
+        // Also refresh when the user switches back to this tab
+        const handleVisibility = () => { if (!document.hidden) fetchLocations(); };
+        document.addEventListener('visibilitychange', handleVisibility);
+
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibility);
+        };
     }, [fetchLocations]);
+
 
     // Real-time WebSocket updates
     useEffect(() => {
