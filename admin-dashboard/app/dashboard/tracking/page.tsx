@@ -129,15 +129,16 @@ export default function TrackingPage() {
     // Filtered list
     const filteredLocations = locations.filter(loc => {
         if (filterStatus === 'ALL') return true;
-        if (filterStatus === 'AVAILABLE') return loc.driver.status !== 'OFF_DUTY' && loc.driver.isAvailable;
-        return loc.driver.status === filterStatus;
+        if (filterStatus === 'AVAILABLE') return loc.driver.isAvailableForWork;
+        if (filterStatus === 'ON_DUTY') return !loc.driver.isAvailableForWork && loc.driver.status !== 'OFF_DUTY';
+        return loc.driver.status === filterStatus || !loc.driver.isAvailableForWork && filterStatus === 'OFF_DUTY';
     });
 
     const stats = {
         total: locations.length,
-        onDuty: locations.filter(l => l.driver.status === 'ON_DUTY' && !l.driver.isAvailable).length,
-        available: locations.filter(l => l.driver.status !== 'OFF_DUTY' && l.driver.isAvailable).length,
-        offDuty: locations.filter(l => l.driver.status === 'OFF_DUTY').length,
+        onDuty: locations.filter(l => l.driver.isAvailableForWork === false && l.driver.status !== 'OFF_DUTY').length,
+        available: locations.filter(l => l.driver.isAvailableForWork === true).length,
+        offDuty: locations.filter(l => l.driver.isAvailableForWork === false && l.driver.status === 'OFF_DUTY').length,
     };
 
     const getDriverDisplayName = (driver: DriverLocation['driver']) => {
@@ -257,9 +258,9 @@ export default function TrackingPage() {
                         ) : (
                             filteredLocations.map(loc => {
                                 const isSelected = selectedDriverId === loc.driverId;
-                                const color = loc.driver.status === 'OFF_DUTY'
+                                const color = !loc.driver.isAvailableForWork
                                     ? '#94a3b8'
-                                    : loc.driver.isAvailable ? '#22c55e' : '#3b82f6';
+                                    : '#22c55e';
 
                                 return (
                                     <button
@@ -277,7 +278,7 @@ export default function TrackingPage() {
                                                     style={{ backgroundColor: color + '20' }}>
                                                     <Truck className="h-4 w-4" style={{ color }} />
                                                 </div>
-                                                {loc.driver.status !== 'OFF_DUTY' && (
+                                                {loc.driver.isAvailableForWork && (
                                                     <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white"
                                                         style={{ backgroundColor: color }} />
                                                 )}
@@ -295,9 +296,7 @@ export default function TrackingPage() {
                                                     )}
                                                     <span className="text-xs"
                                                         style={{ color, fontWeight: 600 }}>
-                                                        {loc.driver.status === 'OFF_DUTY'
-                                                            ? 'Çevrimdışı'
-                                                            : loc.driver.isAvailable ? 'Müsait' : 'Görevde'}
+                                                        {loc.driver.isAvailableForWork ? 'Müsait' : 'Çevrimdışı'}
                                                     </span>
                                                 </div>
                                             </div>
