@@ -4,6 +4,7 @@ import { websocketService } from './websocket';
 import { store } from '../store';
 import { api } from './api';
 import { offlineStorage } from './OfflineStorage';
+import { setLastLocationSuccess } from '../src/hooks/useLocationWatchdog';
 
 let locationSubscription: Location.LocationSubscription | null = null;
 
@@ -14,6 +15,9 @@ export const startLocationTracking = async (): Promise<boolean> => {
             console.log('Location tracking already started');
             return true;
         }
+
+        // Watchdog'u temizle — yeni session başlıyor, ilk başarılı gönderime kadar stale kontrol yok
+        setLastLocationSuccess(null);
 
         // Request foreground location permission
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -72,6 +76,7 @@ export const startLocationTracking = async (): Promise<boolean> => {
                     );
 
                     store.dispatch({ type: 'location/setConnected', payload: true });
+                    setLastLocationSuccess(Date.now()); // Watchdog zaman damgasını güncelle
                     // console.log('✅ Location sent successfully');
 
                     // 2. If valid connection, try to sync ONE offline item (Piggyback sync)
@@ -121,6 +126,7 @@ export const stopLocationTracking = async (): Promise<boolean> => {
 
         locationSubscription.remove();
         locationSubscription = null;
+        setLastLocationSuccess(null); // Watchdog'u sıfırla — null iken stale kontrol devreye girmez
 
         // Disconnect MQTT
         mqttService.disconnect();

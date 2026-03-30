@@ -17,6 +17,7 @@ import { AppButton } from '@/components/ui';
 
 // Location Hook
 import { useDriverLocation } from '@/hooks/useDriverLocation';
+import { useLocationWatchdog } from '@/hooks/useLocationWatchdog';
 
 // Assume these routes exist in upcoming router setup
 import { CompositeNavigationProp } from '@react-navigation/native';
@@ -37,11 +38,26 @@ export const HomeScreen = () => {
     const [isOnline, setIsOnline] = useState(false);
     const [greeting, setGreeting] = useState('Günaydın');
 
+    useEffect(() => {
+        // Set dynamic greeting based on hour
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 12) setGreeting('Günaydın');
+        else if (hour >= 12 && hour < 18) setGreeting('İyi Günler');
+        else setGreeting('İyi Akşamlar');
+    }, []);
+
     const dispatch = useAppDispatch();
     const user = useAppSelector((state) => state.auth.user);
     const driver = useAppSelector((state) => state.auth.driver);
     const { shipments, isLoading: shipmentsLoading } = useAppSelector((state) => state.shipments);
     const unreadCount = useAppSelector((state) => state.messages.unreadCount);
+
+    // İki kaynaktan isOnline türet: toggle state + DB'den gelen driver.status
+    const driverStatus = (driver as any)?.status as string | undefined;
+    const isOnlineForWatchdog = availabilityStatus !== 'OFF_DUTY' || driverStatus === 'ON_DUTY';
+
+    // Konum kaybı watchdog — online iken izin ve stale konŭmu izler
+    useLocationWatchdog(isOnlineForWatchdog);
 
     const displayName = driver?.firstName
         ? `${driver.firstName} ${driver.lastName || ''}`.trim()
@@ -69,14 +85,7 @@ export const HomeScreen = () => {
 
     // Switch Animation setup
     const toggleAnim = React.useRef(new Animated.Value(isOnline ? 1 : 0)).current;
-
-    useEffect(() => {
-        // Set dynamic greeting based on hour
-        const hour = new Date().getHours();
-        if (hour >= 5 && hour < 12) setGreeting('Günaydın');
-        else if (hour >= 12 && hour < 18) setGreeting('İyi Günler');
-        else setGreeting('İyi Akşamlar');
-    }, []);
+    const hasInitializedRef = React.useRef(false);
 
     // Redux'tan gelen driver status'a göre başlangıç online durumunu ayarla
     useEffect(() => {
@@ -88,8 +97,27 @@ export const HomeScreen = () => {
                 bounciness: 0,
                 speed: 20,
             }).start();
+
+            // Başlangıçta eğer toggle açık geliyorsa takibi başlat (Sorun 2)
+            if (!hasInitializedRef.current) {
+                startTracking();
+                hasInitializedRef.current = true;
+            }
+        } else if (availabilityStatus === 'OFF_DUTY') {
+            setIsOnline(false);
+            Animated.spring(toggleAnim, {
+                toValue: 0,
+                useNativeDriver: false,
+                bounciness: 0,
+                speed: 20,
+            }).start();
+
+            if (!hasInitializedRef.current) {
+                stopTracking();
+                hasInitializedRef.current = true;
+            }
         }
-    }, [availabilityStatus]);
+    }, [availabilityStatus, startTracking, stopTracking, toggleAnim]);
 
     useEffect(() => {
         dispatch(fetchShipments());

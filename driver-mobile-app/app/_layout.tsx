@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import { View } from 'react-native';
 import { Slot, useRouter } from 'expo-router';
 import { Provider, useSelector } from 'react-redux';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
@@ -12,8 +13,11 @@ import { setStatus } from '../store/slices/availabilitySlice';
 import { COLORS } from '../utils/constants';
 import { usePushNotifications } from '../src/hooks/usePushNotifications';
 import { useNetworkSync } from '../src/hooks/useNetworkSync';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { PermissionOnboardingScreen, PERMISSION_DONE_KEY } from '../src/screens/auth/PermissionOnboardingScreen';
 import { api } from '../services/api';
+import { startLocationTracking } from '../services/locationTracking';
 import { websocketService } from '../services/websocket';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
@@ -65,6 +69,17 @@ function AppContent() {
     // Offline-First: Ağ bağlantısı izleme ve otomatik sync
     useNetworkSync();
 
+    // Permission onboarding — tek seferlik, ilk login sonrası
+    const [showPermissionScreen, setShowPermissionScreen] = useState(false);
+
+    useEffect(() => {
+        if (token && driver) {
+            AsyncStorage.getItem(PERMISSION_DONE_KEY).then(done => {
+                if (!done) setShowPermissionScreen(true);
+            });
+        }
+    }, [token, driver]);
+
     // Auth yüklendiğinde availability slice'ı driver.status ile senkronize et
     useEffect(() => {
         if (driver) {
@@ -77,6 +92,14 @@ function AppContent() {
                 derivedStatus = 'ON_DUTY';
             }
             dispatch(setStatus(derivedStatus));
+
+            // Önceki session'da online bırakıldıysa tracking'i otomatik yeniden başlat
+            // Bu sayede toggle açık görünürken konum gerçekten gönderilir
+            if (derivedStatus !== 'OFF_DUTY') {
+                startLocationTracking().catch(err =>
+                    console.warn('[Layout] Auto-resume tracking failed:', err)
+                );
+            }
         }
     }, [driver]);
 
@@ -118,7 +141,19 @@ function AppContent() {
             <BottomSheetModalProvider>
                 <PaperProvider theme={theme}>
                     <StatusBar style="light" backgroundColor="transparent" translucent={true} />
-                    <Slot />
+                    <View style={{ flex: 1 }}>
+                        <Slot />
+                        {showPermissionScreen && (
+                            <View style={{
+                                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                                zIndex: 999,
+                            }}>
+                                <PermissionOnboardingScreen
+                                    onComplete={() => setShowPermissionScreen(false)}
+                                />
+                            </View>
+                        )}
+                    </View>
                 </PaperProvider>
             </BottomSheetModalProvider>
         </GestureHandlerRootView>

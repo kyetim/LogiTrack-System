@@ -50,6 +50,12 @@ export const MapScreen = () => {
     // Redux
     const { shipments } = useAppSelector((state) => state.shipments);
     const { currentLocation } = useAppSelector((state) => state.location);
+    // Online durumu — iki kaynaktan birleştir:
+    // 1. availabilitySlice: toggle ile aktif olarak set edildi
+    // 2. auth.driver.status: uygulama kapanıp açıldığında loadStoredAuth ile gelir (persist yok)
+    const availabilityStatus = useAppSelector((state: any) => state.availability.status);
+    const driverStatus = useAppSelector((state: any) => state.auth.driver?.status);
+    const isOnline = availabilityStatus !== 'OFF_DUTY' || driverStatus === 'ON_DUTY';
 
     useEffect(() => {
         dispatch(fetchShipments());
@@ -99,8 +105,8 @@ export const MapScreen = () => {
         zoom: 14,
     };
 
-    // Permission screen
-    if (!foregroundPermissionGranted) {
+    // Permission screen — online ise izin zaten alınmış, hook state'i mount'ta sıfırlansa da engelleme
+    if (!foregroundPermissionGranted && !isOnline) {
         const isDark = colorScheme === 'dark';
         return (
             <View style={[styles.permissionContainer, isDark && styles.permissionDark]}>

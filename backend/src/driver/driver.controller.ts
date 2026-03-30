@@ -133,30 +133,35 @@ export class DriverController {
             throw new ForbiddenException('Driver profile not found');
         }
 
-        // Map frontend status to backend status + isAvailable
+        // Map frontend status to backend status + isAvailable + isAvailableForWork
         let driverStatus: DriverStatus;
         let isAvailable: boolean;
+        let isAvailableForWork: boolean;
 
         switch (availabilityDto.status) {
             case 'AVAILABLE':
                 driverStatus = DriverStatus.ON_DUTY;
                 isAvailable = true;
+                isAvailableForWork = true;
                 break;
             case 'ON_DUTY':
                 driverStatus = DriverStatus.ON_DUTY;
                 isAvailable = false; // On duty but busy
+                isAvailableForWork = false;
                 break;
             case 'OFF_DUTY':
                 driverStatus = DriverStatus.OFF_DUTY;
                 isAvailable = false;
+                isAvailableForWork = false;
                 break;
         }
 
-        // Update both status and isAvailable
+        // Update status, isAvailable, and isAvailableForWork
         return this.driverService.updateStatusAndAvailability(
             driver.id,
             driverStatus,
-            isAvailable
+            isAvailable,
+            isAvailableForWork
         );
     }
 

@@ -14,22 +14,19 @@ export const updateAvailability = createAsyncThunk(
     async (status: AvailabilityStatus) => {
         const response = await api.updateAvailability(status);
 
-        // Map backend response back to frontend status
+        // Backend driverProfile döndürüyor: { status: 'ON_DUTY'|'OFF_DUTY', isAvailable: boolean }
+        // Frontend state'ini doğru şekilde haritala
         if (response.status === 'ON_DUTY' && response.isAvailable === true) {
-            return 'AVAILABLE';
+            return 'AVAILABLE' as AvailabilityStatus;
         }
-
-        return response.status || status;
+        if (response.status === 'ON_DUTY' && response.isAvailable === false) {
+            return 'ON_DUTY' as AvailabilityStatus;
+        }
+        // OFF_DUTY veya beklenmedik durum
+        return 'OFF_DUTY' as AvailabilityStatus;
     }
 );
 
-export const fetchAvailabilitySummary = createAsyncThunk(
-    'availability/fetchSummary',
-    async () => {
-        const response = await api.getAvailabilitySummary();
-        return response;
-    }
-);
 
 const availabilitySlice = createSlice({
     name: 'availability',
@@ -57,10 +54,6 @@ const availabilitySlice = createSlice({
             state.error = action.error.message || 'Failed to update availability';
         });
 
-        // Fetch summary
-        builder.addCase(fetchAvailabilitySummary.fulfilled, (state, action) => {
-            state.status = action.payload.status;
-        });
     },
 });
 

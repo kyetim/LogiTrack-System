@@ -289,7 +289,8 @@ export class DriverService {
     async updateStatusAndAvailability(
         id: string,
         status: DriverStatus,
-        isAvailable: boolean
+        isAvailable: boolean,
+        isAvailableForWork: boolean
     ) {
         await this.findOne(id);
 
@@ -298,6 +299,7 @@ export class DriverService {
             data: {
                 status,
                 isAvailable,
+                isAvailableForWork,
             },
             include: {
                 user: {
@@ -545,6 +547,7 @@ export class DriverService {
                     isAvailable: driver.isAvailable,
                     isAvailableForWork: driver.isAvailableForWork,
                     licenseNumber: driver.licenseNumber,
+                    lastLocationUpdate: new Date().toISOString(),
                     user: {
                         email: driver.user.email
                     },

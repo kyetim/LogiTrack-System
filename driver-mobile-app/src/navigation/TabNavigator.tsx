@@ -14,6 +14,7 @@ import { ConversationsScreen } from '../screens/messages/ConversationsScreen';
 import { SupportScreen } from '../screens/profile/SupportScreen';
 import { MessageCircle, Headphones } from 'lucide-react-native';
 import { View, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '../../store';
 
 export type TabParamList = {
@@ -29,6 +30,7 @@ export type TabParamList = {
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export const TabNavigator = () => {
+    const insets = useSafeAreaInsets();
     const unreadCount = useAppSelector((state) => state.messages.unreadCount);
     const currentTicket = useAppSelector((state) => state.support.currentTicket);
     const hasActiveTicket =
@@ -44,8 +46,8 @@ export const TabNavigator = () => {
                     backgroundColor: '#0D0D0D',
                     borderTopColor: '#1A1A1A',
                     borderTopWidth: 1,
-                    height: 64,
-                    paddingBottom: 10,
+                    height: 64 + insets.bottom,
+                    paddingBottom: 10 + insets.bottom,
                     paddingTop: 8,
                 },
                 tabBarActiveTintColor: '#FFD700',

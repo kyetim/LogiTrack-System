@@ -37,6 +37,7 @@ interface Driver {
     status: string;
     isAvailable: boolean;
     createdAt: string;
+    lastLocationUpdate?: string | null;
 }
 
 interface PendingDriver {
@@ -82,6 +83,7 @@ export default function DriversPage() {
                                 ...d,
                                 status: data.driver.status,
                                 isAvailable: data.driver.isAvailable,
+                                lastLocationUpdate: data.timestamp ?? data.driver.lastLocationUpdate,
                             };
                         }
                         return d;
@@ -237,7 +239,25 @@ export default function DriversPage() {
             accessorKey: "user.email",
             id: "email",
             header: t('users.email'),
-            cell: ({ row }) => <div className="font-semibold text-foreground">{row.original.user.email}</div>,
+            cell: ({ row }) => {
+                const driver = row.original;
+                const isOnDuty = driver.status === 'ON_DUTY';
+                const hasStaleLocation = isOnDuty && (
+                    !driver.lastLocationUpdate ||
+                    Date.now() - new Date(driver.lastLocationUpdate).getTime() > 5 * 60 * 1000
+                );
+                return (
+                    <div className="flex items-center gap-2">
+                        <div className="font-semibold text-foreground">{driver.user.email}</div>
+                        {hasStaleLocation && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200">
+                                <WifiOff className="h-3 w-3" />
+                                Konum Yok
+                            </span>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             accessorKey: "licenseNumber",
