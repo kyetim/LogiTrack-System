@@ -13,7 +13,8 @@ import { MessagingService } from './messaging.service';
 
 @WebSocketGateway({
     cors: {
-        origin: '*',
+        origin: (requestOrigin: string, callback: any) => callback(null, true),
+        credentials: true,
     },
     namespace: '/messaging',
 })

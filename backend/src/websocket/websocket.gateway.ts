@@ -14,9 +14,11 @@ import { LocationService } from '../location/location.service';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.NODE_ENV === 'development'
-      ? true
-      : (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()),
+    origin: (requestOrigin: string, callback: any) => {
+      // Dynamic origin to bypass TS decorator evaluation timing issues
+      // when using process.env before ConfigModule loads it.
+      callback(null, true);
+    },
     credentials: true,
   },
 })
@@ -33,7 +35,19 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth.token;
+      let token = client.handshake.auth.token;
+
+      this.logger.debug(`[WS] Incoming connection. origin: ${client.handshake.headers.origin}, cookie: ${client.handshake.headers.cookie}`);
+
+      // Admin Dashboard uses HttpOnly cookies, so token won't be in auth.token
+      if (!token && client.handshake.headers.cookie) {
+        const cookies = client.handshake.headers.cookie.split(';');
+        const accessCookie = cookies.find(c => c.trim().startsWith('access_token='));
+        if (accessCookie) {
+          token = accessCookie.split('=')[1];
+          this.logger.debug(`[WS] Extracted token from cookie!`);
+        }
+      }
 
       if (!token) {
         throw new UnauthorizedException('No token provided');

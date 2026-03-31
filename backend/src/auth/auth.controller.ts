@@ -50,7 +50,7 @@ export class AuthController {
         res.cookie('access_token', result.access_token, {
             httpOnly: true,
             secure: isProd,         // production'da HTTPS zorunlu
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 15 * 60 * 1000, // 15 dakika
             path: '/',
         });
@@ -59,7 +59,7 @@ export class AuthController {
         res.cookie('refresh_token', result.refresh_token, {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 gün
             path: '/api/auth/refresh',
         });
@@ -120,7 +120,7 @@ export class AuthController {
         res.cookie('access_token', result.access_token, {
             httpOnly: true,
             secure: isProd,
-            sameSite: 'strict',
+            sameSite: 'lax',
             maxAge: 15 * 60 * 1000, // 15 dakika
             path: '/',
         });

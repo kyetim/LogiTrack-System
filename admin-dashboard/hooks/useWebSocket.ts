@@ -24,11 +24,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
         // Create socket connection
         socketRef.current = io(url, {
-            transports: ['websocket', 'polling'],
+            transports: ['websocket'],
             reconnection: true,
             reconnectionDelay: 2000,
             reconnectionDelayMax: 10000,
             reconnectionAttempts: Infinity,
+            withCredentials: true,
             auth: {
                 token,
             },

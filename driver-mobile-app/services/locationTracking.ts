@@ -47,7 +47,6 @@ export const startLocationTracking = async (): Promise<boolean> => {
             {
                 accuracy: Location.Accuracy.High,
                 timeInterval: 30000, // 30 seconds
-                distanceInterval: 50, // 50 meters
             },
             async (location) => {
                 const timestamp = new Date(location.timestamp).toISOString();
