@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, MessageSquare, Package, Weight, Maximize, AlertTriangle } from 'lucide-react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Colors, Typography } from '@/theme/tokens';
-import { mockAvailableJobs } from '@/data/mockData';
+import { api } from '../../../services/api';
 import { MapPreview, StatusBadge } from '@/components/shared';
 import { AppButton, AppInput } from '@/components/ui';
 
+import { useAppDispatch } from '../../../store';
+import { fetchShipments } from '../../../store/slices/shipmentsSlice';
 import { MainStackParamList } from '@/navigation/MainNavigator';
 
 type ScreenNavProp = NativeStackNavigationProp<MainStackParamList, 'JobDetail'>;
@@ -18,43 +20,37 @@ type ScreenRouteProp = RouteProp<MainStackParamList, 'JobDetail'>;
 export const JobDetailScreen = () => {
     const navigation = useNavigation<ScreenNavProp>();
     const route = useRoute<ScreenRouteProp>();
+    const dispatch = useAppDispatch();
     const jobId = route.params?.id;
 
-    // Bulunan işi al, yoksa ilkini göster fallback olarak
-    const jobData = mockAvailableJobs.find(j => j.id === jobId) || mockAvailableJobs[0];
-
     // State
+    const [jobData, setJobData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
     const [bidMode, setBidMode] = useState(false);
     const [bidAmount, setBidAmount] = useState('');
-    const [accepted, setAccepted] = useState(false);
-    const [countdown, setCountdown] = useState(jobData.expiresIn);
+    const [acting, setActing] = useState(false);
 
     const bidHeightAnim = useRef(new Animated.Value(0)).current;
 
-    // Geri sayım
     useEffect(() => {
-        if (countdown <= 0) {
-            if (!accepted) {
-                Alert.alert("Süre Doldu", "Bu iş için verilen süre dolduğu için artık kabul edilemez.", [
-                    { text: "Tamam", onPress: () => navigation.goBack() }
+        const loadShipment = async () => {
+            try {
+                const data = await api.getShipment(jobId);
+                setJobData(data);
+            } catch (error) {
+                console.error('Failed to load shipment details', error);
+                Alert.alert('Hata', 'Sefer detayları yüklenemedi. Zaten alınmış olabilir.', [
+                    { text: 'Tamam', onPress: () => navigation.goBack() }
                 ]);
+            } finally {
+                setLoading(false);
             }
-            return;
+        };
+
+        if (jobId) {
+            loadShipment();
         }
-
-        const timer = setInterval(() => {
-            setCountdown(prev => prev - 1);
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [countdown, accepted, navigation]);
-
-    // Format zaman makrosu
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
-    };
+    }, [jobId, navigation]);
 
     // Teklif modu animasyonu
     useEffect(() => {
@@ -71,7 +67,44 @@ export const JobDetailScreen = () => {
         outputRange: [0, 100] // Estimated height for the input area
     });
 
-    const isUrgent = countdown <= 60;
+    const handleAcceptJob = async () => {
+        Alert.alert(
+            "Seferi Üstlen",
+            "Bu seferi üzerinize almak istediğinize emin misiniz?",
+            [
+                { text: "İptal", style: "cancel" },
+                {
+                    text: "Evet, Üstlen",
+                    style: "default",
+                    onPress: async () => {
+                        setActing(true);
+                        try {
+                            await api.acceptShipment(jobId);
+                            await dispatch(fetchShipments()).unwrap();
+                            Alert.alert('Başarılı', 'Sefer başarıyla üzerinize atandı.', [
+                                {
+                                    text: 'Tamam',
+                                    onPress: () => (navigation as any).navigate('HomeTab')
+                                }
+                            ]);
+                        } catch (error: any) {
+                            Alert.alert('Hata', error.response?.data?.message || 'Sefer alınamadı.');
+                        } finally {
+                            setActing(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
+    if (loading || !jobData) {
+        return (
+            <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -81,24 +114,20 @@ export const JobDetailScreen = () => {
                 <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backButton}>
                     <ChevronLeft color={Colors.white} size={28} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>İş Detayı</Text>
+                <Text style={styles.headerTitle}>Sefer Detayı</Text>
 
-                <View style={[
-                    styles.countdownChip,
-                    isUrgent && styles.countdownUrgent
-                ]}>
-                    <Text style={styles.countdownText}>
-                        {formatTime(countdown)}
-                    </Text>
-                </View>
+                {/* Boş görünüm (sağ tarafı hizalamak için) */}
+                <View style={{ width: 28 }} />
             </View>
 
             <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
                 {/* ─── FİYAT HERO KARTI ─── */}
                 <View style={styles.heroCard}>
-                    <Text style={styles.heroPrice}>{jobData.price}</Text>
-                    <Text style={styles.heroSubText}>{jobData.distance} · {jobData.estimatedTime}</Text>
+                    <Text style={styles.heroPrice}>Sözleşmeli / Navlun</Text>
+                    <Text style={styles.heroSubText}>
+                        Tahmini Varış: {jobData.estimatedArrival ? new Date(jobData.estimatedArrival).toLocaleDateString() : 'Belirtilmedi'}
+                    </Text>
                     <View style={styles.badgeWrapper}>
                         <StatusBadge status="pending" size="sm" showDot={false} />
                     </View>
@@ -110,31 +139,31 @@ export const JobDetailScreen = () => {
                         height={160}
                         showRoute={true}
                         borderRadius={12}
-                        pickupLat={(jobData as any).pickupLocation?.lat || 41.0082}
-                        pickupLng={(jobData as any).pickupLocation?.lng || 28.9784}
-                        deliveryLat={(jobData as any).deliveryLocation?.lat || 40.9822}
-                        deliveryLng={(jobData as any).deliveryLocation?.lng || 29.0234}
+                        pickupLat={(jobData.originCoordinates as any)?.lat || 41.0082}
+                        pickupLng={(jobData.originCoordinates as any)?.lng || 28.9784}
+                        deliveryLat={(jobData.destinationCoordinates as any)?.lat || 40.9822}
+                        deliveryLng={(jobData.destinationCoordinates as any)?.lng || 29.0234}
                         onPress={() => (navigation as any).navigate('MainTabs', { screen: 'MapTab' })}
                     />
                     <View style={styles.routeDetails}>
                         <View style={styles.routeRow}>
                             <View style={styles.routeDotA} />
                             <View style={styles.routeTextContainer}>
-                                <Text style={styles.routeLabelA}>ALIŞ</Text>
-                                <Text style={styles.routeAddress}>{jobData.pickupAddress}</Text>
+                                <Text style={styles.routeLabelA}>YÜKLEME NOKTASI</Text>
+                                <Text style={styles.routeAddress}>{jobData.origin}</Text>
                             </View>
                         </View>
 
                         <View style={styles.routeDistanceContainer}>
                             <View style={styles.routeVerticalLine} />
-                            <Text style={styles.routeDistanceText}>↓ {jobData.distance}</Text>
+                            <Text style={styles.routeDistanceText}>↓ Rota</Text>
                         </View>
 
                         <View style={styles.routeRow}>
                             <View style={styles.routeDotB} />
                             <View style={styles.routeTextContainer}>
-                                <Text style={styles.routeLabelB}>TESLİMAT</Text>
-                                <Text style={styles.routeAddress}>{jobData.deliveryAddress}</Text>
+                                <Text style={styles.routeLabelB}>TESLİMAT NOKTASI</Text>
+                                <Text style={styles.routeAddress}>{jobData.destination}</Text>
                             </View>
                         </View>
                     </View>
@@ -143,14 +172,14 @@ export const JobDetailScreen = () => {
                 {/* ─── GÖNDERİCİ BİLGİSİ ─── */}
                 <View style={styles.card}>
                     <View style={styles.senderHeader}>
-                        <Text style={styles.sectionLabel}>GÖNDERİCİ</Text>
+                        <Text style={styles.sectionLabel}>YÜK DETAYLARI</Text>
                     </View>
                     <View style={styles.senderRow}>
-                        <Text style={styles.senderName}>{jobData.customerName}</Text>
+                        <Text style={styles.senderName}>Takip No: {jobData.trackingNumber}</Text>
                         <AppButton
                             variant="outline"
                             size="sm"
-                            title="Mesajlaş"
+                            title="Operatöre Sor"
                             onPress={() => { }}
                         />
                     </View>
@@ -158,38 +187,36 @@ export const JobDetailScreen = () => {
 
                 {/* ─── PAKET DETAYI ─── */}
                 <View style={styles.card}>
-                    <Text style={[styles.sectionLabel, { marginBottom: 16 }]}>PAKET DETAYI</Text>
+                    <Text style={[styles.sectionLabel, { marginBottom: 16 }]}>NAVLUN ÖZELLİKLERİ</Text>
 
                     <View style={styles.gridContainer}>
                         <View style={styles.gridItem}>
                             <Package color={Colors.gray} size={20} />
                             <View style={styles.gridTextContainer}>
-                                <Text style={styles.gridLabel}>Paket Tipi</Text>
-                                <Text style={styles.gridValue}>{jobData.packageType}</Text>
+                                <Text style={styles.gridLabel}>Yük Tipi</Text>
+                                <Text style={styles.gridValue}>Paletli Yük (Varsayılan)</Text>
                             </View>
                         </View>
                         <View style={styles.gridItem}>
                             <Weight color={Colors.gray} size={20} />
                             <View style={styles.gridTextContainer}>
-                                <Text style={styles.gridLabel}>Ağırlık tahmini</Text>
-                                <Text style={styles.gridValue}>~5 kg</Text>
+                                <Text style={styles.gridLabel}>Hacim/Desi</Text>
+                                <Text style={styles.gridValue}>~ Bilinmiyor</Text>
                             </View>
                         </View>
                         <View style={[styles.gridItem, { marginTop: 16 }]}>
                             <Maximize color={Colors.gray} size={20} />
                             <View style={styles.gridTextContainer}>
-                                <Text style={styles.gridLabel}>Boyut</Text>
-                                <Text style={styles.gridValue}>Orta (40x30cm)</Text>
+                                <Text style={styles.gridLabel}>Kasa Uyumluluğu</Text>
+                                <Text style={styles.gridValue}>Tenteli/Kamyon</Text>
                             </View>
                         </View>
                         <View style={[styles.gridItem, { marginTop: 16 }]}>
-                            <AlertTriangle color={jobData.packageType === 'fragile' ? Colors.error : Colors.gray} size={20} />
+                            <AlertTriangle color={Colors.gray} size={20} />
                             <View style={styles.gridTextContainer}>
-                                <Text style={styles.gridLabel}>Kırılgan mı?</Text>
+                                <Text style={styles.gridLabel}>Özel Taşıma?</Text>
                                 <View style={styles.fragileBadge}>
-                                    <Text style={styles.fragileText}>
-                                        {jobData.packageType === 'fragile' ? 'Evet' : 'Hayır'}
-                                    </Text>
+                                    <Text style={styles.fragileText}>Hayır</Text>
                                 </View>
                             </View>
                         </View>
@@ -226,7 +253,7 @@ export const JobDetailScreen = () => {
                                 variant="primary"
                                 size="sm"
                                 title="Teklif Gönder"
-                                onPress={() => { setBidMode(false); setAccepted(true); }}
+                                onPress={() => { setBidMode(false); }}
                             />
                         </View>
                     </View>
@@ -235,38 +262,24 @@ export const JobDetailScreen = () => {
                 {/* NORMAL BUTONLAR */}
                 {!bidMode && (
                     <View style={styles.actionRow}>
-                        {accepted ? (
+                        <View style={styles.bidActionLeft}>
+                            <AppButton
+                                variant="outline"
+                                title="Opsiyon/Teklif"
+                                fullWidth
+                                onPress={() => setBidMode(true)}
+                                disabled={acting}
+                            />
+                        </View>
+                        <View style={styles.bidActionRight}>
                             <AppButton
                                 variant="primary"
+                                title="Seferi Üstlen"
                                 fullWidth
-                                title="Teslimatı Başlat →"
-                                onPress={() => navigation.navigate('ActiveDelivery', {})}
+                                disabled={acting}
+                                onPress={handleAcceptJob}
                             />
-                        ) : (
-                            <>
-                                <View style={styles.bidActionLeft}>
-                                    <AppButton
-                                        variant="outline"
-                                        title="Teklif Ver"
-                                        fullWidth
-                                        onPress={() => setBidMode(true)}
-                                    />
-                                </View>
-                                <View style={styles.bidActionRight}>
-                                    <AppButton
-                                        variant="primary"
-                                        title="Hemen Kabul Et"
-                                        fullWidth
-                                        onPress={() => {
-                                            Alert.alert("İşi Kabul Et", "Bu işi almak istediğinize emin misiniz?", [
-                                                { text: "İptal", style: 'cancel' },
-                                                { text: "Evet, Al", style: 'default', onPress: () => setAccepted(true) }
-                                            ]);
-                                        }}
-                                    />
-                                </View>
-                            </>
-                        )}
+                        </View>
                     </View>
                 )}
             </View>
@@ -296,28 +309,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: Colors.white,
     },
-    countdownChip: {
-        backgroundColor: Colors.card,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: Colors.border,
-    },
-    countdownText: {
-        fontFamily: Typography.fontBodySemiBold,
-        fontSize: 13,
-        color: Colors.white,
-    },
-    countdownUrgent: {
-        backgroundColor: Colors.error,
-        borderColor: Colors.error,
-    },
-    actionText: {
-        fontFamily: Typography.fontBodySemiBold,
-        fontSize: 15,
-        color: '#000',
-    },
     bottomSpacer: {
         height: 120,
     },
@@ -346,16 +337,14 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         padding: 24,
         borderRadius: 20,
-        backgroundColor: Colors.card, // Fallback
+        backgroundColor: Colors.card,
         alignItems: 'center',
         borderWidth: 1,
         borderColor: Colors.border,
-        // React Native doesn't support linear-gradient natively without expo-linear-gradient
-        // Using a solid dark color that matches the user's intent 
     },
     heroPrice: {
         fontFamily: Typography.fontDisplayBold,
-        fontSize: 48,
+        fontSize: 24, // Smaller font for 'Sözleşmeli / Navlun' which is wide
         color: Colors.primary,
         marginBottom: 8,
     },

@@ -46,18 +46,19 @@ export const MainNavigator = () => {
     useEffect(() => {
         if (!user?.id) return;
 
-        mqttService.connect().then((success) => {
-            if (success) {
-                setToast({ message: 'MQTT bağlantısı kuruldu', type: 'success', isVisible: true });
-            }
-        });
+        // MQTT disabled due to timeout issues locally, using HTTP fallback
+        // mqttService.connect().then((success) => {
+        //     if (success) {
+        //         setToast({ message: 'MQTT bağlantısı kuruldu', type: 'success', isVisible: true });
+        //     }
+        // });
 
-        mqttService.onMessage((topic, payload) => {
-            setToast({ message: payload, type: 'info', isVisible: true });
-        });
+        // mqttService.onMessage((topic, payload) => {
+        //     setToast({ message: payload, type: 'info', isVisible: true });
+        // });
 
         return () => {
-            mqttService.disconnect();
+            // mqttService.disconnect();
         };
     }, [user?.id]);
 

@@ -75,6 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Cookies are set automatically by backend, just set user state
+        if (data.access_token) {
+            localStorage.setItem('token', data.access_token);
+        }
         setUser(data.user);
         router.push('/dashboard');
     };
@@ -85,6 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (e) {
             console.error('Logout error', e);
         }
+        localStorage.removeItem('token');
         setUser(null);
         router.push('/login');
     };

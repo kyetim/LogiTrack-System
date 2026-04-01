@@ -202,7 +202,7 @@ export const HomeScreen = () => {
                     {activeDelivery ? (
                         <View style={styles.activeDeliveryCard}>
                             <View style={styles.activeHeader}>
-                                <Text style={styles.activeHeaderTitle}>Aktif Teslimat</Text>
+                                <Text style={styles.activeHeaderTitle}>Aktif Sefer</Text>
                                 <StatusBadge status={getDeliveryStatus(activeDelivery.status)} size="sm" showDot />
                             </View>
                             <Text style={styles.activeCustomer}>{activeDelivery.customerName || 'Bilinmeyen Müşteri'}</Text>
@@ -228,7 +228,7 @@ export const HomeScreen = () => {
                         </View>
                     ) : (
                         <View style={styles.activeDeliveryCard}>
-                            <Text style={styles.emptyStateText}>Aktif teslimat yok</Text>
+                            <Text style={styles.emptyStateText}>Aktif sefer yok</Text>
                         </View>
                     )}
                 </View>
@@ -236,7 +236,7 @@ export const HomeScreen = () => {
                 {/* ─── SON TESLİMATLAR ─── */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Son Teslimatlar</Text>
+                        <Text style={styles.sectionTitle}>Son Seferler</Text>
                         <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('HistoryTab')}>
                             <Text style={styles.seeAllText}>Tümünü Gör</Text>
                         </TouchableOpacity>

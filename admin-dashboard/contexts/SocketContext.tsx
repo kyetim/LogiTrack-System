@@ -85,7 +85,8 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const socketInstance = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000', {
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')) || 'http://localhost:3000';
+        const socketInstance = io(baseUrl, {
             auth: { token },
             transports: ['websocket'],
             withCredentials: true,
@@ -163,7 +164,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
         if (!token) return;
 
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL?.replace('/api', '')) || 'http://localhost:3000';
 
         // Connect to /messaging namespace — userId in query so backend can map sockets
         const msgSocketInstance = io(`${baseUrl}/messaging`, {

@@ -143,7 +143,7 @@ export const ShipmentBottomSheet: React.FC<ShipmentBottomSheetProps> = ({
                 <View style={styles.statsRow}>
                     <View style={styles.statItem}>
                         <Text style={styles.statLabel}>
-                            {isActiveDelivery ? 'Mesafe' : 'Teslimat'}
+                            {isActiveDelivery ? 'Mesafe' : 'Sefer'}
                         </Text>
                         <Text style={styles.statValue}>
                             {isActiveDelivery

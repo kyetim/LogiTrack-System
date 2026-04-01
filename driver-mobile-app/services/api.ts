@@ -5,6 +5,7 @@ import { API_URL, STORAGE_KEYS } from '../utils/constants';
 import { AuthResponse, ApiResponse, Shipment, LocationUpdate, Driver } from '../types';
 import { store } from '../store';
 import { clearAuth } from '../store/slices/authSlice';
+import { stopLocationTracking } from './locationTracking';
 
 class ApiClient {
     private client: AxiosInstance;
@@ -52,13 +53,46 @@ class ApiClient {
                     requestUrl.includes('/auth/register');
 
                 if (error.response?.status === 401 && !this.isLoggingOut && !isAuthEndpoint) {
+                    const originalRequest = error.config as any;
+
+                    if (!originalRequest._retry) {
+                        originalRequest._retry = true;
+                        try {
+                            const refreshToken = await secureStorage.getItem(STORAGE_KEYS.REFRESH_TOKEN);
+                            if (refreshToken) {
+                                // Raw axios call to bypass this interceptor
+                                const res = await axios.post(`${API_URL}/auth/refresh`, {
+                                    refresh_token: refreshToken
+                                });
+
+                                if (res.data.access_token) {
+                                    await secureStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, res.data.access_token);
+                                    if (res.data.refresh_token) {
+                                        await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, res.data.refresh_token);
+                                    }
+
+                                    // Update the original request's auth header
+                                    originalRequest.headers.Authorization = `Bearer ${res.data.access_token}`;
+
+                                    // Replay the failed request
+                                    return axios(originalRequest);
+                                }
+                            }
+                        } catch (refreshError) {
+                            console.log('❌ Token refresh failed, falling back to forceful logout.');
+                        }
+                    }
+
                     this.isLoggingOut = true;
                     // Token expired - clear storage
                     await secureStorage.multiRemove([
                         STORAGE_KEYS.AUTH_TOKEN,
+                        STORAGE_KEYS.REFRESH_TOKEN,
                         STORAGE_KEYS.USER_DATA,
                         STORAGE_KEYS.DRIVER,
                     ]);
+                    // Kill daemon background loop
+                    await stopLocationTracking();
                     // Clear Redux state
                     store.dispatch(clearAuth());
 
@@ -364,6 +398,13 @@ class ApiClient {
         });
         return data;
     }
+
+    async acceptShipment(id: string): Promise<Shipment> {
+        const { data } = await this.client.patch<Shipment>(`/shipments/${id}/accept`);
+        return data;
+    }
+
+
 
     async updateMyLocation(lat: number, lng: number, timestamp?: string): Promise<void> {
         await this.client.post('/drivers/me/location', {

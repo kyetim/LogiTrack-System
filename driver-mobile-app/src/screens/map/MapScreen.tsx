@@ -57,6 +57,9 @@ export const MapScreen = () => {
     const driverStatus = useAppSelector((state: any) => state.auth.driver?.status);
     const isOnline = availabilityStatus !== 'OFF_DUTY' || driverStatus === 'ON_DUTY';
 
+    // Aktif teslimatı bul
+    const activeDelivery = shipments?.find(s => ['IN_TRANSIT', 'PICKED_UP'].includes(s.status));
+
     useEffect(() => {
         dispatch(fetchShipments());
     }, [dispatch]);
@@ -200,33 +203,31 @@ export const MapScreen = () => {
                 {/* ── TOP PANEL: Aktif Sipariş Bilgisi ── */}
                 <View style={styles.topPanel} pointerEvents="box-none">
                     {/* Sol: Sipariş Kartı */}
-                    <TouchableOpacity
-                        style={styles.orderCard}
-                        onPress={() => {
-                            setSelectedItem({
-                                id: 'dlv_01', status: 'active',
-                                pickupAddress: 'Depo A', deliveryAddress: 'Kadıköy Merkez',
-                                customerName: 'Ahmet Yılmaz', distance: '4.2 km',
-                                estimatedTime: '18 dk', price: '125',
-                                packageType: 'standard', date: new Date().toISOString(),
-                            } as Delivery);
-                            setBottomSheetType('active');
-                            setIsBottomSheetVisible(true);
-                        }}
-                    >
-                        <View style={styles.orderCardInner}>
-                            <View style={styles.orderDot} />
-                            <View style={styles.orderTextWrap}>
-                                <Text style={styles.orderCustomer} numberOfLines={1}>
-                                    Ahmet Yılmaz
-                                </Text>
-                                <Text style={styles.orderAddress} numberOfLines={1}>
-                                    Kadıköy Merkez, İstanbul
-                                </Text>
+                    {activeDelivery ? (
+                        <TouchableOpacity
+                            style={styles.orderCard}
+                            onPress={() => {
+                                navigation.navigate('ActiveDelivery', { id: activeDelivery.id });
+                            }}
+                        >
+                            <View style={styles.orderCardInner}>
+                                <View style={styles.orderDot} />
+                                <View style={styles.orderTextWrap}>
+                                    <Text style={styles.orderCustomer} numberOfLines={1}>
+                                        Aktif Yük: {activeDelivery.trackingNumber}
+                                    </Text>
+                                    <Text style={styles.orderAddress} numberOfLines={1}>
+                                        {activeDelivery.destination}
+                                    </Text>
+                                </View>
+                                <ChevronRight size={16} color={Colors.gray} />
                             </View>
-                            <ChevronRight size={16} color={Colors.gray} />
+                        </TouchableOpacity>
+                    ) : (
+                        <View style={[styles.orderCard, { padding: 12, justifyContent: 'center' }]}>
+                            <Text style={[styles.orderCustomer, { color: Colors.gray }]}>Aktif Sefer Yok</Text>
                         </View>
-                    </TouchableOpacity>
+                    )}
 
                     {/* Sağ: Aksiyon Butonları */}
                     <View style={styles.actionCol}>
@@ -251,45 +252,44 @@ export const MapScreen = () => {
                 </View>
 
                 {/* ── NAV STEP BAR (Navigasyon Adımı) ── */}
-                <View style={styles.navStepBar} pointerEvents="none">
-                    <Navigation size={16} color={Colors.primary} />
-                    <Text style={styles.navStepText} numberOfLines={1}>
-                        {currentNavStep}
-                    </Text>
-                    <TouchableOpacity style={styles.externalBtn} onPress={openInGoogleMaps}>
-                        <ExternalLink size={14} color={Colors.gray} />
-                    </TouchableOpacity>
-                </View>
+                {activeDelivery && (
+                    <View style={styles.navStepBar} pointerEvents="none">
+                        <Navigation size={16} color={Colors.primary} />
+                        <Text style={styles.navStepText} numberOfLines={1}>
+                            Varış: {(activeDelivery as any).estimatedArrival ? new Date((activeDelivery as any).estimatedArrival).toLocaleTimeString() : 'Bilinmeyen Zaman'}
+                        </Text>
+                        <TouchableOpacity style={styles.externalBtn} onPress={openInGoogleMaps}>
+                            <ExternalLink size={14} color={Colors.gray} />
+                        </TouchableOpacity>
+                    </View>
+                )}
 
                 {/* ── BOTTOM INFO BAR (ETA + Teslim Ettim) ── */}
-                <View
-                    style={[
-                        styles.bottomPanelContainer,
-                        colorScheme === 'dark' && { backgroundColor: Colors.surface, shadowColor: '#000' },
-                        { paddingBottom: Math.max(insets.bottom, 24) },
-                    ]}
-                    pointerEvents="box-none"
-                >
-                    <View style={styles.etaRow}>
-                        <View style={styles.etaItem}>
-                            <Clock size={16} color={Colors.primary} />
-                            <Text style={[styles.etaValue, colorScheme === 'dark' && { color: Colors.white }]}>18 dk</Text>
-                        </View>
-                        <View style={[styles.etaSep, colorScheme === 'dark' && { backgroundColor: Colors.border }]} />
-                        <View style={styles.etaItem}>
-                            <Ruler size={16} color={Colors.primary} />
-                            <Text style={[styles.etaValue, colorScheme === 'dark' && { color: Colors.white }]}>4.2 km</Text>
-                        </View>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.deliverBtn}
-                        onPress={() => navigation.navigate('ActiveDelivery')}
-                        activeOpacity={0.8}
+                {activeDelivery && (
+                    <View
+                        style={[
+                            styles.bottomPanelContainer,
+                            colorScheme === 'dark' && { backgroundColor: Colors.surface, shadowColor: '#000' },
+                            { paddingBottom: Math.max(insets.bottom, 24) },
+                        ]}
+                        pointerEvents="box-none"
                     >
-                        <Text style={styles.deliverBtnText}>✓  Teslim Ettim</Text>
-                    </TouchableOpacity>
-                </View>
+                        <View style={styles.etaRow}>
+                            <View style={styles.etaItem}>
+                                <Clock size={16} color={Colors.primary} />
+                                <Text style={[styles.etaValue, colorScheme === 'dark' && { color: Colors.white }]}>Haraket Halinde</Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.deliverBtn}
+                            onPress={() => navigation.navigate('ActiveDelivery', { id: activeDelivery.id })}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.deliverBtnText}>→ Sefer Detaylarına Git</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
 
             {/* ─── BOTTOM SHEET ─────────────────────────── */}

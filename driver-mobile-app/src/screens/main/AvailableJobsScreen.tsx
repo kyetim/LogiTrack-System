@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, ScrollView, StyleSheet, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MapPin, Package, Clock, Navigation } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { MapPin, Package, Clock, Navigation, Truck } from 'lucide-react-native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Colors, Typography } from '@/theme/tokens';
-import { mockAvailableJobs } from '@/data/mockData';
+import { api } from '../../../services/api';
 import { AppButton } from '@/components/ui';
+import { useAppDispatch } from '../../../store';
+import { fetchShipments } from '../../../store/slices/shipmentsSlice';
 
-type SortType = 'distance' | 'price' | 'time';
+type SortType = 'distance' | 'date';
 
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -23,49 +25,57 @@ type ScreenNavProp = CompositeNavigationProp<
 
 export const AvailableJobsScreen = () => {
     const navigation = useNavigation<ScreenNavProp>();
+    const dispatch = useAppDispatch();
 
     // State
     const [sortBy, setSortBy] = useState<SortType>('distance');
-    const [jobs, setJobs] = useState(mockAvailableJobs);
+    const [jobs, setJobs] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [initialLoading, setInitialLoading] = useState(true);
 
-    // ─── EFFECTS ───
-    useEffect(() => {
-        const timer = setInterval(() => {
-            setJobs(prevJobs => {
-                return prevJobs
-                    .map(j => ({ ...j, expiresIn: j.expiresIn - 1 }))
-                    .filter(j => j.expiresIn > 0);
-            });
-        }, 1000);
+    const loadJobs = async () => {
+        try {
+            const data = await api.getNearbyShipments(100); // 100km radius
+            setJobs(data);
+        } catch (error) {
+            console.error('Failed to load nearby shipments', error);
+        } finally {
+            setInitialLoading(false);
+            setRefreshing(false);
+        }
+    };
 
-        return () => clearInterval(timer);
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadJobs();
+        }, [])
+    );
 
-    // ─── ACTIONS ───
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        setTimeout(() => {
-            // Restore mocked original state and give them random new times for effect
-            const refreshedJobs = mockAvailableJobs.map(j => ({ ...j, expiresIn: j.expiresIn + Math.floor(Math.random() * 60) }));
-            setJobs(refreshedJobs);
-            setRefreshing(false);
-        }, 1000);
+        loadJobs();
     }, []);
 
-    const handleAcceptJob = (jobId: string, customerName: string) => {
+    const handleAcceptJob = (jobId: string, trackingNumber: string) => {
         Alert.alert(
-            "İşi Kabul Et",
-            `${customerName} müşterisine ait teslimatı almak istediğinize emin misiniz?`,
+            "Seferi Üstlen",
+            `${trackingNumber} numaralı yükü almak istediğinize emin misiniz?`,
             [
                 { text: "İptal", style: "cancel" },
                 {
-                    text: "Evet, Al",
+                    text: "Evet, Üstlen",
                     style: "default",
-                    onPress: () => {
-                        // Remove accepted job locally
-                        setJobs(prev => prev.filter(j => j.id !== jobId));
-                        // In real app: API call here then navigate to ActiveDelivery
+                    onPress: async () => {
+                        try {
+                            await api.acceptShipment(jobId);
+                            // Refresh assigned shipments in Redux
+                            await dispatch(fetchShipments()).unwrap();
+                            // Navigate to active delivery list
+                            setJobs(prev => prev.filter(j => j.id !== jobId));
+                            navigation.navigate('HomeTab');
+                        } catch (error: any) {
+                            Alert.alert('Hata', error.response?.data?.message || 'Sefer alınamadı.');
+                        }
                     }
                 }
             ]
@@ -75,43 +85,42 @@ export const AvailableJobsScreen = () => {
     // ─── DERIVED DATA ───
     const sortedJobs = useMemo(() => {
         return [...jobs].sort((a, b) => {
-            if (sortBy === 'price') {
-                const priceA = parseInt(a.price.replace('₺', ''), 10);
-                const priceB = parseInt(b.price.replace('₺', ''), 10);
-                return priceB - priceA; // High to low
-            }
             if (sortBy === 'distance') {
-                const distA = parseFloat(a.pickupDistance.replace(' km', ''));
-                const distB = parseFloat(b.pickupDistance.replace(' km', ''));
-                return distA - distB; // Low to high
+                return (a.distance_meters || 0) - (b.distance_meters || 0); // Low to high
             }
-            if (sortBy === 'time') {
-                const timeA = parseInt(a.estimatedTime.replace(' dk', ''), 10);
-                const timeB = parseInt(b.estimatedTime.replace(' dk', ''), 10);
-                return timeA - timeB; // Low to high
+            if (sortBy === 'date') {
+                const dateA = new Date(a.createdAt).getTime();
+                const dateB = new Date(b.createdAt).getTime();
+                return dateB - dateA; // Newest first
             }
             return 0;
         });
     }, [jobs, sortBy]);
 
-    // ─── RENDER HELPERS ───
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
+    const formatDistance = (meters?: number) => {
+        if (!meters) return 'Bilinmiyor';
+        return meters > 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
     };
+
+    if (initialLoading) {
+        return (
+            <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['top']}>
 
             {/* ─── HEADER ─── */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Müsait İşler</Text>
+                <Text style={styles.headerTitle}>Müsait Yükler</Text>
                 <View style={styles.headerSubRow}>
-                    <Text style={styles.jobCountText}>{jobs.length} iş mevcut</Text>
+                    <Text style={styles.jobCountText}>{jobs.length} yük mevcut</Text>
                     <View style={styles.locationChip}>
-                        <MapPin color={Colors.primary} size={12} />
-                        <Text style={styles.locationText}>Kadıköy, İstanbul</Text>
+                        <Truck color={Colors.primary} size={14} />
+                        <Text style={styles.locationText}>Lojistik Ağı</Text>
                     </View>
                 </View>
             </View>
@@ -123,9 +132,9 @@ export const AvailableJobsScreen = () => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.filterScroll}
                 >
-                    {(['distance', 'price', 'time'] as SortType[]).map((sortOpt) => {
+                    {(['distance', 'date'] as SortType[]).map((sortOpt) => {
                         const isActive = sortBy === sortOpt;
-                        const label = sortOpt === 'distance' ? 'Mesafe' : (sortOpt === 'price' ? 'Ücret' : 'Süre');
+                        const label = sortOpt === 'distance' ? 'En Yakın' : 'En Yeni';
 
                         return (
                             <TouchableOpacity
@@ -149,74 +158,52 @@ export const AvailableJobsScreen = () => {
                 keyExtractor={item => item.id}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
-                getItemLayout={(data, index) => ({
-                    length: 180,
-                    offset: 180 * index,
-                    index,
-                })}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
                         onRefresh={onRefresh}
                         tintColor={Colors.primary}
-                        colors={[Colors.primary]} // Android
+                        colors={[Colors.primary]}
                     />
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyContainer}>
                         <Package color={Colors.grayDim} size={48} />
-                        <Text style={styles.emptyTitle}>Şu an müsait iş yok</Text>
-                        <Text style={styles.emptySubtitle}>Bölgene yeni işler düştüğünde burada görünecek.</Text>
+                        <Text style={styles.emptyTitle}>Yakınınızda müsait yük yok</Text>
+                        <Text style={styles.emptySubtitle}>Bölgene yeni seferler düştüğünde burada listelenecektir.</Text>
                     </View>
                 }
                 renderItem={({ item }) => {
-                    const isUrgent = item.expiresIn <= 60;
-
                     return (
-                        <View style={[styles.jobCard, isUrgent && styles.jobCardUrgent]}>
+                        <View style={styles.jobCard}>
 
                             {/* Üst satır */}
                             <View style={styles.cardHeader}>
-                                <Text style={styles.customerName}>{item.customerName}</Text>
-                                <Text style={styles.jobPrice}>{item.price}</Text>
+                                <Text style={styles.customerName}>Takip No: {item.trackingNumber}</Text>
+                                <Text style={styles.jobPrice}>Sözleşmeli</Text>
                             </View>
 
                             {/* Rota satırı (kompakt) */}
                             <View style={styles.compactRoute}>
-                                <Text style={styles.routeText} numberOfLines={1}>{item.pickupAddress.split(',')[0]}</Text>
+                                <Text style={styles.routeText} numberOfLines={1}>{item.origin.split(',')[0]}</Text>
                                 <View style={styles.routeDistanceChip}>
-                                    <Text style={styles.routeDistanceText}>{item.distance}</Text>
+                                    <Text style={styles.routeDistanceText}>→</Text>
                                 </View>
-                                <Text style={styles.routeText} numberOfLines={1}>{item.deliveryAddress.split(',')[0]}</Text>
+                                <Text style={styles.routeText} numberOfLines={1}>{item.destination.split(',')[0]}</Text>
                             </View>
 
                             {/* Bilgi satırı */}
                             <View style={styles.infoRow}>
                                 <View style={styles.infoChip}>
                                     <Navigation color={Colors.primary} size={12} />
-                                    <Text style={styles.infoChipText}>{item.pickupDistance} uzakta</Text>
+                                    <Text style={styles.infoChipText}>Alım Noktası: {formatDistance(item.distance_meters)}</Text>
                                 </View>
                                 <View style={styles.infoChip}>
                                     <Clock color={Colors.gray} size={12} />
-                                    <Text style={styles.infoChipText}>{item.estimatedTime}</Text>
-                                </View>
-                                <View style={styles.infoChip}>
-                                    <Package color={Colors.gray} size={12} />
-                                    <Text style={styles.infoChipText}>{item.packageType}</Text>
-                                </View>
-                            </View>
-
-                            {/* Geri sayım satırı */}
-                            <View style={styles.countdownRow}>
-                                {isUrgent ? (
-                                    <Text style={[styles.countdownText, { color: Colors.error }]}>
-                                        ⚡ Son {item.expiresIn} saniye!
+                                    <Text style={styles.infoChipText}>
+                                        {item.estimatedArrival ? new Date(item.estimatedArrival).toLocaleDateString() : 'Belirtilmedi'}
                                     </Text>
-                                ) : (
-                                    <Text style={[styles.countdownText, { color: Colors.gray }]}>
-                                        ⏳ {formatTime(item.expiresIn)} kaldı
-                                    </Text>
-                                )}
+                                </View>
                             </View>
 
                             {/* Alt Eylem Butonları */}
@@ -224,7 +211,7 @@ export const AvailableJobsScreen = () => {
                                 <View style={styles.jobInfoLeft}>
                                     <AppButton
                                         variant="outline"
-                                        title="Detay"
+                                        title="Sefer Detayı"
                                         size="sm"
                                         fullWidth
                                         onPress={() => navigation.navigate('JobDetail', { id: item.id })}
@@ -233,10 +220,10 @@ export const AvailableJobsScreen = () => {
                                 <View style={styles.jobInfoRight}>
                                     <AppButton
                                         variant="primary"
-                                        title="Hemen Al"
+                                        title="Seferi Üstlen"
                                         size="sm"
                                         fullWidth
-                                        onPress={() => handleAcceptJob(item.id, item.customerName)}
+                                        onPress={() => handleAcceptJob(item.id, item.trackingNumber)}
                                     />
                                 </View>
                             </View>

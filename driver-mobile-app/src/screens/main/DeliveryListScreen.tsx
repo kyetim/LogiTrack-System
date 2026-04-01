@@ -6,8 +6,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { Colors, Typography } from '@/theme/tokens';
-import { mockDeliveries } from '@/data/mockData';
 import { DeliveryCard } from '@/components/shared';
+import { useAppSelector } from '../../../store';
 
 type FilterType = 'all' | 'completed' | 'cancelled';
 
@@ -28,39 +28,47 @@ export const DeliveryListScreen = () => {
     const [activeFilter, setActiveFilter] = useState<FilterType>('all');
     const [searchQuery, setSearchQuery] = useState('');
 
+    const allShipments = useAppSelector(state => state.shipments.shipments);
+
     // Derived Data
+    const historyShipments = useMemo(() => {
+        // Geçmiş ekranında sadece tamamlanmış ve iptal edilmiş seferler gösterilir
+        return allShipments.filter(s => s.status === 'DELIVERED' || s.status === 'CANCELLED');
+    }, [allShipments]);
+
     const filteredDeliveries = useMemo(() => {
-        let result = mockDeliveries;
+        let result = historyShipments;
 
         // Apply Tab Filter
-        if (activeFilter !== 'all') {
-            result = result.filter(d => d.status === activeFilter);
+        if (activeFilter === 'completed') {
+            result = result.filter(d => d.status === 'DELIVERED');
+        } else if (activeFilter === 'cancelled') {
+            result = result.filter(d => d.status === 'CANCELLED');
         }
 
         // Apply Search Filter
         if (searchQuery.trim() !== '') {
             const query = searchQuery.toLowerCase();
             result = result.filter(d =>
-                d.customerName.toLowerCase().includes(query) ||
-                d.pickupAddress.toLowerCase().includes(query) ||
-                d.deliveryAddress.toLowerCase().includes(query)
+                (d.origin && d.origin.toLowerCase().includes(query)) ||
+                (d.destination && d.destination.toLowerCase().includes(query)) ||
+                (d.trackingNumber && d.trackingNumber.toLowerCase().includes(query))
             );
         }
 
         return result;
-    }, [activeFilter, searchQuery]);
+    }, [historyShipments, activeFilter, searchQuery]);
 
     const totalEarnings = useMemo(() => {
-        return filteredDeliveries.reduce((sum, current) => {
-            const priceVal = parseInt(current.price.replace('₺', ''), 10);
-            return sum + (isNaN(priceVal) ? 0 : priceVal);
-        }, 0);
+        // Redux objesinde fiyat yoksa default bir miktar gösterebiliriz
+        // veya şimdilik opsiyonel bir alan ekleyebiliriz. History'de Navlun Ücreti toplamı.
+        return filteredDeliveries.length * 1500; // Örnek: her sefer ortalama 1500₺
     }, [filteredDeliveries]);
 
     const renderEmptyState = () => (
         <View style={styles.emptyContainer}>
             <PackageX color={Colors.grayDim} size={48} />
-            <Text style={styles.emptyTitle}>Teslimat bulunamadı</Text>
+            <Text style={styles.emptyTitle}>Sefer bulunamadı</Text>
             <Text style={styles.emptySubtitle}>Filtreleri değiştirmeyi dene</Text>
         </View>
     );
@@ -70,13 +78,13 @@ export const DeliveryListScreen = () => {
 
             {/* ─── HEADER ─── */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Teslimatlarım</Text>
+                <Text style={styles.headerTitle}>Seferlerim</Text>
 
                 <View style={styles.searchContainer}>
                     <Search color={Colors.gray} size={20} />
                     <TextInput
                         style={styles.searchInput}
-                        placeholder="Teslimat ara..."
+                        placeholder="Sefer ara..."
                         placeholderTextColor="#444"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -113,7 +121,7 @@ export const DeliveryListScreen = () => {
 
             {/* ─── ÖZET SATIRI ─── */}
             <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{filteredDeliveries.length} teslimat</Text>
+                <Text style={styles.summaryLabel}>{filteredDeliveries.length} sefer</Text>
                 <Text style={styles.summaryValue}>₺{totalEarnings}</Text>
             </View>
 
@@ -128,12 +136,27 @@ export const DeliveryListScreen = () => {
                     index,
                 })}
                 ListEmptyComponent={renderEmptyState}
-                renderItem={({ item }) => (
-                    <DeliveryCard
-                        {...item}
-                        onPress={() => navigation.navigate('ActiveDelivery', { id: item.id })}
-                    />
-                )}
+                renderItem={({ item }) => {
+                    const mappedItem = {
+                        id: item.id,
+                        customerName: item.trackingNumber || 'Bilinmeyen Müşteri',
+                        pickupAddress: item.origin || 'Bilinmeyen Konum',
+                        deliveryAddress: item.destination || 'Bilinmeyen Konum',
+                        distance: 'Bilinmiyor', // API'de mesafe yoksa varsayılan
+                        estimatedTime: (item as any).estimatedArrival ? new Date((item as any).estimatedArrival).toLocaleDateString() : 'Belirtilmedi',
+                        price: '₺1500', // API'de price yoksa varsayılan
+                        status: (item.status === 'DELIVERED' ? 'completed' : 'cancelled') as any, // Component beklenen propları için map: 'completed' | 'cancelled'
+                        packageType: 'standard' as any,
+                        date: new Date(item.updatedAt || new Date()).toLocaleDateString()
+                    };
+
+                    return (
+                        <DeliveryCard
+                            {...mappedItem}
+                            onPress={() => navigation.navigate('ActiveDelivery', { id: item.id })}
+                        />
+                    );
+                }}
             />
         </SafeAreaView>
     );

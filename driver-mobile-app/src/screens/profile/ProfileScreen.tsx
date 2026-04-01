@@ -76,9 +76,9 @@ export const ProfileScreen = () => {
                             <Text style={styles.avatarText}>{avatarInitials}</Text>
                         </View>
                         <View style={styles.heroInfo}>
-                            <Text style={styles.driverName}>{fullName}</Text>
-                            <Text style={styles.driverVehicle}>{vehicleType} • {vehiclePlate}</Text>
-                            <Text style={styles.driverJoin}>{user?.email ?? ''}</Text>
+                            <Text style={styles.driverName} numberOfLines={1} ellipsizeMode="tail">{fullName}</Text>
+                            <Text style={styles.driverVehicle} numberOfLines={1} ellipsizeMode="tail">{vehicleType} • {vehiclePlate}</Text>
+                            <Text style={styles.driverJoin} numberOfLines={1} ellipsizeMode="tail">{user?.email ?? ''}</Text>
                         </View>
                         <View style={styles.heroBadge}>
                             <StatusBadge status={isOnDuty ? 'online' : 'offline'} size="sm" showDot={true} />
@@ -326,9 +326,8 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     heroBadge: {
-        position: 'absolute',
-        top: 24,
-        right: 24,
+        alignSelf: 'flex-start',
+        marginLeft: 8,
     },
     sectionHeader: {
         marginBottom: 12,

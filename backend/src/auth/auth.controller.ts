@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Get, Patch, Request, Res, Req } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Get, Patch, Request, Res, Req, UnauthorizedException } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -105,15 +105,29 @@ export class AuthController {
         return this.authService.resetPassword(dto);
     }
 
-    @UseGuards(JwtAuthGuard)
     @Post('refresh')
-    @ApiBearerAuth()
     @ApiOperation({ summary: 'Access token yenile' })
+    @ApiBody({ schema: { type: 'object', properties: { refresh_token: { type: 'string' } } } })
     async refresh(
-        @Request() req: { user: { id: string } },
+        @Body() body: { refresh_token?: string },
+        @Req() req: any,
         @Res({ passthrough: true }) res: Response,
     ) {
-        const result = await this.authService.refreshToken(req.user.id);
+        const token = body.refresh_token || req.cookies?.refresh_token;
+        if (!token) {
+            throw new UnauthorizedException('Refresh token gerekli');
+        }
+
+        let payload;
+        try {
+            payload = await this.authService['jwtService'].verifyAsync(token, {
+                secret: process.env.JWT_REFRESH_SECRET,
+            });
+        } catch (error) {
+            throw new UnauthorizedException('Geçersiz veya süresi dolmuş refresh token');
+        }
+
+        const result = await this.authService.refreshToken(payload.sub);
         const isProd = process.env.NODE_ENV === 'production';
 
         // Yeni access token'ı cookie olarak da ekle

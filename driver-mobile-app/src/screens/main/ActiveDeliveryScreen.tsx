@@ -42,7 +42,7 @@ export const ActiveDeliveryScreen = () => {
                 <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.goBack()} style={styles.backButton}>
                     <ChevronLeft color={Colors.white} size={28} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Teslimat Detayı</Text>
+                <Text style={styles.headerTitle}>Sefer Detayı</Text>
                 <View style={[styles.headerRight, { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 12 }]}>
                     <TouchableOpacity
                         activeOpacity={0.8}
@@ -106,7 +106,7 @@ export const ActiveDeliveryScreen = () => {
                                 </View>
                                 <View style={styles.customerInfo}>
                                     <Text style={styles.customerName}>{deliveryData.customerName}</Text>
-                                    <Text style={styles.customerRole}>Teslimat Alıcısı</Text>
+                                    <Text style={styles.customerRole}>Mal Kabul Alıcısı</Text>
                                 </View>
                                 <View style={styles.actionButtons}>
                                     <TouchableOpacity activeOpacity={0.8} style={styles.iconButton} onPress={() => setCallVisible(true)}>
@@ -134,7 +134,7 @@ export const ActiveDeliveryScreen = () => {
                                     </View>
                                     <View style={styles.addressSpacer} />
                                     <View style={styles.addressBlock}>
-                                        <Text style={styles.addressLabel}>Teslimat Noktası</Text>
+                                        <Text style={styles.addressLabel}>Teslim Noktası</Text>
                                         <Text style={styles.addressText}>{deliveryData.deliveryAddress}</Text>
                                     </View>
                                 </View>
@@ -146,7 +146,7 @@ export const ActiveDeliveryScreen = () => {
                             <View style={styles.packageRow}>
                                 <Package color={Colors.primary} size={24} />
                                 <View style={styles.customerInfo}>
-                                    <Text style={styles.packageTitle}>Standart Paket — Kutu</Text>
+                                    <Text style={styles.packageTitle}>Standart Yük — Palet</Text>
                                     <Text style={styles.packageSubtitle}>Ağırlık/Boyut bilgisi mevcut değil</Text>
                                 </View>
                             </View>

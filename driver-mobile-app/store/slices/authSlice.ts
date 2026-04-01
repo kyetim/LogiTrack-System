@@ -26,6 +26,9 @@ export const login = createAsyncThunk(
 
             // Store token
             await secureStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.access_token);
+            if (response.refresh_token) {
+                await secureStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, response.refresh_token);
+            }
             await secureStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response.user));
 
             // Get driver profile
@@ -76,6 +79,7 @@ export const logout = createAsyncThunk(
         // Clear storage first
         await secureStorage.multiRemove([
             STORAGE_KEYS.AUTH_TOKEN,
+            STORAGE_KEYS.REFRESH_TOKEN,
             STORAGE_KEYS.USER_DATA,
             STORAGE_KEYS.DRIVER,
             STORAGE_KEYS.CACHED_SHIPMENTS,

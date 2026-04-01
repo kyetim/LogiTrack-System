@@ -13,6 +13,7 @@ export const GPS_ACCURACY = 'high'; // 'low' | 'balanced' | 'high' | 'best'
 // Storage Keys
 export const STORAGE_KEYS = {
     AUTH_TOKEN: '@logitrack:auth_token',
+    REFRESH_TOKEN: '@logitrack:refresh_token',
     USER_DATA: '@logitrack:user_data',
     DRIVER: '@logitrack:driver',
     OFFLINE_QUEUE: '@logitrack:offline_queue',

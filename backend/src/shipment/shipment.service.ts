@@ -196,6 +196,39 @@ export class ShipmentService {
         return updatedShipment;
     }
 
+    async acceptShipment(id: string, driverId: string) {
+        const shipment = await this.findOne(id);
+
+        if (shipment.driverId) {
+            throw new BadRequestException('Bu iş çoktan başka bir sürücü tarafından alınmış.');
+        }
+
+        if (shipment.status !== ShipmentStatus.PENDING) {
+            throw new BadRequestException('Bu iş artık müsait değil.');
+        }
+
+        const updatedShipment = await this.prisma.shipment.update({
+            where: { id },
+            data: {
+                driverId,
+                status: ShipmentStatus.IN_TRANSIT,
+            },
+            include: {
+                driver: {
+                    select: {
+                        id: true,
+                        email: true,
+                        role: true,
+                    },
+                },
+            },
+        });
+
+        // Notify admins/dispatchers (optional, can be added later)
+
+        return updatedShipment;
+    }
+
     async updateStatus(id: string, updateStatusDto: UpdateStatusDto) {
         const shipment = await this.findOne(id);
         const { status, proofOfDelivery } = updateStatusDto;

@@ -189,6 +189,15 @@ export class ShipmentController {
         return this.shipmentService.assignDriver(id, assignDriverDto.driverId);
     }
 
+    @Patch(':id/accept')
+    @Roles(UserRole.DRIVER)
+    @ApiOperation({ summary: 'Sürücü işi (kabul) üzerine alır' })
+    @ApiParam({ name: 'id', type: String })
+    @ApiResponse({ status: 200, description: 'Sürücü işi başarıyla aldı.' })
+    acceptShipment(@Param('id') id: string, @Request() req) {
+        return this.shipmentService.acceptShipment(id, req.user.id);
+    }
+
     @Patch(':id/status')
     @Roles(UserRole.ADMIN, UserRole.DISPATCHER, UserRole.DRIVER)
     async updateStatus(

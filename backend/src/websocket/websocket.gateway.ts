@@ -37,7 +37,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
     try {
       let token = client.handshake.auth.token;
 
-      this.logger.debug(`[WS] Incoming connection. origin: ${client.handshake.headers.origin}, cookie: ${client.handshake.headers.cookie}`);
+      this.logger.log(`[WS] Incoming connection. origin: ${client.handshake.headers.origin}, cookie: ${client.handshake.headers.cookie}`);
 
       // Admin Dashboard uses HttpOnly cookies, so token won't be in auth.token
       if (!token && client.handshake.headers.cookie) {
@@ -45,7 +45,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
         const accessCookie = cookies.find(c => c.trim().startsWith('access_token='));
         if (accessCookie) {
           token = accessCookie.split('=')[1];
-          this.logger.debug(`[WS] Extracted token from cookie!`);
+          this.logger.log(`[WS] Extracted token from cookie!`);
         }
       }
 
@@ -96,7 +96,7 @@ export class WebsocketGateway implements OnGatewayConnection, OnGatewayDisconnec
 
       // Get driver profile
       const driverProfile = await this.locationService['prisma'].driverProfile.findUnique({
-        where: { userId: user.id },
+        where: { userId: user.sub },
       });
 
       if (!driverProfile) {
