@@ -45,19 +45,21 @@ export class AuditInterceptor implements NestInterceptor {
         const userAgent = req.headers['user-agent'];
 
         // Determine Entity Type simply based on URL (heuristic)
-        let entityType = 'UNKNOWN';
+        let entityType = 'SYSTEM';
         if (url.includes('/shipments')) entityType = 'SHIPMENT';
         else if (url.includes('/users')) entityType = 'USER';
         else if (url.includes('/drivers')) entityType = 'DRIVER';
         else if (url.includes('/vehicles')) entityType = 'VEHICLE';
-        else if (url.includes('/auth/login')) entityType = 'AUTH';
+        else if (url.includes('/auth')) entityType = 'AUTH';
         else if (url.includes('/companies')) entityType = 'COMPANY';
         else if (url.includes('/support')) entityType = 'SUPPORT';
 
         // Determine Action
         let action: AuditAction = AuditAction.UPDATE;
         if (method === 'POST') {
-            action = url.includes('login') ? AuditAction.LOGIN : AuditAction.CREATE;
+            if (url.includes('logout')) action = AuditAction.LOGOUT;
+            else if (url.includes('login')) action = AuditAction.LOGIN;
+            else action = AuditAction.CREATE;
         } else if (method === 'DELETE') {
             action = AuditAction.DELETE;
         }
@@ -68,19 +70,21 @@ export class AuditInterceptor implements NestInterceptor {
         // Handle the request and capture response
         return next.handle().pipe(
             tap((response) => {
-                // If the request succeeds, we log it asynchronously
-                this.auditService.createLog({
-                    userId: user?.id || null, // Might be null on login/register
-                    action,
-                    entityType,
-                    entityId,
-                    newValues: body ? this.maskSensitiveFields(body) : null,
-                    ipAddress,
-                    userAgent,
-                    details: `${method} ${url}`,
-                }).catch(err => {
-                    console.error('Failed to save audit log:', err);
-                });
+                // Fire-and-forget: log asynchronously, never let it affect the HTTP response
+                Promise.resolve()
+                    .then(() => this.auditService.createLog({
+                        userId: user?.id || null,
+                        action,
+                        entityType,
+                        entityId,
+                        newValues: body ? this.maskSensitiveFields(body) : null,
+                        ipAddress,
+                        userAgent,
+                        details: `${method} ${url}`,
+                    }))
+                    .catch(err => {
+                        console.error('Failed to save audit log:', err);
+                    });
             }),
         );
     }

@@ -83,11 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     const logout = async () => {
-        try {
-            await api.post('/auth/logout');
-        } catch (e) {
-            console.error('Logout error', e);
-        }
+        // Best-effort: backend bildirimi, başarısız olsa da logout tamamlanır
+        api.post('/auth/logout').catch(() => {});
         localStorage.removeItem('token');
         setUser(null);
         router.push('/login');

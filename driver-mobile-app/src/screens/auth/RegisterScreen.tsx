@@ -18,6 +18,10 @@ import { AppButton } from '@/components/ui/AppButton';
 import { api } from '../../../services/api';
 import * as DocumentPicker from 'expo-document-picker';
 
+import { registerSchema } from '../../../utils/validators';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
+import { parseApiError } from '../../../utils/apiError';
+
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 
@@ -26,7 +30,7 @@ interface RegisterScreenProps {
 }
 
 export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) => {
-    // Form State
+    // ── Form State ──────────────────────────────────────────────────────────
     const [form, setForm] = useState({
         fullName: '',
         email: '',
@@ -36,108 +40,62 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
         confirmPassword: '',
     });
     const [licenseUploaded, setLicenseUploaded] = useState(false);
-    const [licenseFile, setLicenseFile] = useState<any>(null);
     const [termsAccepted, setTermsAccepted] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    // Errors State
-    const [errors, setErrors] = useState<{
-        fullName?: string;
-        email?: string;
-        phone?: string;
-        licenseNumber?: string;
-        password?: string;
-        confirmPassword?: string;
-        terms?: string;
-        license?: string;
-    }>({});
+    // ✅ Zod tabanlı form validasyonu — tüm alanlar (checkbox + upload dahil) tek şemada
+    const { errors, validate, clearError } = useFormValidation(registerSchema);
 
-    const validateEmail = useCallback((val: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), []);
-    const validatePhone = useCallback((val: string) => val.length >= 10, []); // Basic check
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    const updateField = useCallback(
+        (field: keyof typeof form) => (value: string) => {
+            setForm((prev) => ({ ...prev, [field]: value }));
+            clearError(field as any);
+        },
+        [clearError]
+    );
 
+    // ── Submit ──────────────────────────────────────────────────────────────
     const handleRegister = useCallback(async () => {
-        let newErrors: any = {};
-        let isValid = true;
+        // Zod şemasına checkbox/upload durumları da dahil
+        const isValid = validate({
+            ...form,
+            licenseUploaded: licenseUploaded as any,
+            termsAccepted: termsAccepted as any,
+        });
 
-        if (!form.fullName.trim()) {
-            newErrors.fullName = 'Ad Soyad zorunludur.';
-            isValid = false;
+        if (!isValid) return;
+
+        setIsLoading(true);
+        try {
+            const nameParts = form.fullName.trim().split(' ');
+            const firstName = nameParts[0];
+            const lastName = nameParts.slice(1).join(' ') || '';
+
+            await api.registerDriver({
+                email: form.email,
+                password: form.password,
+                phoneNumber: form.phone,
+                licenseNumber: form.licenseNumber,
+                firstName,
+                lastName,
+            });
+
+            Alert.alert(
+                'Kayıt Başarılı',
+                'Hesabınız oluşturuldu. Yönetici onayından sonra giriş yapabilirsiniz.',
+                [{ text: 'Tamam', onPress: () => navigation.navigate('Login') }]
+            );
+        } catch (error: unknown) {
+            // ✅ Merkezi apiError parser
+            const { message } = parseApiError(error);
+            Alert.alert('Kayıt Başarısız', message);
+        } finally {
+            setIsLoading(false);
         }
+    }, [form, licenseUploaded, termsAccepted, validate, navigation]);
 
-        if (!form.email || !validateEmail(form.email)) {
-            newErrors.email = 'Geçerli bir e-posta adresi giriniz.';
-            isValid = false;
-        }
-
-        if (!form.phone || !validatePhone(form.phone)) {
-            newErrors.phone = 'Geçerli bir telefon numarası giriniz.';
-            isValid = false;
-        }
-
-        if (!form.licenseNumber || form.licenseNumber.length < 4) {
-            newErrors.licenseNumber = 'Geçerli bir ehliyet numarası giriniz.';
-            isValid = false;
-        }
-
-        if (!form.password || form.password.length < 6) {
-            newErrors.password = 'Şifre en az 6 karakter olmalıdır.';
-            isValid = false;
-        }
-
-        if (form.password !== form.confirmPassword) {
-            newErrors.confirmPassword = 'Şifreler eşleşmiyor.';
-            isValid = false;
-        }
-
-        if (!licenseUploaded) {
-            newErrors.license = 'Sürücü belgesi yüklenmelidir.';
-            isValid = false;
-        }
-
-        if (!termsAccepted) {
-            newErrors.terms = 'Kullanım koşullarını kabul etmelisiniz.';
-            isValid = false;
-        }
-
-        setErrors(newErrors);
-
-        if (isValid) {
-            setIsLoading(true);
-            try {
-                const nameParts = form.fullName.trim().split(' ');
-                const firstName = nameParts[0];
-                const lastName = nameParts.slice(1).join(' ') || '';
-
-                await api.registerDriver({
-                    email: form.email,
-                    password: form.password,
-                    phoneNumber: form.phone,
-                    licenseNumber: form.licenseNumber,
-                    firstName,
-                    lastName,
-                });
-
-                // Not: Şimdilik fotoğraf backend'e ayrıca yüklenmiyor çünkü "register-driver" endpoint sadece metin alıyor.
-                // İleride driver onaylandıktan sonra hesaptan belge foto yüklemesi the system'a açılacaktır.
-
-                Alert.alert(
-                    'Kayıt Başarılı',
-                    'Hesabınız oluşturuldu. Yönetici onayından sonra giriş yapabilirsiniz.',
-                    [{ text: 'Tamam', onPress: () => navigation.navigate('Login') }]
-                );
-            } catch (error: any) {
-                const message = error.response?.data?.message
-                    ? Array.isArray(error.response.data.message)
-                        ? error.response.data.message.join('\n')
-                        : error.response.data.message
-                    : 'Kayıt işlemi başarısız. Lütfen tekrar deneyin.';
-                Alert.alert('Hata', message);
-            } finally {
-                setIsLoading(false);
-            }
-        }
-    }, [form, licenseUploaded, termsAccepted, validateEmail, validatePhone, navigation]);
-
+    // ── Document Picker ─────────────────────────────────────────────────────
     const handlePickDocument = async () => {
         try {
             const result = await DocumentPicker.getDocumentAsync({
@@ -145,16 +103,14 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
             });
             if (!result.canceled && result.assets && result.assets.length > 0) {
                 setLicenseUploaded(true);
-                setLicenseFile(result.assets[0]);
-                setErrors((prev) => ({ ...prev, license: undefined }));
+                clearError('licenseUploaded' as any);
             } else if (__DEV__) {
-                console.log("Emülatör dev modu: Dosya seçimi iptal edildi veya dosya yok, otomatik başarılı sayılıyor.");
+                // Emülatör: dosya seçimi iptal edilse de başarılı say
                 setLicenseUploaded(true);
-                setErrors((prev) => ({ ...prev, license: undefined }));
+                clearError('licenseUploaded' as any);
             }
-        } catch (error) {
-            console.log("Belge seçme hatası:", error);
-            Alert.alert("Hata", "Dosya seçilirken bir hata oluştu.");
+        } catch {
+            Alert.alert('Hata', 'Dosya seçilirken bir hata oluştu.');
         }
     };
 
@@ -180,9 +136,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         Hesap{'\n'}
                         <Text style={styles.titleHighlight}>Oluştur</Text>
                     </Text>
-                    <Text style={styles.subtitle}>
-                        Aramıza katılmak için formu doldur.
-                    </Text>
+                    <Text style={styles.subtitle}>Aramıza katılmak için formu doldur.</Text>
 
                     <View style={styles.spacer32} />
 
@@ -191,10 +145,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         label="Ad Soyad"
                         placeholder="Örn. Ahmet Yılmaz"
                         value={form.fullName}
-                        onChangeText={(t) => {
-                            setForm((prev) => ({ ...prev, fullName: t }));
-                            setErrors({ ...errors, fullName: undefined });
-                        }}
+                        onChangeText={updateField('fullName')}
                         icon={<User color={Colors.gray} size={18} />}
                         error={errors.fullName}
                     />
@@ -203,12 +154,10 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         label="E-Posta"
                         placeholder="E-posta adresinizi giriniz"
                         value={form.email}
-                        onChangeText={(t) => {
-                            setForm((prev) => ({ ...prev, email: t }));
-                            setErrors({ ...errors, email: undefined });
-                        }}
+                        onChangeText={updateField('email')}
                         icon={<Mail color={Colors.gray} size={18} />}
                         keyboardType="email-address"
+                        autoCapitalize="none"
                         error={errors.email}
                     />
 
@@ -216,10 +165,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         label="Telefon"
                         placeholder="+90 5XX XXX XX XX"
                         value={form.phone}
-                        onChangeText={(t) => {
-                            setForm((prev) => ({ ...prev, phone: t }));
-                            setErrors({ ...errors, phone: undefined });
-                        }}
+                        onChangeText={updateField('phone')}
                         icon={<Phone color={Colors.gray} size={18} />}
                         keyboardType="phone-pad"
                         error={errors.phone}
@@ -229,10 +175,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         label="Ehliyet Numarası"
                         placeholder="Örn. 12345678"
                         value={form.licenseNumber}
-                        onChangeText={(t) => {
-                            setForm((prev) => ({ ...prev, licenseNumber: t }));
-                            setErrors({ ...errors, licenseNumber: undefined });
-                        }}
+                        onChangeText={updateField('licenseNumber')}
                         icon={<User color={Colors.gray} size={18} />}
                         error={errors.licenseNumber}
                     />
@@ -241,10 +184,7 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         label="Şifre"
                         placeholder="Şifrenizi oluşturun"
                         value={form.password}
-                        onChangeText={(t) => {
-                            setForm((prev) => ({ ...prev, password: t }));
-                            setErrors({ ...errors, password: undefined });
-                        }}
+                        onChangeText={updateField('password')}
                         icon={<Lock color={Colors.gray} size={18} />}
                         secureTextEntry
                         showToggle
@@ -255,21 +195,21 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                         label="Şifre Tekrar"
                         placeholder="Şifrenizi tekrar giriniz"
                         value={form.confirmPassword}
-                        onChangeText={(t) => {
-                            setForm((prev) => ({ ...prev, confirmPassword: t }));
-                            setErrors({ ...errors, confirmPassword: undefined });
-                        }}
+                        onChangeText={updateField('confirmPassword')}
                         icon={<Lock color={Colors.gray} size={18} />}
                         secureTextEntry
                         showToggle
                         error={errors.confirmPassword}
                     />
 
-                    {/* Sürücü Belgesi Upload Box */}
+                    {/* Sürücü Belgesi Upload */}
                     <Text style={styles.fieldLabel}>SÜRÜCÜ BELGESİ</Text>
                     <TouchableOpacity
                         activeOpacity={0.8}
-                        style={styles.uploadContainer}
+                        style={[
+                            styles.uploadContainer,
+                            (errors as any).licenseUploaded && { borderColor: Colors.error },
+                        ]}
                         onPress={handlePickDocument}
                     >
                         <View style={styles.uploadLeft}>
@@ -288,39 +228,46 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
                             </View>
                         )}
                     </TouchableOpacity>
-                    {errors.license && <Text style={styles.errorText}>{errors.license}</Text>}
+                    {(errors as any).licenseUploaded && (
+                        <Text style={styles.errorText}>{(errors as any).licenseUploaded}</Text>
+                    )}
 
                     <View style={styles.spacer24} />
 
-                    {/* Checkbox (Terms of Service) */}
+                    {/* Terms Checkbox */}
                     <TouchableOpacity
                         style={styles.checkboxContainer}
                         activeOpacity={0.8}
                         onPress={() => {
-                            setTermsAccepted(!termsAccepted);
-                            setErrors({ ...errors, terms: undefined });
+                            setTermsAccepted((prev) => !prev);
+                            clearError('termsAccepted' as any);
                         }}
                     >
                         <View
                             style={[
                                 styles.checkbox,
                                 termsAccepted && styles.checkboxActive,
-                                errors.terms && !termsAccepted && { borderColor: Colors.error },
+                                (errors as any).termsAccepted && !termsAccepted && {
+                                    borderColor: Colors.error,
+                                },
                             ]}
                         >
                             {termsAccepted && <Check color="#000" size={14} strokeWidth={3} />}
                         </View>
                         <Text style={styles.checkboxText}>
                             <Text style={styles.highlightText}>Kullanım Koşulları</Text> ve{' '}
-                            <Text style={styles.highlightText}>Gizlilik Politikası</Text>'nı okudum ve kabul
-                            ediyorum.
+                            <Text style={styles.highlightText}>Gizlilik Politikası</Text>'nı okudum
+                            ve kabul ediyorum.
                         </Text>
                     </TouchableOpacity>
-                    {errors.terms && <Text style={[styles.errorText, { marginLeft: 0 }]}>{errors.terms}</Text>}
+                    {(errors as any).termsAccepted && (
+                        <Text style={[styles.errorText, { marginLeft: 0 }]}>
+                            {(errors as any).termsAccepted}
+                        </Text>
+                    )}
 
                     <View style={styles.spacer24} />
 
-                    {/* Submit Button */}
                     <AppButton
                         title="Kayıt Ol"
                         onPress={handleRegister}
@@ -331,10 +278,14 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 
                     <View style={styles.spacer24} />
 
-                    {/* Login Link */}
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.loginBtn} activeOpacity={0.8}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={styles.loginBtn}
+                        activeOpacity={0.8}
+                    >
                         <Text style={styles.loginText}>
-                            Zaten hesabın var mı? <Text style={styles.loginHighlight}>Giriş Yap</Text>
+                            Zaten hesabın var mı?{' '}
+                            <Text style={styles.loginHighlight}>Giriş Yap</Text>
                         </Text>
                     </TouchableOpacity>
                 </ScrollView>
@@ -344,23 +295,10 @@ export const RegisterScreen: React.FC<RegisterScreenProps> = ({ navigation }) =>
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: Colors.background,
-    },
-    keyboardAvoid: {
-        flex: 1,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        paddingHorizontal: 24,
-        paddingTop: 32,
-        paddingBottom: 40,
-    },
-    logoRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
+    container: { flex: 1, backgroundColor: Colors.background },
+    keyboardAvoid: { flex: 1 },
+    scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 32, paddingBottom: 40 },
+    logoRow: { flexDirection: 'row', alignItems: 'center' },
     logoText: {
         fontFamily: Typography.fontDisplayBold,
         fontSize: 20,
@@ -374,9 +312,7 @@ const styles = StyleSheet.create({
         lineHeight: 34,
         marginTop: 40,
     },
-    titleHighlight: {
-        color: Colors.primary,
-    },
+    titleHighlight: { color: Colors.primary },
     subtitle: {
         fontFamily: Typography.fontBody,
         fontSize: 13,
@@ -384,7 +320,6 @@ const styles = StyleSheet.create({
         marginTop: 8,
         marginBottom: 8,
     },
-    // Document Upload Styles
     fieldLabel: {
         fontFamily: Typography.fontBodySemiBold,
         fontSize: 11,
@@ -395,7 +330,7 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     uploadContainer: {
-        backgroundColor: Colors.surface, // #1A1A1A
+        backgroundColor: Colors.surface,
         borderWidth: 1.5,
         borderColor: '#333333',
         borderStyle: 'dashed',
@@ -405,10 +340,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
     },
-    uploadLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
+    uploadLeft: { flexDirection: 'row', alignItems: 'center' },
     uploadText: {
         fontFamily: Typography.fontBody,
         fontSize: 14,
@@ -427,7 +359,7 @@ const styles = StyleSheet.create({
         color: Colors.primary,
     },
     uploadChipSuccess: {
-        backgroundColor: 'rgba(76, 175, 80, 0.15)', // Success matching alpha
+        backgroundColor: 'rgba(76, 175, 80, 0.15)',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: Radius.full,
@@ -440,11 +372,9 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: Colors.success,
     },
-    // Checkbox Styles
     checkboxContainer: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        backgroundColor: 'transparent',
         paddingRight: 10,
     },
     checkbox: {
@@ -455,7 +385,7 @@ const styles = StyleSheet.create({
         borderColor: '#333333',
         backgroundColor: Colors.surface,
         marginRight: 12,
-        marginTop: 2, // align with first line of text
+        marginTop: 2,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -470,10 +400,7 @@ const styles = StyleSheet.create({
         color: Colors.gray,
         lineHeight: 20,
     },
-    highlightText: {
-        color: Colors.primary,
-        fontFamily: Typography.fontBodyMedium,
-    },
+    highlightText: { color: Colors.primary, fontFamily: Typography.fontBodyMedium },
     errorText: {
         fontFamily: Typography.fontBody,
         fontSize: 12,
@@ -481,20 +408,9 @@ const styles = StyleSheet.create({
         marginTop: 6,
         marginLeft: 4,
     },
-    // Login Button Styles
-    loginBtn: {
-        paddingVertical: 8,
-        alignItems: 'center',
-    },
-    loginText: {
-        fontFamily: Typography.fontBody,
-        fontSize: 14,
-        color: Colors.gray,
-    },
-    loginHighlight: {
-        fontFamily: Typography.fontBodySemiBold,
-        color: Colors.primary,
-    },
+    loginBtn: { paddingVertical: 8, alignItems: 'center' },
+    loginText: { fontFamily: Typography.fontBody, fontSize: 14, color: Colors.gray },
+    loginHighlight: { fontFamily: Typography.fontBodySemiBold, color: Colors.primary },
     spacer32: { height: 32 },
     spacer24: { height: 24 },
 });

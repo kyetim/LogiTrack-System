@@ -4,7 +4,6 @@ import axiosRetry from 'axios-retry';
 import { API_URL, STORAGE_KEYS } from '../utils/constants';
 import { AuthResponse, ApiResponse, Shipment, LocationUpdate, Driver } from '../types';
 import { store } from '../store';
-import { clearAuth } from '../store/slices/authSlice';
 import { stopLocationTracking } from './locationTracking';
 
 class ApiClient {
@@ -84,17 +83,21 @@ class ApiClient {
                     }
 
                     this.isLoggingOut = true;
-                    // Token expired - clear storage
+                    // Kill daemon background loop önce durdur
+                    await stopLocationTracking();
+                    // Storage'ı burada manuel temizle (logout thunk'ını dispatch
+                    // edemeyiz — api.ts → authSlice → api.ts circular dependency).
                     await secureStorage.multiRemove([
                         STORAGE_KEYS.AUTH_TOKEN,
                         STORAGE_KEYS.REFRESH_TOKEN,
                         STORAGE_KEYS.USER_DATA,
                         STORAGE_KEYS.DRIVER,
                     ]);
-                    // Kill daemon background loop
-                    await stopLocationTracking();
-                    // Clear Redux state
-                    store.dispatch(clearAuth());
+                    // Plain action type dispatch: rootReducer'daki
+                    // auth/logout/fulfilled handler'ı tetikler →
+                    // TÜM slice'lar + RTK Query cache sıfırlanır.
+                    // clearAuth() sadece auth slice'ı sıfırladığından kullanılmıyor.
+                    store.dispatch({ type: 'auth/logout/fulfilled' });
 
                     setTimeout(() => { this.isLoggingOut = false; }, 3000);
                 }

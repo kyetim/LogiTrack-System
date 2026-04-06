@@ -13,7 +13,7 @@
  */
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import secureStorage from '../../src/services/secureStorage';
 import { STORAGE_KEYS, API_URL } from '../../utils/constants';
 import type {
     DriverScore,
@@ -43,11 +43,14 @@ export interface Message {
 }
 
 // ─── Base Query with JWT Auth ─────────────────────────────────────────────────
+//
+// KRİTİK: Token, auth flow ile aynı kaynaktan (secureStorage) okunmalı.
+// AsyncStorage kullanımı, SecureStore migrasyon sonrası 401'e yol açıyordu.
 
 const baseQuery = fetchBaseQuery({
     baseUrl: API_URL,
     prepareHeaders: async (headers) => {
-        const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+        const token = await secureStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
         if (token) {
             headers.set('Authorization', `Bearer ${token}`);
         }

@@ -26,6 +26,9 @@ import * as Notifications from 'expo-notifications';
 
 import { Colors, Typography, Radius } from '@/theme/tokens';
 import { api } from '../../../services/api';
+import { changePasswordSchema } from '../../../utils/validators';
+import { useFormValidation } from '../../hooks/useFormValidation';
+import { parseApiError } from '../../../utils/apiError';
 
 export const SettingsScreen = () => {
     const navigation = useNavigation<any>();
@@ -61,6 +64,9 @@ export const SettingsScreen = () => {
     const [showCurrent, setShowCurrent] = useState(false);
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+
+    const { errors: pwErrors, validate: validatePw, clearAllErrors: clearPwErrors } =
+        useFormValidation(changePasswordSchema);
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -145,18 +151,13 @@ export const SettingsScreen = () => {
     };
 
     const handleChangePassword = async () => {
-        if (!currentPassword || !newPassword || !confirmPassword) {
-            Alert.alert('Hata', 'Tüm alanları doldurun.');
+        // Zod ile doğrula — changePasswordSchema ile tutarlı kurallar
+        if (!validatePw({ currentPassword, newPassword, confirmNewPassword: confirmPassword })) {
+            const first = Object.values(pwErrors)[0];
+            if (first) Alert.alert('Hata', first);
             return;
         }
-        if (newPassword.length < 8) {
-            Alert.alert('Hata', 'Yeni şifre en az 8 karakter olmalıdır.');
-            return;
-        }
-        if (newPassword !== confirmPassword) {
-            Alert.alert('Hata', 'Yeni şifreler eşleşmiyor.');
-            return;
-        }
+
         try {
             setIsChangingPassword(true);
             await api.changePassword(currentPassword, newPassword);
@@ -164,10 +165,11 @@ export const SettingsScreen = () => {
             setCurrentPassword('');
             setNewPassword('');
             setConfirmPassword('');
+            clearPwErrors();
             Alert.alert('Başarılı', 'Şifreniz başarıyla değiştirildi.');
-        } catch (error: any) {
-            const msg = error?.response?.data?.message || 'Şifre değiştirilirken bir hata oluştu.';
-            Alert.alert('Hata', msg);
+        } catch (error: unknown) {
+            const { message } = parseApiError(error);
+            Alert.alert('Hata', message);
         } finally {
             setIsChangingPassword(false);
         }
@@ -382,12 +384,12 @@ export const SettingsScreen = () => {
                 visible={showChangePassword}
                 animationType="slide"
                 presentationStyle="pageSheet"
-                onRequestClose={() => setShowChangePassword(false)}
+                onRequestClose={() => { setShowChangePassword(false); clearPwErrors(); }}
             >
                 <View style={styles.modalContainer}>
                     <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Şifre Değiştir</Text>
-                        <TouchableOpacity onPress={() => setShowChangePassword(false)}>
+                        <TouchableOpacity onPress={() => { setShowChangePassword(false); clearPwErrors(); }}>
                             <Text style={styles.modalClose}>İptal</Text>
                         </TouchableOpacity>
                     </View>

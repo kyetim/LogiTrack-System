@@ -17,11 +17,13 @@ import { AppButton } from '@/components/ui/AppButton';
 
 import { useAppDispatch } from '../../../store';
 import { login } from '../../../store/slices/authSlice';
+import { loginSchema } from '../../../utils/validators';
+import { useFormValidation } from '../../../src/hooks/useFormValidation';
+import { parseApiError } from '../../../utils/apiError';
 
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AuthStackParamList } from '@/navigation/AuthNavigator';
 
-// Define expected Navigation prop types for TS
 interface LoginScreenProps {
     navigation: NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 }
@@ -32,47 +34,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Error States
-    const [emailError, setEmailError] = useState('');
-    const [passwordError, setPasswordError] = useState('');
-
-    // Basic email validation regex
-    const validateEmail = useCallback((val: string) => {
-        return val.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
-    }, []);
+    // ✅ Zod tabanlı form validasyonu — merkezi, tip-güvenli
+    const { errors, validate, clearError, setFieldError } = useFormValidation(loginSchema);
 
     const handleLogin = useCallback(() => {
-        let isValid = true;
-        setEmailError('');
-        setPasswordError('');
+        // Zod ile doğrula — hata varsa false döner ve state'e yazar
+        if (!validate({ email, password })) return;
 
-        if (!email || !validateEmail(email)) {
-            setEmailError('Lütfen geçerli bir e-posta adresi girin.');
-            isValid = false;
-        }
-
-        if (!password || password.length < 6) {
-            setPasswordError('Şifreniz en az 6 karakter olmalıdır.');
-            isValid = false;
-        }
-
-        if (isValid) {
-            console.log('🔘 Giriş Yap butonuna basıldı. Dispatching actions...');
-            setIsLoading(true);
-            dispatch(login({ email, password }))
-                .unwrap()
-                .then(() => {
-                    console.log('✅ LoginScreen: Dispatch başarılı, yönlendiriliyor...');
-                    setIsLoading(false);
-                })
-                .catch((err) => {
-                    console.log('❌ LoginScreen: Dispatch hata fırlattı:', err);
-                    setPasswordError(typeof err === 'string' ? err : 'Giriş yapılamadı.');
-                    setIsLoading(false);
-                });
-        }
-    }, [email, password, validateEmail, dispatch]);
-
+        setIsLoading(true);
+        dispatch(login({ email, password }))
+            .unwrap()
+            .catch((err: unknown) => {
+                // ✅ Merkezi apiError parser — API'den dönen hata normalize edilir
+                const { message } = parseApiError(err);
+                setFieldError('password', message);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    }, [email, password, validate, dispatch, setFieldError]);
 
     return (
         <SafeAreaView style={styles.container}>
@@ -110,11 +90,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                             value={email}
                             onChangeText={(text) => {
                                 setEmail(text);
-                                if (emailError) setEmailError('');
+                                clearError('email');
                             }}
                             icon={<Mail color={Colors.gray} size={18} />}
                             keyboardType="email-address"
-                            error={emailError}
+                            autoCapitalize="none"
+                            error={errors.email}
                         />
 
                         <AppInput
@@ -123,12 +104,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
                             value={password}
                             onChangeText={(text) => {
                                 setPassword(text);
-                                if (passwordError) setPasswordError('');
+                                clearError('password');
                             }}
                             icon={<Lock color={Colors.gray} size={18} />}
                             secureTextEntry={true}
                             showToggle={true}
-                            error={passwordError}
+                            error={errors.password}
                         />
 
                         <View style={styles.spacer8} />
@@ -183,7 +164,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.background, // #0D0D0D
+        backgroundColor: Colors.background,
     },
     keyboardAvoid: {
         flex: 1,
@@ -205,19 +186,19 @@ const styles = StyleSheet.create({
         marginLeft: 12,
     },
     title: {
-        fontFamily: Typography.fontDisplayBold, // Syne_800ExtraBold
+        fontFamily: Typography.fontDisplayBold,
         fontSize: 26,
         color: Colors.white,
         lineHeight: 34,
         marginTop: 40,
     },
     titleHighlight: {
-        color: Colors.primary, // #FFD700
+        color: Colors.primary,
     },
     subtitle: {
-        fontFamily: Typography.fontBody, // Outfit_400Regular
+        fontFamily: Typography.fontBody,
         fontSize: 13,
-        color: Colors.gray, // #8A8A8A
+        color: Colors.gray,
         marginTop: 8,
     },
     formContainer: {
@@ -231,7 +212,7 @@ const styles = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 1,
-        backgroundColor: Colors.border, // #2A2A2A
+        backgroundColor: Colors.border,
     },
     dividerText: {
         fontFamily: Typography.fontBody,
@@ -247,7 +228,7 @@ const styles = StyleSheet.create({
         width: 52,
         height: 52,
         borderRadius: 26,
-        backgroundColor: Colors.surface, // #1A1A1A
+        backgroundColor: Colors.surface,
         borderWidth: 1.5,
         borderColor: '#333333',
         justifyContent: 'center',
@@ -255,17 +236,17 @@ const styles = StyleSheet.create({
     },
     bottomLinksContainer: {
         alignItems: 'center',
-        marginTop: 'auto', // Pushes this down if space allows
-        minHeight: 100, // ensure space
+        marginTop: 'auto',
+        minHeight: 100,
         justifyContent: 'center',
     },
     forgotPassBtn: {
         marginBottom: 24,
     },
     forgotPassText: {
-        fontFamily: Typography.fontBodyMedium, // Outfit_500Medium
+        fontFamily: Typography.fontBodyMedium,
         fontSize: 14,
-        color: Colors.primary, // #FFD700
+        color: Colors.primary,
     },
     registerBtn: {
         paddingVertical: 8,
